@@ -1,0 +1,23 @@
+# Python feasibility experiments
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local/generated files, not fixtures
+.DS_Store
+/DerivedData/
+/artifacts/
+
+# Defense in depth only: real participant data belongs OUTSIDE this repository.
+/private-data/
+/participant-data/
+/exports/
+/workspaces/
+
+# Credentials and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.mobileprovision

@@ -41,7 +41,7 @@ The name refers to Laplace's Demon: a hypothetical intelligence that could predi
 Why it fits:
 
 - it directly represents inference and prediction;
-- it provides an intellectual explanation for “Predict My Monday”;
+- it provides an intellectual connection to optional forecasting experiments such as “Predict My Monday”;
 - it distinguishes observation from forecasting; and
 - it can name the engine inside Panoptes.
 
@@ -64,7 +64,9 @@ This hierarchy is provisional. Both names remain candidates until collision and 
 
 ### Primary credible statement
 
-> Panoptes is a consent-based personal intelligence system that shows what your data reveals and turns it into useful predictions.
+> Panoptes Laplace connects your personal data into an explorable intelligence system, revealing what those traces can say about your life.
+
+Understanding is the core promise. Profiles, forecasts, ad/offer analysis, recommendations, and experiments are possible applications, not a promise that the software can see every company's internal model or every interaction on a phone.
 
 ### Provocative hooks
 
@@ -120,4 +122,4 @@ A final name should be distinctive enough that the project can be found without 
 - evidence paths illuminating from raw event to conclusion; and
 - dark intelligence-system aesthetics with clear consent/status indicators.
 
-Do not copy Palantir Gotham's interface, typography, iconography, or product screenshots.
+Do not copy Palantir Foundry or Gotham's interface, typography, iconography, or product screenshots.

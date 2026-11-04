@@ -1,0 +1,2 @@
+{"type":"access","accessor":{"identifier":"com.example.panoptes-demo","identifierType":"bundleID"},"category":"photos","identifier":"synthetic-open-2","kind":"intervalEnd","timeStamp":"2026-01-02T09:05:00Z"}
+{"type":"networkActivity","bundleID":"com.example.panoptes-demo","domain":"api.example.com","firstTimeStamp":"2026-01-01T08:00:00Z","timeStamp":"2026-01-03T09:00:00Z","hits":8,"domainType":2,"initiatedType":"AppInitiated","context":"","domainOwner":""}

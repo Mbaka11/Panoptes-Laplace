@@ -2,9 +2,9 @@
 
 ## Mission
 
-Laplace converts a participant's ontology into testable knowledge. It discovers patterns, creates forecasts, explains evidence, proposes actions, and learns from outcomes.
+Laplace turns a participant's connected data into inspectable analytical findings: descriptions, patterns, comparisons, and testable hypotheses. Forecasts and proposed actions are optional extensions. Understanding, contradictory evidence, and insufficient-data findings are valid outputs.
 
-It must not confuse an articulate explanation with a valid result.
+It must not confuse an articulate explanation with a valid result. Both self-operators and authorized researchers use the analysis capabilities within their access scopes.
 
 ## Inference pipeline
 
@@ -19,18 +19,30 @@ Hypothesis generation
     ↓
 Statistical/predictive validation
     ↓
-Researcher review
+Evidence review appropriate to consequence and operator role
     ↓
-Participant-facing insight or forecast
+Inspectable finding, including null or inconclusive results
     ↓
-Feedback and observed outcome
+Corrections, later observations, or optional action outcomes
     ↓
 Inference update
 ```
 
+Exploratory output may be inspected before validation if its status and limitations are explicit. Not every observation needs to advance through the entire pipeline or become a published inference.
+
+## Data sufficiency and evaluation
+
+- State the question, observation unit, input window, source coverage, and exclusions.
+- Preserve interval/aggregate semantics and handle overlapping exports before constructing features.
+- Distinguish sensor accuracy, model probability, statistical uncertainty, and participant confirmation. Do not substitute one for another.
+- Account for missingness, temporal dependence, and repeated hypothesis testing. Thousands of sensor records are not thousands of independent days.
+- Separate exploratory discovery from subsequent validation; do not select only flattering windows or successful findings.
+- Compare predictive methods with simple baselines and define evaluation before observing the outcome.
+- A short collection trial tests reliability and coverage. The duration needed for a defensible finding depends on the question and data, not a fixed 14-day promise.
+
 ## Analytical methods
 
-The exact methods will be selected after inspecting real authorized data. Candidate families include:
+The exact methods will be selected after inspecting real authorized data. Begin with descriptive exploration and simple baselines; classification or clustering is useful when it answers a defined question, not because every finding must use ML. Candidate families include:
 
 ### Place and routine discovery
 
@@ -87,9 +99,9 @@ Suggested statuses:
 
 1. **Hypothesis** — proposed but untested.
 2. **Candidate** — measurable support exists.
-3. **Reviewed** — researcher inspected evidence and alternatives.
-4. **Published** — participant can see and act on it.
-5. **Confirmed** — repeated evidence or participant outcome strengthened it.
+3. **Reviewed** — the recorded operator/reviewer inspected evidence and alternatives with review appropriate to the claim's consequence.
+4. **Published** — participant can inspect the finding; an action is optional.
+5. **Confirmed** — later evidence strengthened it under stated criteria, not merely because someone agreed with its wording.
 6. **Weakened** — later observations reduced confidence.
 7. **Corrected** — participant supplied a better interpretation.
 8. **Rejected** — unsupported, misleading, or not useful.
@@ -97,20 +109,11 @@ Suggested statuses:
 
 ## Expected utility
 
-The project uses a utility-first approach. A conceptual score is:
+The project uses a utility-first approach in which understanding is itself a benefit (D-023). Review the value of the explanation or optional action alongside evidence strength, false-positive cost, and privacy/security risk.
 
-```text
-expected utility =
-    potential benefit
-    × confidence
-    × actionability
-    − false-positive cost
-    − privacy/security risk
-```
+Do not multiply every finding's value by actionability: that would discard useful understanding simply because no intervention follows. These considerations are qualitative review criteria, not a calibrated numerical score.
 
-The first implementation does not need to pretend these values are objectively precise. The purpose is to force explicit consideration of both benefit and cost before publishing a conclusion.
-
-Broad and sensitive hypotheses may be researched with participant authorization. Higher-impact conclusions require stronger evidence, explicit uncertainty, and researcher review because false conclusions reduce utility.
+Broad and sensitive hypotheses may be investigated with participant authorization. Higher-impact conclusions require stronger evidence, explicit uncertainty, and appropriate human review. Self-exploration is not an exemption from those requirements.
 
 ## Correlation and causation
 
@@ -125,9 +128,9 @@ Participant-approved N-of-1 experiments can improve evidence:
 5. Repeat or alternate conditions.
 6. Update confidence without overstating generality.
 
-## Monday forecast benchmark
+## Optional Monday forecast benchmark
 
-The first benchmark predicts a participant's Monday before it occurs.
+A later benchmark may predict a participant's Monday before it occurs. This remains an example, not the first explorer's success criterion (D-025).
 
 Potential target events:
 
@@ -140,7 +143,7 @@ Potential target events:
 
 Evaluation requirements:
 
-- lock or hash the prediction before Monday;
+- retain a verifiable pre-outcome commitment to the prediction; a content hash alone does not prove when it existed;
 - retain predicted probabilities/time windows;
 - define scoring before viewing actual outcomes;
 - compare against simple baselines;
@@ -165,14 +168,14 @@ A participant-facing insight should contain:
 3. **Evidence:** source records or an inspectable summary.
 4. **Confidence:** probability, interval, or qualitative uncertainty with definition.
 5. **Alternative explanations:** important competing interpretations.
-6. **Privacy view:** what an outside observer could learn.
-7. **Utility view:** why the participant may care.
+6. **Privacy view:** what an observer with the specified source access could learn, not an unsupported claim about a company's actual internal model.
+7. **Utility view:** what the participant can understand, with an action only if useful.
 8. **Action:** an optional participant-controlled next step.
 9. **Feedback:** confirm, reject, correct, or mark not useful.
 
-Notifications should be generated from reviewed insight objects, not directly from unvalidated model text.
+For descriptive or inconclusive findings, state that status rather than forcing an inference into every report. Notifications are optional and should be generated from reviewed insight objects, not directly from unvalidated model text.
 
-## Research workbench capabilities
+## Operator workbench capabilities
 
 - Select time windows and source categories
 - Visualize missingness and data quality
@@ -188,7 +191,7 @@ Notifications should be generated from reviewed insight objects, not directly fr
 
 - Initial feature schema
 - Spatial clustering method
-- Monday forecast scoring function
+- Scoring and commitment method for any later forecast benchmark
 - Minimum data volume for publication
 - Confidence calibration approach
 - Multiple-testing controls

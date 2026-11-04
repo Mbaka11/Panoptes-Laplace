@@ -2,9 +2,16 @@
 
 ## Objective
 
-V1 must prove that heterogeneous personal data can be transformed into an evidence-backed ontology that produces a memorable prediction and at least one useful cross-domain insight.
+V1 should prove that heterogeneous personal data can become an explorable, evidence-backed ontology and support a reproducible analytical investigation. Understanding is itself valuable. A positive association, profile, Monday forecast, notification, or intervention is not required.
 
-The first version is a research prototype, not a general consumer release.
+This is a research prototype, not a general consumer release. The scope follows D-023 through D-027 in [the decision log](decisions.md). Numerical source-coverage targets below remain provisional until the collection lab establishes feasibility.
+
+## Operating modes
+
+- **Self-operated:** the participant collects/imports their own data and operates the local workbench. No separate researcher is required.
+- **Researcher-assisted:** the participant explicitly selects and shares an encrypted package with an authorized researcher, who uses an isolated workspace for the agreed purpose.
+
+Both modes are central. Begin with the owner's self-use and test isolation with synthetic workspaces before recruiting external participants. Findings do not become more certain simply because either operator reviewed them.
 
 ## V1 components
 
@@ -12,145 +19,127 @@ The first version is a research prototype, not a general consumer release.
 
 Planned responsibilities:
 
-- request and explain each permission independently;
-- collect supported location, motion, activity, sleep, and calendar signals;
-- investigate permitted Screen Time collection;
-- preserve source and observation timestamps;
-- display collection status;
-- store records locally with platform data protection;
-- let the participant pause and delete collection;
-- create a participant-initiated encrypted export; and
-- import validated insight packages for local presentation and notifications.
+- explain and request permissions independently;
+- collect supported location, motion, activity, available Health records, and calendar signals;
+- investigate Screen Time through a separate capability spike, without assuming raw export;
+- preserve event times, source granularity, provenance, and collection gaps;
+- display collection status and provide pause/delete controls;
+- store records with an explicitly tested protection policy; and
+- create a participant-initiated encrypted export.
 
-### Local Mac research workbench
+Returning reviewed insight packages to the phone remains a possible follow-on, not a prerequisite for the first local explorer.
+
+### Local Mac workbench
 
 Planned responsibilities:
 
-- create isolated participant workspaces;
-- validate and import encrypted packages;
-- retain the original record alongside normalized data;
-- explore raw records through timelines, maps, tables, and graphs;
-- construct and inspect the ontology;
-- cluster places, activities, and repeated sequences;
-- define, execute, and evaluate inference rules;
-- timestamp predictions before the predicted period;
-- compare predictions against actual outcomes; and
-- export approved insights to the participant.
+- create isolated participant workspaces for either operating mode;
+- validate imports and preserve original source meaning alongside normalized data;
+- expose source coverage, freshness, and missingness;
+- explore a small connected ontology by timeline, object, relationship, and source;
+- run a reproducible investigation with supporting and contradicting evidence;
+- capture participant interpretations/corrections without rewriting historical findings; and
+- export and delete records and dependent results.
 
-The working implementation direction is a local Python analysis layer with a local browser or desktop interface. Exact frameworks are not yet selected.
+Native Swift/SwiftUI collection and Python-oriented local analysis remain the working direction. Exact frameworks, storage, UI packaging, and minimum OS versions have not been selected. A graph database or full graph canvas is not necessary to prove connected exploration.
 
-### Historical import system
+### Import system
 
-The first importer targets Google-provided account or device exports where relevant data is available. Import availability and schema stability require a technical spike.
+Test App Privacy Report and one participant-owned account export relevant to actual usage. Google remains an initial candidate, not a guarantee that historical location or detailed consumption records will be present. Select the first service-specific importer only after inspecting its available schema and coverage.
 
-The importer architecture should be modular so that future connectors can support additional account exports without changing the canonical event model.
+Keep connectors modular. Participant annotations, shared content, or screenshots may fill specific gaps, but must retain their manual/partial status rather than masquerading as complete telemetry.
 
-## Initial source set
+## Candidate source set
 
-The source set is chosen to support the hero demonstration rather than to represent the complete vision.
+The aim is breadth sufficient for connected personal understanding, not complete device visibility.
 
-| Source | V1 intent | Status |
+| Source | Initial purpose | Current status |
 |---|---|---|
-| Core Location | Visits, routes, recurring places, mobility routines | Planned |
-| Core Motion | Walking, driving, stationary periods, activity context | Planned |
-| HealthKit | Authorized sleep and activity signals | Planned |
-| EventKit | Authorized calendar events and routines | Planned |
-| Screen Time APIs | Device/application usage where Apple permits it | Technical spike required |
-| Screen Time import fallback | Participant-provided report or screenshot if API access is insufficient | Provisional |
-| Google export | Historical activity/location data where available | Technical spike required |
+| Core Location | Places, movement, repeated visits | Native device test pending |
+| Core Motion | Available movement/activity context and history | Native device test pending |
+| HealthKit | Steps/activity and other records actually supplied by authorized apps/devices | Native device test pending; no Watch assumed |
+| EventKit | Calendar/reminder context | Native device test pending; minimize third-party fields |
+| App Privacy Report | Resource-access and contacted-domain metadata | Documented user export; local import/device validation pending |
+| Relevant account export | Historical activity or consumption context where available | Provider/schema selection pending |
+| Screen Time report view | On-device usage presentation | Separate membership/entitlement/authorization test; not a raw export path |
+| Newer Screen Time export API | Legitimate activity-data export where eligible | Separate test; development and customer regional eligibility differ |
+| Participant input | Explicitly labeled context or correction | Optional supplement, not automatic observation |
 
-Photos, contacts, browsing, purchases, music, and additional platforms belong to the connector roadmap, not the first build.
+A future spending connector may use participant-provided transaction exports. Additional sources such as photos, browsing, music, and purchases remain a roadmap rather than commitments to a full connector suite. Exact scrolling, taps, and feed dwell times in unrelated native apps are not established capabilities.
 
-## Hero demonstration
+See [the dated Apple reference checks](review-and-next-steps.md#4-reference-checked-collection-boundaries) and [the collection protocol](collection-probe.md). The reported test phone is in Canada; an EU-only customer API must not become an assumed Canadian customer capability.
 
-V1 uses a combined narrative with three outcomes.
+## First demonstration
 
-### 1. What does the data know?
+### 1. What data do I actually have?
 
-Generate an inferred participant profile with evidence and confidence. Initial examples may include recurring places, routine windows, mobility modes, and repeated sequences.
+Show collected/imported categories, time ranges, freshness, missing periods, granularity, and unavailable sources. Separate direct observations, source-provided aggregates, manual entries, and model interpretations.
 
-### 2. Predict my Monday
+### 2. How is it connected?
 
-Create a forecast before the target Monday. A prediction may include probable departure, arrival, destination, activity, and transition windows.
+Explore records from different domains on a shared timeline and through meaningful objects and links. Every derived relationship must expose its basis. Temporal proximity alone is not a causal link.
 
-The forecast must be timestamped and immutable or content-hashed before Monday so that evaluation cannot benefit from hindsight.
+### 3. What does an investigation support?
 
-### 3. Discover something useful
-
-Find at least one cross-domain pattern, such as evening device activity versus sleep quality, then create an evidence-backed notification or participant-approved experiment.
+Choose a question supported by the available sources, state the method and assumptions, and present the result with evidence and uncertainty. A supported association, contradictory evidence, no measured association, and insufficient data are all legitimate outcomes.
 
 ## First pilot protocol
 
-1. Recruit one fully informed adult participant.
-2. Review collection categories and researcher access.
-3. Install the sideloaded iPhone collector.
-4. Import available historical information.
-5. Collect approximately 14 days of live data; extend if the routine is too sparse.
-6. Transfer an encrypted, participant-initiated export to the research Mac.
-7. Build and review the participant ontology.
-8. Generate and lock the Monday forecast.
-9. Return an insight package to the participant.
-10. Collect Monday's actual observations.
-11. Score forecast accuracy and inference usefulness.
-12. Let the participant inspect, correct, export, or delete their workspace.
-13. Repeat with additional participants after addressing failures.
+1. Review the owner's authorized categories and intended self-operated workflow.
+2. Complete the Mac preflight and establish tested protection, encrypted transfer, and deletion procedures before persisting or transferring sensitive test samples.
+3. Build and install the minimal probe only after the device/toolchain compatibility checks.
+4. Run the collection feasibility lab, including available historical/context imports, and record failures as well as successes.
+5. Select the verified source paths and implement the bounded collector/importer slice and self-operated workspace before beginning the pilot collection.
+6. Collect enough data to evaluate reliability and coverage; determine the analytical observation period from the selected question, not a promise that 14 days proves a relationship.
+7. Transfer selected records to the local Mac and explore the connected data.
+8. Run one reproducible investigation and distinguish exploration from later validation.
+9. Let the participant inspect, correct, export, and delete data and dependent findings.
+10. Verify isolation with a second synthetic workspace, then consider a separately authorized researcher-assisted pilot after trust controls pass.
 
-## V1 acceptance criteria
+## Provisional V1 acceptance targets
 
-The first successful prototype should demonstrate all of the following:
+- The physical phone and imports provide at least three useful categories across two domains, including a digital-behavior or app-metadata source. They need not all be native sensor categories.
+- Records preserve source meaning, event/import time, units, granularity, and provenance.
+- The owner can explore one connected workspace by object, relationship, time, and source.
+- Coverage gaps are visible; lack of access is not misrepresented as lack of activity.
+- One analytical investigation is reproducible, with its observation unit, uncertainty, and limitations stated. It need not find a positive relationship.
+- Published findings link to their inputs and method/version; exploratory output stays visibly provisional.
+- Participant feedback can correct interpretation without silently changing the original evidence.
+- Pause, controlled export, and deletion work for the copies and derivatives in scope.
+- Repeated and overlapping imports do not invent duplicate activity.
+- A second synthetic workspace remains isolated.
 
-- One physical iPhone collects at least three supported native data categories.
-- One historical export is imported, if an available participant export supports the use case.
-- Records normalize into a source-aware canonical event model.
-- One participant ontology can be explored by object, relationship, time, and source.
-- Every published inference links to supporting evidence.
-- One Monday forecast is locked before the predicted period and evaluated afterward.
-- One cross-domain association is measured rather than merely narrated.
-- One approved insight reaches the participant as a local report or notification.
-- Participant feedback can confirm, reject, or correct the conclusion.
-- The participant can pause collection and delete their data.
-- A second participant workspace can be created without mixing records.
+If the source target cannot be met, revise the slice explicitly using probe evidence. Do not quietly substitute a health-only dashboard or fabricated digital behavior to satisfy a numerical target.
 
-## Suggested delivery phases
+## Delivery phases
 
-### Phase 0: feasibility spikes
+### Phase 0: collection feasibility lab
 
-- Verify free Apple provisioning on the test device.
-- Test background location behavior and battery cost.
-- Test HealthKit, Core Motion, and EventKit authorization/data availability.
-- Determine what Screen Time data can be legitimately obtained in this build and entitlement context.
-- Inspect an actual participant-authorized Google export.
-- Select the encrypted transfer format.
+Follow [the test protocol](collection-probe.md). Separate platform-independent preparation, native-device tests, and real-data handling prerequisites. Mac version collection may happen later; deployment-target selection and Xcode scaffolding may not precede it.
 
-### Phase 1: trustworthy collection
+### Phase 1: trustworthy collection and import
 
-Build source adapters, the canonical event envelope, local storage, collection status, pause/delete controls, and export.
+Implement verified source paths, a minimal source-aware representation, protection/transfer, status, and pause/delete controls. Choose the concrete formats and key handling through explicit technical decisions before handling real transfers.
 
-### Phase 2: ontology workbench
+### Phase 2: connected local explorer
 
-Build isolated participant imports, provenance, temporal exploration, typed objects and links, and corrections.
+Build isolated imports, provenance, temporal exploration, the necessary objects/links, and correction/deletion behavior. Prioritize traceable relationships over an elaborate visual graph.
 
-### Phase 3: Laplace inference loop
+### Phase 3: analytical investigation
 
-Implement routine clustering, baseline statistics, Monday forecasting, cross-domain analysis, evidence packaging, and prediction evaluation.
+Implement descriptive analysis and simple baselines first. Add classification, clustering, association analysis, or other methods only when justified by the question and data. Return inspectable results, including negative or inconclusive ones.
 
-### Phase 4: participant action loop
+### Optional follow-ons
 
-Return insights to the iPhone, schedule local notifications, capture participant feedback, and measure outcomes.
+Profiles, a prospectively scored Monday forecast, phone insight packages, notifications, or N-of-1 experiments can demonstrate further uses. Each receives its own evidence and evaluation requirements; none defines the first explorer's success.
 
-### Phase 5: repeatability
+## Deferred from V1's first slice
 
-Run the same pipeline with additional participants and document where inference definitions generalize or fail.
-
-## Deferred from V1
-
-- App Store deployment
-- Paid Apple Developer membership unless a tested capability requires it
-- Continuous synchronization
-- Cloud researcher dashboard
-- Cross-participant social relationships
-- Cross-participant aggregate modeling
-- Final local versus external LLM decision
+- App Store deployment and continuous synchronization
+- Paid membership unless a capability justifies a separately authorized purchase
+- Cloud workbench and cross-participant modeling or relationships
+- Final local versus external LLM selection
 - Clinical or diagnostic claims
-- Automatic interventions beyond participant-approved notifications
-- Complete coverage of every available personal data source
+- Automatic consequential interventions
+- Complete coverage of every personal source or native-app interaction
+- A full ontology editor and every conceptual object/view

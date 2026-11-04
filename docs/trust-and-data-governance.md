@@ -14,27 +14,31 @@ A consenting adult who owns the source device and is the subject of a workspace.
 
 The participant can:
 
-- choose each source category;
-- inspect collection status;
-- pause collection;
-- initiate an export;
-- understand what the researcher will receive;
-- correct or reject conclusions;
-- revoke future access; and
-- request deletion of device and researcher copies.
+- choose each source category and inspect collection status/gaps;
+- pause collection and initiate an export;
+- operate their own local workspace without a separate researcher;
+- choose whether to share and understand exactly what a researcher will receive;
+- correct or reject interpretations without treating agreement as statistical proof;
+- revoke future sharing/access; and
+- delete controlled copies and request deletion of researcher copies.
+
+### Self-operator
+
+The participant acting as the analyst of their own workspace. They can explore evidence and provisional hypotheses without granting anyone else access. Self-use does not remove the need for protected storage, provenance, uncertainty, or deletion controls.
 
 ### Researcher
 
-The explicitly authorized operator who receives identifiable raw data, explores correlations, creates inference definitions, reviews evidence, and publishes participant insights.
+A separately authorized operator who receives selected identifiable data, explores relationships, develops analyses, reviews evidence, and shares findings for an agreed purpose.
 
-Researcher access must be described directly. Installing the application is not by itself consent for unrestricted researcher access.
+Both modes are central (D-024), but researcher access is optional and must be described directly. Installing the application or using the self-operated workbench is not consent to disclose data to a researcher. Appropriate review remains necessary for consequential claims; ordinary self-exploration does not require a separate reviewer.
 
 ## V1 data posture
 
 - Raw data is identifiable; anonymization is not required for the initial experiments.
-- Data remains on the participant's iPhone until a participant-initiated export.
+- Phone-collected data remains on the participant's iPhone until a participant-initiated export; imported account files have their own source/staging lifecycle.
 - The participant can select a date range and data categories for export.
-- Exported data is transferred to a local Mac research workbench.
+- Data is transferred to a local Mac workbench operated by the participant or, if separately authorized, a researcher.
+- Native export files may be unencrypted. Before real transfer, define protected staging, encrypted packaging/transport, key handling, retention, and deletion of temporary copies; the existence of a share button does not establish those controls.
 - Participant workspaces remain isolated.
 - No continuous synchronization or cloud participant database exists in V1.
 - No external AI provider receives data until a separate decision and authorization process exists.
@@ -57,9 +61,13 @@ OS permission prompts are necessary but not sufficient. Panoptes should explain 
 
 ## Access modes
 
-### Accepted for V1: controlled batch sharing
+### Accepted for V1: self-operated local analysis
 
-The participant initiates an encrypted export. Research access begins when the package is transferred and is bounded by the package contents and agreed purpose.
+The participant initiates protected transfer to their own local workbench. No researcher grant is required for their own data. Permissions, source scope, storage protection, and copy/deletion records remain explicit.
+
+### Accepted for V1: optional controlled batch sharing
+
+The participant selects and initiates an encrypted export to an authorized researcher. Research access begins when the package is transferred and is bounded by its contents and agreed purpose. Restricting future access cannot technically claw back a copy already decrypted by a recipient; communicate that limit and track deletion requests and confirmation.
 
 ### Deferred: continuous trusted sharing
 
@@ -76,7 +84,7 @@ The Mac workbench may contain multiple identifiable participants, but:
 - shared inference definitions contain code/configuration, not participant records; and
 - cross-participant analysis is deferred.
 
-Cryptographic separation is desirable and remains a technical design decision.
+Strict isolation is required, but its logical checks, cryptographic separation, at-rest protection, and key management have not been designed or tested. Do not claim that a workspace identifier alone establishes a security boundary. Use synthetic multi-workspace tests and resolve the protection design before external-participant work.
 
 ## Third-party information
 
@@ -96,7 +104,7 @@ Requirements for consequential inferences include:
 - confidence and uncertainty;
 - alternative explanations;
 - false-positive cost;
-- researcher review;
+- human review appropriate to the consequence and operating mode;
 - participant visibility and correction; and
 - no automatic consequential action.
 
@@ -121,10 +129,13 @@ These boundaries preserve the project's declared consent-based purpose and disti
 
 - Original records are retained or referenced separately from normalized events.
 - Derived assertions identify their method and evidence.
-- Predictions are timestamped and locked before evaluation.
+- Optional predictions are verifiably locked before the outcome period and scored prospectively; a content hash alone proves neither creation time nor a pre-outcome commitment.
 - Corrections do not silently rewrite historical model output.
-- Researcher publication and participant feedback are auditable events.
+- Operator review/publication and participant feedback are auditable events, with the reviewer role visible.
 - Missing data is not interpreted as proof that an event did not occur.
+- Source-provided aggregates remain aggregates; overlapping exports do not become duplicate activity.
+- Resource access or a domain connection is not proof of transmitted content, a company's internal profile, or a causal explanation.
+- A null or inconclusive analysis is valid; a positive result is not required for publication as an honestly labeled finding.
 
 ## Deletion
 
@@ -138,7 +149,7 @@ V1 must define and test deletion for:
 - predictions and published insight packages; and
 - backups, if backups are later introduced.
 
-Deletion semantics and verification require a concrete technical design before the first external participant study.
+Deletion semantics and verification require a concrete technical design before the first external participant study. Define which dependent features/findings are removed or invalidated when a source record is deleted; do not retain sensitive raw values in correction logs or reports while claiming deletion. Record unverified copies and any retention exceptions explicitly rather than promising universal erasure.
 
 ## Open-source implications
 
@@ -153,7 +164,7 @@ Open source improves inspection and trust but does not guarantee safe deployment
 
 ## External AI decision
 
-The use of a local Chinese or other open-weight model versus an external commercial provider is intentionally deferred.
+The choice between a local model and an external provider is intentionally deferred and provider-neutral.
 
 Before raw or derived participant information reaches an external provider, the project must decide:
 

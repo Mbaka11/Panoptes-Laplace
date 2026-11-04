@@ -4,7 +4,7 @@
 
 The ontology turns fragmented records into a queryable model of a participant's life. It must support observations, relationships, inferred knowledge, predictions, actions, and outcomes without confusing one category for another.
 
-This is a conceptual model, not a final database schema.
+This is a conceptual model, not a final database schema or a requirement to implement every listed type. The first slice needs only enough structure for connected personal exploration and evidence inspection. Both self-operated and authorized researcher-assisted workspaces use the model.
 
 ## Design principles
 
@@ -22,11 +22,15 @@ A GPS coordinate is an observation. “Home” is an inference. “The participa
 
 ### Confidence and correction
 
-Derived knowledge carries confidence and can be confirmed, rejected, or corrected by the participant.
+Derived knowledge carries explicitly defined uncertainty and can be confirmed, rejected, or corrected by the participant. Sensor accuracy, model probability, statistical uncertainty, and participant agreement are distinct; a corrected label is not proof of a causal explanation.
 
-### Actionable objects
+### Preserve source granularity
 
-Predictions and patterns should connect to notifications, experiments, decisions, and measured outcomes rather than ending as visualizations.
+Point observations, time intervals, and windowed aggregates are different. App Privacy Report domain-contact totals must retain their window and provenance; they are not exact browsing events or proof of content consumption. Repeated overlapping imports must not multiply the underlying activity.
+
+### Understanding before optional actions
+
+Connected exploration and an evidence-backed explanation are valid endpoints. Predictions and patterns may also connect to notifications, experiments, decisions, and outcomes; an action is not required for each insight.
 
 ### Participant isolation
 
@@ -36,11 +40,11 @@ Every object belongs to exactly one participant workspace in V1. No relationship
 
 ### Identity and access
 
-- **Participant** — owner and subject of one workspace
+- **Participant** — owner and subject of one workspace; may also be its operator
 - **Device** — authorized source device
 - **DataSource** — API, export, file, or manual input
-- **ConsentGrant** — authorization scope, purpose, duration, and researcher access
-- **ResearcherAccess** — authorized researcher and access period
+- **ConsentGrant** — authorization scope, purpose, duration, and any optional researcher sharing
+- **ResearcherAccess** — separately authorized researcher and access period; not required for self-use
 
 ### Place and movement
 
@@ -126,7 +130,6 @@ A normalized event could follow this conceptual shape:
   "consent_grant_id": "consent_...",
   "payload": {},
   "quality": {
-    "confidence": 0.95,
     "accuracy_meters": 18.0
   },
   "integrity": {
@@ -135,7 +138,7 @@ A normalized event could follow this conceptual shape:
 }
 ```
 
-The final implementation may use a different serialization, but the concepts above should remain.
+The final implementation may use a different serialization, but the concepts above should remain. The example is synthetic and describes one point observation, not a universal schema. Sensor accuracy must not be converted into an unexplained probability. Importers will also need interval/aggregate semantics, time-zone context, schema versions, and missingness appropriate to their source; those field designs remain open.
 
 ## Inference object
 
@@ -167,13 +170,17 @@ Ontology assertion
 Hypothesis
     ↓ statistical or predictive validation
 Candidate inference
-    ↓ researcher review
+    ↓ review appropriate to consequence and operator role
 Published insight
     ↓ participant feedback / observed outcome
 Confirmed, weakened, corrected, or rejected inference
 ```
 
-## Example: screen usage and sleep
+An exploratory view may stop at observations or hypotheses. Unsupported and inconclusive investigations need not become candidate inferences. Corrections preserve history and invalidate or recompute dependent interpretations as appropriate; deleting source data must also account for sensitive derivatives.
+
+## Illustrative extension: screen usage and sleep
+
+The following numbers are synthetic, not measured project results. This example assumes both sources are legitimately available; it is not a promise that a 21-day window validates the relationship or that Screen Time export works on every device. The experiment is optional.
 
 ```text
 DeviceUsageSession(evening, 3h42m)
@@ -196,9 +203,9 @@ PersonalExperiment
     outcome: compare sleep against baseline
 ```
 
-## Gotham-inspired operational behavior
+## Exploration and optional operational behavior
 
-The ontology is not only navigated; it supports actions:
+Following the general ontology-centered ideas of systems such as Foundry, the first explorer lets the participant navigate time, objects, links, coverage, and evidence. Further workflows can support actions:
 
 - correct a place classification;
 - confirm or reject a routine;

@@ -1,13 +1,16 @@
 # Panoptes documentation
 
-This directory is the source of truth for the product direction established during initial discovery.
+This directory records product direction, decision history, and technical discovery.
+
+Start with the product vision and [decision log](decisions.md). The [vision review and next steps](review-and-next-steps.md) records the clarification, dated capability references, and implementation sequence. Product changes are reconciled in D-023 through D-027; collection criteria remain provisional, and no device results have been established. Use the [collection feasibility protocol](collection-probe.md) for the next milestone.
 
 ## Working vocabulary
 
 - **Panoptes:** provisional name for the complete personal intelligence platform.
 - **Laplace:** provisional name for the prediction and inference engine.
-- **Participant:** a consenting adult whose data is collected and analyzed.
-- **Researcher:** the authorized operator who explores participant data and develops inferences.
+- **Participant:** a consenting adult whose data is collected and analyzed; may operate their own workspace.
+- **Self-operator:** the participant using the local workbench without sharing with a separate researcher.
+- **Researcher:** a separately authorized operator who explores selected participant data for an agreed purpose.
 - **Inference:** an evidence-backed conclusion derived from one or more observations.
 - **Intervention:** a participant-approved action intended to test or use an inference.
 
@@ -15,6 +18,12 @@ This directory is the source of truth for the product direction established duri
 
 | Document | Purpose |
 |---|---|
+| [Vision review and next steps](review-and-next-steps.md) | Clarified intent, reconciliation status, test environment, and sourced iPhone constraints |
+| [Collection feasibility protocol](collection-probe.md) | Native/import test cases, gates, and provisional exit criteria |
+| [Collection results template](templates/collection-probe-result.md) | Unfilled template for recording actual evidence; not a successful test report |
+| [Synthetic privacy-report spike](../spikes/app-privacy-report.md) | Runnable local inspector, opt-in source-coverage report, limits, and test commands |
+| [Synthetic inspection results](results/app-privacy-report-synthetic.md) | Actual synthetic test evidence, not device validation |
+| [Inspirations and collection patterns](inspirations-and-collection-patterns.md) | Cited Foundry, analytics, and spyware lessons mapped to authorized alternatives |
 | [Product vision](product-vision.md) | Problem, thesis, users, principles, and desired experience |
 | [V1 and first experiment](mvp.md) | Initial scope, pilot workflow, acceptance criteria, and deferred work |
 | [System architecture](architecture.md) | Conceptual components, data flow, platform feasibility, and trust boundaries |
@@ -30,6 +39,8 @@ This directory is the source of truth for the product direction established duri
 - **Provisional:** current working direction that may change after a technical spike.
 - **Deferred:** intentionally not decided until evidence is available.
 - **Open:** requires a future decision.
+- **Proposed:** a recommendation under review, not yet an accepted implementation decision.
+- **Superseded:** a historical decision retained with a link to its replacement.
 
 ## Documentation principles
 
