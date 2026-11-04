@@ -53,6 +53,16 @@ Apple's documented membership and regional restrictions are recorded as evidence
 
 **Implementation follow-up, 2026-10-05:** continued under D-028 with an opt-in synthetic coverage report, source-line/original-input provenance, direct byte comparison for duplicate artifacts, and UTC-boundary validation. The default reduced summary remains available; the detailed report intentionally includes timestamps and is not a de-identification guarantee. See the updated [run record](results/app-privacy-report-synthetic.md). This does not select a production report/event schema, add a collector, or relax the Mac and real-data gates; no existing decision is superseded.
 
+## Synthetic spikes and transfer options 2026-11-04
+
+**Basis:** platform-independent preparation continued while the Mac preflight (D-027) remains pending. Nothing here relaxes the Mac or real-data gates.
+
+| ID | Status | Decision | Rationale and consequence |
+|---|---|---|---|
+| D-029 | Provisional | Cover SYN-07 to SYN-10 with an isolated in-memory synthetic spike ([workspace semantics](../spikes/workspace-semantics.md)). | Unmeasured Health values and read access are `unknown`, not zero or denied. Planned calendar events are scheduled context unless explicitly confirmed. Source deletion needs a declared per-kind policy, lists unverified external copies, and leaves other workspaces untouched. Test vocabulary only: not a production schema or security boundary. |
+| D-030 | Provisional | Start ACC-01 as a synthetic stdlib field-coverage audit ([account export audit](../spikes/account-export-audit.md)). | Claims no provider schema; not a connector. Dwell time and scroll depth are never inferred; duration counts only from an explicit source field. Identical repeated imports are detected by canonical hash and not double-counted. Real-export validation waits for the protected-transfer gates. |
+| D-031 | Provisional | Adopt [transfer-package-design.md](transfer-package-design.md) as the options record for the D-008 batch export. | Target direction: per-workspace recipient-key AEAD with an enrolled, authenticated sender (Design C); passphrase archive (Design A) only for synthetic format exploration. No ciphersuite, byte format, or key store is selected; Apple API claims stay unverified until the Mac preflight. Real-data transfer stays blocked until primitives are chosen and XFR-01/ISO-01/DEL-01 synthetic cases pass. |
+
 ## Deferred decisions
 
 - Final product and engine names
@@ -61,7 +71,7 @@ Apple's documented membership and regional restrictions are recorded as evidence
 - Paid Apple Developer membership
 - Exact Screen Time capability and entitlement path
 - iPhone local database and encryption scheme
-- Export-package format and key exchange
+- Export-package format and key exchange (options in [transfer-package-design.md](transfer-package-design.md), D-031)
 - Mac UI/backend/database frameworks
 - Graph database versus relational/event-backed ontology
 - Local versus external language model

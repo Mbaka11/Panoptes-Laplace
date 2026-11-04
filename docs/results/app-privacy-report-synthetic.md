@@ -69,7 +69,7 @@ Additional synthetic cases distinguish blank files from invalid/unsupported-only
 - This tool has no participant-workspace model; it establishes **no** logical or cryptographic isolation guarantee.
 - Source validation is deliberately partial. Unknown fields/types and unsupported precision remain visible; the real exporter must still be checked.
 - No encrypted transfer, storage design, source deletion propagation, researcher access control, real-data import, or iOS build has been implemented or tested here.
-- SYN-07 through SYN-10 and the native/device cases remain pending. APR-01 remains pending. Do not mark the entire collection lab complete.
+- SYN-07 through SYN-10 are covered by a separate synthetic run record ([workspace semantics](workspace-semantics-synthetic.md)); the native/device cases remain pending. APR-01 remains pending. Do not mark the entire collection lab complete.
 - Neither reduced diagnostics nor detailed coverage is a formal de-identification guarantee. The opt-in report deliberately reveals source timestamps/durations; in-memory record objects still retain all supplied synthetic values.
 - The CLI only reads bundled fixtures. There is no raw participant-file argument or background collection process.
 

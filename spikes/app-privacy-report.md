@@ -78,7 +78,7 @@ This is bounded synthetic-test code, not a hardened parser for arbitrary untrust
 | SYN-05 | Malformed JSON, unknown data, strict numeric types, and visible diagnostics | Full forward-compatible validation of all Apple record variants |
 | SYN-06 | Offset-aware time comparison, missing/reversed/unsupported times | A final canonical temporal schema |
 
-SYN-07 through SYN-10, native capability tests, real-data transfer, and the local explorer remain unimplemented/untested by this spike. See [the synthetic run record](../docs/results/app-privacy-report-synthetic.md).
+SYN-07 through SYN-10 are covered separately by [workspace semantics](workspace-semantics.md); native capability tests, real-data transfer, and the local explorer remain unimplemented/untested by this spike. See [the synthetic run record](../docs/results/app-privacy-report-synthetic.md).
 
 ## Inspiration and next evidence
 

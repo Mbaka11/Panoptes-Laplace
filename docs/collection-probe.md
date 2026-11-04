@@ -175,7 +175,7 @@ For a corrected interpretation, preserve the original observation and version hi
 
 ## 4. Synthetic semantic cases and current coverage
 
-These are test inputs/expectations, not a final canonical schema. The current inspector exercises the documented subset of SYN-01 through SYN-06; SYN-04 covers byte-identical repeats within one call, not persistent import idempotency. SYN-07 through SYN-10 remain pending. Use fictitious identifiers such as `com.example.synthetic` and reserved example domains. See [the spike's coverage table](../spikes/app-privacy-report.md#coverage-against-the-collection-protocol) for exact limits.
+These are test inputs/expectations, not a final canonical schema. The current inspector exercises the documented subset of SYN-01 through SYN-06; SYN-04 covers byte-identical repeats within one call, not persistent import idempotency. SYN-07 through SYN-10 are covered by a separate in-memory synthetic spike ([workspace semantics](../spikes/workspace-semantics.md), D-029), which is logical test vocabulary, not a security boundary. Use fictitious identifiers such as `com.example.synthetic` and reserved example domains. See [the spike's coverage table](../spikes/app-privacy-report.md#coverage-against-the-collection-protocol) for exact limits.
 
 | ID | Input condition | Required behavior |
 |---|---|---|

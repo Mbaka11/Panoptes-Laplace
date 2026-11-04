@@ -20,6 +20,7 @@ Start with the product vision and [decision log](decisions.md). The [vision revi
 |---|---|
 | [Vision review and next steps](review-and-next-steps.md) | Clarified intent, reconciliation status, test environment, and sourced iPhone constraints |
 | [Collection feasibility protocol](collection-probe.md) | Native/import test cases, gates, and provisional exit criteria |
+| [Transfer package design options](transfer-package-design.md) | Provisional encrypted batch-export options, threat model, and synthetic test plan |
 | [Collection results template](templates/collection-probe-result.md) | Unfilled template for recording actual evidence; not a successful test report |
 | [Synthetic privacy-report spike](../spikes/app-privacy-report.md) | Runnable local inspector, opt-in source-coverage report, limits, and test commands |
 | [Synthetic inspection results](results/app-privacy-report-synthetic.md) | Actual synthetic test evidence, not device validation |
