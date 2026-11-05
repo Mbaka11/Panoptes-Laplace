@@ -1,0 +1,1067 @@
+<title>Panoptes Ops Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8">
+<style>
+:root{
+  color-scheme:dark;
+  --bg-void:#070A0F; --bg-panel:#0E141C; --bg-panel-a:rgba(14,20,28,.86); --bg-raise:#141C27;
+  --line-faint:#1E2A38; --line-strong:#33475E;
+  --text-primary:#D7E2EE; --text-muted:#8DA1B5;
+  --accent:#3EE0C4; --accent-dim:#1B6E62;
+  --cls-observation:#9FB4C8; --cls-event:#5CA8FF; --cls-hypothesis:#E6B84C; --cls-inference:#B58CFF; --cls-prediction:#FF7AB0;
+  --state-unknown:#566170; --state-alert:#FF5A4D; --state-ok:#6BE39A;
+  --consent-bg:#12303A; --consent-text:#3EE0C4;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  --font-sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+html{height:100%;box-sizing:border-box}
+*,*::before,*::after{box-sizing:inherit}
+body{height:100%;margin:0;background:var(--bg-void);color:var(--text-primary);font:14px/1.45 var(--font-sans);overflow-x:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--font-mono)}
+.muted{color:var(--text-muted)}
+.unk{display:inline-block;font:600 11px var(--font-mono);letter-spacing:.06em;color:var(--text-muted);padding:0 5px;border:1px solid var(--state-unknown);background:repeating-linear-gradient(135deg,rgba(86,97,112,.55) 0 1px,transparent 1px 5px)}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;overflow:hidden;min-width:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* banner */
+.banner{flex:none;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;justify-content:space-between;background:var(--consent-bg);color:var(--consent-text);border:1px solid var(--accent-dim);padding:6px 10px;font:500 12px var(--font-mono);letter-spacing:.06em}
+.banner b{font-weight:600}
+.banner .sep{opacity:.5;margin:0 4px}
+.banner .warn{color:var(--cls-hypothesis)}
+.banner .clock{color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+.banner .clock em{font-style:normal;color:var(--text-muted)}
+
+/* bars */
+.bar{flex:none;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.tabs{display:flex;gap:2px;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+.tab,.lens,.btn{background:var(--bg-panel);border:1px solid var(--line-strong);padding:5px 9px;font:500 12px var(--font-mono);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.tab[aria-current=page],.lens[aria-pressed=true],.btn.on{border-color:var(--accent);color:var(--accent);background:#0f2a2d}
+.lens span{color:var(--text-muted);margin-right:4px}
+.lens[aria-pressed=true] span{color:var(--accent)}
+.btn:hover,.tab:hover,.lens:hover{border-color:var(--text-muted)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.danger{border-color:var(--state-alert);color:var(--state-alert)}
+.lenses{display:flex;gap:2px;flex-wrap:wrap}
+.tools{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+
+/* stage */
+#main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;overflow-y:auto;overflow-x:hidden;align-content:start;padding-bottom:6px}
+#main.wctx{grid-template-columns:minmax(0,1fr)}
+@media(min-width:980px){
+  #main{overflow:hidden;align-content:stretch;grid-template-rows:minmax(0,1fr)}
+  #main.wctx{grid-template-columns:minmax(0,1fr) 340px}
+  #view,#ctx{overflow-y:auto;overflow-x:hidden;min-height:0}
+}
+#view{min-width:0}
+#ctx{min-width:0;display:flex;flex-direction:column;gap:10px}
+#ctx:empty{display:none}
+#status{flex:none;font:12px var(--font-mono);color:var(--text-muted);border-top:1px solid var(--line-faint);padding:5px 0 8px;display:flex;flex-wrap:wrap;gap:2px 14px}
+#status b{color:var(--text-primary);font-weight:500}
+
+/* panels with corner brackets */
+.panel{position:relative;background-color:var(--bg-panel-a);border:1px solid var(--line-faint);padding:12px;margin-bottom:10px;min-width:0;
+  background-image:
+   linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),
+   linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),
+   linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent)),
+   linear-gradient(var(--accent),var(--accent)),linear-gradient(var(--accent),var(--accent));
+  background-repeat:no-repeat;
+  background-size:14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px;
+  background-position:left top,left top,right top,right top,left bottom,left bottom,right bottom,right bottom}
+.panel.flat{background-image:none}
+.panel h2,.panel h3{margin:0 0 8px;font:600 12px var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
+.panel h2{font-size:13px;color:var(--text-primary)}
+.panel p{margin:6px 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px}
+.note{font-size:12.5px;color:var(--text-muted);border-left:2px solid var(--line-strong);padding:2px 0 2px 8px;margin:8px 0}
+.note.warn{border-color:var(--cls-hypothesis);color:var(--text-primary)}
+.kv{display:grid;grid-template-columns:minmax(80px,32%) 1fr;gap:3px 10px;font-size:13px;margin:0}
+.kv dt{color:var(--text-muted);font:12px var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+.kv dd{margin:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid var(--line-faint);vertical-align:top}
+th{font:600 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.tscroll{overflow-x:auto;max-width:100%}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+
+/* class badges: shape + label, never color alone */
+.cb{display:inline-flex;align-items:center;gap:6px;font:600 11px var(--font-mono);letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border:1px solid;white-space:nowrap}
+.cb i{display:inline-block;width:9px;height:9px}
+.c-observation{color:var(--cls-observation);border-color:var(--cls-observation)}
+.c-observation i{border:2px solid currentColor;border-radius:50%}
+.c-normalized_event{color:var(--cls-event);border-color:var(--cls-event);background:rgba(92,168,255,.1)}
+.c-normalized_event i{background:currentColor}
+.c-hypothesis{color:var(--cls-hypothesis);border:1px dashed var(--cls-hypothesis)}
+.c-hypothesis i{border:1px dashed currentColor;border-radius:50%}
+.c-inference{color:var(--cls-inference);border:3px double var(--cls-inference);padding:0 6px}
+.c-inference i{border:3px double currentColor;border-radius:50%}
+.c-prediction{color:var(--cls-prediction);border-color:var(--cls-prediction);background:repeating-linear-gradient(135deg,rgba(255,122,176,.25) 0 2px,transparent 2px 6px)}
+.c-prediction i{background:repeating-linear-gradient(135deg,currentColor 0 2px,transparent 2px 4px)}
+.tag{display:inline-block;font:600 11px var(--font-mono);letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border:1px solid var(--line-strong);color:var(--text-muted)}
+.tag.ok{border-color:var(--state-ok);color:var(--state-ok)}
+.tag.alert{border-color:var(--state-alert);color:var(--state-alert)}
+.tag.warn{border-color:var(--cls-hypothesis);color:var(--cls-hypothesis)}
+.chip{display:inline-flex;gap:5px;align-items:center;background:var(--bg-raise);border:1px solid var(--line-strong);padding:2px 7px;margin:2px 4px 2px 0;font:12px var(--font-mono);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip:hover,.chip.sel{border-color:var(--accent);color:var(--accent)}
+.chipbox{display:flex;flex-wrap:wrap}
+.sens{transition:filter .12s}
+#app.blur .sens{filter:blur(6px)}
+
+/* map */
+.mapwrap{position:relative;width:100%;aspect-ratio:1/1;max-height:62vh;background:var(--bg-void);border:1px solid var(--line-strong);overflow:hidden}
+@media(min-width:700px){.mapwrap{aspect-ratio:4/3;max-height:none}}
+.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+.layerrow{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-bottom:8px;font:12px var(--font-mono)}
+.layerrow label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+.layerrow input{accent-color:var(--accent)}
+.layerrow select,.sel-input{background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--line-strong);font:12px var(--font-mono);padding:3px 6px}
+.scrub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.scrub input[type=range]{flex:1 1 200px;accent-color:var(--accent);min-width:120px;height:24px}
+.stateline{font:13px var(--font-mono);padding:8px 10px;border:1px solid var(--line-strong);margin:8px 0;background:var(--bg-panel)}
+.stateline.gap{border-color:var(--state-unknown);background:repeating-linear-gradient(135deg,rgba(86,97,112,.35) 0 1px,transparent 1px 7px),var(--bg-panel)}
+.srows{position:relative;margin-top:6px}
+.srow{display:flex;align-items:center;gap:6px;height:14px;margin-bottom:2px}
+.srow .sl{flex:none;width:36px;font:11px var(--font-mono);color:var(--text-muted)}
+.cells{flex:1;display:grid;grid-template-columns:repeat(28,1fr);gap:1px;height:100%}
+.dc{display:block;border:1px solid var(--line-faint);background:transparent}
+.dc.d1{background:rgba(159,180,200,.25)}.dc.d2{background:rgba(159,180,200,.5)}.dc.d3{background:rgba(159,180,200,.85)}
+.dc.none{border-style:dotted;border-color:var(--line-strong)}
+.dc.gap,.dc.pgap{border-color:var(--state-unknown);background:repeating-linear-gradient(135deg,var(--state-unknown) 0 1px,transparent 1px 4px)}
+.dc.pgap{background:repeating-linear-gradient(135deg,var(--state-unknown) 0 1px,transparent 1px 4px),rgba(159,180,200,.4)}
+.ph{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent);pointer-events:none}
+.sdays{display:flex;margin-left:42px;font:11px var(--font-mono);color:var(--text-muted);justify-content:space-between}
+.fx-surface{position:relative}
+#app.fx:not(.lens6) .fx-surface::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)}
+@media(prefers-reduced-motion:no-preference){
+  #app.fx:not(.lens6) .fx-surface::before{content:"";position:absolute;left:0;right:0;height:40px;top:-40px;pointer-events:none;z-index:2;background:linear-gradient(transparent,rgba(62,224,196,.07),transparent);animation:sweep 7s linear infinite}
+}
+@keyframes sweep{to{top:100%}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* timeline */
+.tlwrap{width:100%;overflow-x:auto;background:var(--bg-void);border:1px solid var(--line-faint)}
+#app.lens6 .tlwrap svg,#app.lens6 .mapwrap,#app.lens6 .invplot{filter:grayscale(1) contrast(1.15)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font:12px var(--font-mono);color:var(--text-muted);margin:8px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{display:block}
+
+/* graph / plots */
+.svgbox{width:100%;overflow:hidden}
+.svgbox svg{display:block;width:100%;height:auto}
+.node{cursor:pointer}
+.node:focus-visible{outline:none}
+.node:focus-visible .nshape{stroke:var(--accent);stroke-width:3}
+.verdict{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid;padding:8px 10px;margin:8px 0;font:600 13px var(--font-mono);letter-spacing:.06em}
+.verdict.inc{border-color:var(--cls-hypothesis);color:var(--cls-hypothesis);background:rgba(230,184,76,.07)}
+.verdict.ins{border-color:var(--cls-observation);color:var(--cls-observation);background:rgba(159,180,200,.07)}
+.verdict.desc{border-color:var(--cls-event);color:var(--cls-event);background:rgba(92,168,255,.07)}
+.verdict.hyp{border-color:var(--cls-hypothesis);color:var(--cls-hypothesis);border-style:dashed}
+.fcard{display:block;width:100%;text-align:left;background:var(--bg-panel);border:1px solid var(--line-strong);padding:8px 10px;margin-bottom:6px}
+.fcard[aria-pressed=true]{border-color:var(--accent)}
+.fcard .t{font:12px var(--font-mono);color:var(--text-muted)}
+.expl{border:1px dashed var(--cls-hypothesis);padding:12px;margin-top:10px;background:rgba(230,184,76,.04)}
+.expl .lbl{font:600 12px var(--font-mono);letter-spacing:.1em;color:var(--cls-hypothesis);margin-bottom:6px}
+.sent{margin:6px 0}
+.sent.unl{border-left:3px solid var(--state-alert);padding-left:8px}
+.facts{border:1px solid var(--line-strong);padding:12px;background:var(--bg-panel)}
+.facts .lbl{font:600 12px var(--font-mono);letter-spacing:.1em;color:var(--accent);margin-bottom:6px}
+.sim{border:1px dashed var(--state-alert);padding:10px;margin:8px 0;background:repeating-linear-gradient(135deg,rgba(255,90,77,.07) 0 2px,transparent 2px 9px)}
+.switch{display:inline-flex;align-items:center;gap:8px;font:12px var(--font-mono)}
+.switch button{min-width:74px}
+.trail{list-style:none;margin:0;padding:0}
+.trail li{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:7px 0;border-bottom:1px solid var(--line-faint)}
+.hint{padding:16px;border:1px dashed var(--line-strong);color:var(--text-muted);font-size:13px}
+details>summary{cursor:pointer;font:12px var(--font-mono);color:var(--text-muted);padding:3px 0}
+.errbox{max-width:640px;margin:20px auto;border:1px solid var(--state-alert);padding:16px;background:var(--bg-panel)}
+.errbox code{font-family:var(--font-mono);background:var(--bg-raise);padding:1px 5px}
+.pill{font-variant-numeric:tabular-nums}
+.lensnote{font-size:12.5px;border:1px solid var(--cls-inference);padding:6px 10px;margin:8px 0;color:var(--text-primary)}
+
+/* palette + help */
+.modal{position:fixed;inset:0;background:rgba(3,5,8,.7);display:flex;align-items:flex-start;justify-content:center;padding:12vh 16px 16px;z-index:50}
+.modal[hidden]{display:none}
+.mbox{width:min(560px,100%);background:var(--bg-panel);border:1px solid var(--accent);max-height:70%;display:flex;flex-direction:column}
+.mbox input{width:100%;background:var(--bg-void);color:var(--text-primary);border:0;border-bottom:1px solid var(--line-strong);padding:12px;font:15px var(--font-mono)}
+.mbox ul{list-style:none;margin:0;padding:0;overflow-y:auto}
+.mbox li button{display:flex;width:100%;gap:10px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line-faint);padding:8px 12px;font:13px var(--font-mono)}
+.mbox li button[aria-selected=true]{background:#0f2a2d;color:var(--accent)}
+.mbox li .k{flex:none;width:74px;color:var(--text-muted);text-transform:uppercase;font-size:11px;padding-top:2px}
+.mbox .help{padding:14px;overflow-y:auto;font-size:13px}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<div id="app">
+  <header class="banner" id="banner" role="banner"></header>
+  <div class="bar">
+    <nav class="tabs" id="nav" aria-label="Screens"></nav>
+    <div class="lenses" id="lenses" role="group" aria-label="Lens (keys 1 to 6)"></div>
+    <div class="tools" id="tools"></div>
+  </div>
+  <main id="main" class="wctx">
+    <section id="view" aria-live="polite"><div class="hint">Loading synthetic persona...</div></section>
+    <aside id="ctx" aria-label="Context panel"></aside>
+  </main>
+  <footer id="status"></footer>
+</div>
+<div class="modal" id="palette" hidden role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="mbox"><input id="pq" type="text" autocomplete="off" spellcheck="false" placeholder="Jump to a screen, lens, action or object..." aria-label="Command palette search"><ul id="pl" role="listbox"></ul></div>
+</div>
+<div class="modal" id="help" hidden role="dialog" aria-modal="true" aria-label="Shortcuts and about">
+  <div class="mbox"><div class="help" id="helpbody"></div></div>
+</div>
+
+<script>
+(async function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2=n=>String(n).padStart(2,'0');
+const UNK='unknown';
+const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CLSN={observation:'Observation',normalized_event:'Normalized event',hypothesis:'Hypothesis',inference:'Inference',prediction:'Prediction'};
+const SCREENS=[['map','Map'],['timeline','Timeline'],['dossier','Dossier'],['graph','Graph'],['coverage','Coverage'],['investigation','Investigate'],['control','Control'],['briefing','Briefing']];
+const GKEYS={m:'map',t:'timeline',d:'dossier',l:'graph',c:'coverage',i:'investigation',p:'control',b:'briefing'};
+const LENSES=[['EVIDENCE','Evidence','What is this based on?'],['COVERAGE','Coverage / missingness','Where is the data thin or absent?'],['TIME-HEAT','Time-heat','When does this happen?'],['UNCERTAIN','Uncertainty','How sure are we?'],['PRIVACY','Privacy exposure','Which apps touched which resources and domains?'],['FOCUS','Noir / focus','Reduce noise to read one thing.']];
+const CTX_SCREENS=['map','timeline','graph','coverage','investigation'];
+
+const S={screen:'map',lens:1,t:1*1440+12*60,play:false,speed:1,sel:null,paused:{},fx:false,blur:false,trail:3,
+  layers:{places:true,visits:true,trips:true,samples:false},tl:{start:0,span:14,table:false},ctxTab:'tele',scratch:[],
+  invSel:'finding-0002',delSrc:'src-account-export',delTyped:'',delResult:'',gx:{},dosFind:null};
+try{S.fx=localStorage.getItem('pnx-fx')==='1';const l=parseInt(localStorage.getItem('pnx-lens'),10);if(l>=1&&l<=6)S.lens=l}catch(e){}
+
+// ---------- load ----------
+let D,R,byId={},byType={},T0A=0,TOTAL=40320,GAPS=[],SNAP=[],EDGES=[],OUT={},INN={};
+function showError(e){
+  $('#main').className='';$('#ctx').innerHTML='';
+  $('#view').innerHTML=`<div class="errbox"><h2 class="mono" style="margin-top:0">DATA NOT LOADED</h2>
+  <p>This page could not fetch <code>data/persona.json</code> (${esc(e&&e.message||e)}). Browsers block <code>fetch</code> from <code>file://</code> pages.</p>
+  <p>From the folder <code>prototypes/explorer-concept</code> run:</p><p><code>python -m http.server</code></p>
+  <p>then open <code>http://localhost:8000</code>. The data file is synthetic; nothing else is loaded.</p></div>`;
+  $('#banner').innerHTML='<span><b>SYNTHETIC DEMO</b><span class="sep">|</span>DATA NOT LOADED</span>';
+}
+try{const res=await fetch('data/persona.json');if(!res.ok)throw new Error('HTTP '+res.status);D=await res.json()}catch(e){showError(e);return}
+R=D.records;
+function pa(s){const m=/^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(s||'');return m?Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5])/60000:null}
+T0A=pa(D.meta.window.start);TOTAL=pa(D.meta.window.end)-T0A;
+const pt=s=>{const a=pa(s);return a==null?null:a-T0A};
+const fmtT=(m,y)=>{const d=new Date((T0A+m)*60000);return (y?d.getUTCFullYear()+'-':'')+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())+' '+p2(d.getUTCHours())+':'+p2(d.getUTCMinutes())};
+const fmtD=m=>fmtT(m).slice(0,5);
+const dayOf=m=>Math.floor(m/1440);
+const dur=m=>{m=Math.round(m);const h=Math.floor(m/60),mm=m%60;return h?h+'h'+(mm?' '+p2(mm)+'m':''):mm+'m'};
+R.forEach(r=>{byId[r.id]=r;(byType[r.type]=byType[r.type]||[]).push(r);
+  const s=r.event_time||r.event_start;if(s){r._s=pt(s);r._e=r.event_end?pt(r.event_end):r._s}});
+const T=n=>byType[n]||[];
+T('Source').forEach(s=>(s.missing_periods||[]).forEach(mp=>GAPS.push({src:s.id,name:s.name,s:pt(mp.start),e:pt(mp.end),kind:mp.kind,reason:mp.reason})));
+(function(){const g={};T('NetworkAggregate').forEach(n=>{(g[n.snapshot_id]=g[n.snapshot_id]||{id:n.snapshot_id,s:n._s,e:n._e,n:0}).n++});SNAP=Object.values(g).sort((a,b)=>a.s-b.s)})();
+// edges
+const SKIP=new Set(['id','workspace_id','source_id','import_batch_id','evidence_ids']);
+const pairs=new Set();
+T('Link').forEach(l=>{pairs.add(l.from+'|'+l.to);EDGES.push({a:l.from,b:l.to,rel:l.link_type,cls:l.evidence_class,n:(l.evidence_ids||[]).length,link:l.id})});
+R.forEach(r=>{if(r.type==='Link')return;for(const k in r){if(SKIP.has(k))continue;const v=r[k];const arr=typeof v==='string'?[v]:Array.isArray(v)?v:null;if(!arr)continue;
+  arr.forEach(x=>{if(typeof x==='string'&&byId[x]&&x!==r.id&&!pairs.has(r.id+'|'+x)&&!pairs.has(x+'|'+r.id)){pairs.add(r.id+'|'+x);EDGES.push({a:r.id,b:x,rel:k,cls:r.evidence_class,n:1})}})}});
+EDGES.forEach(e=>{(OUT[e.a]=OUT[e.a]||[]).push(e);(INN[e.b]=INN[e.b]||[]).push(e)});
+const nbrs=id=>{const m=[];(OUT[id]||[]).forEach(e=>m.push({id:e.b,rel:e.rel,dir:'out',e}));(INN[id]||[]).forEach(e=>m.push({id:e.a,rel:e.rel,dir:'in',e}));return m.filter(x=>byId[x.id]&&byId[x.id].type!=='Link')};
+
+// labels
+const pn=id=>{const p=byId[id];return p?String(p.label||id).replace(/ \(fictional\)/,''):id};
+function lab(r){if(!r)return '?';switch(r.type){
+  case 'Place':return pn(r.id);
+  case 'Visit':return 'Visit '+pn(r.place_id)+' '+fmtT(r._s);
+  case 'Trip':return 'Trip '+pn(r.from_place_id)+' to '+pn(r.to_place_id)+' '+fmtT(r._s);
+  case 'LocationSample':return 'Sample '+r.id+' '+fmtT(r._s);
+  case 'ActivityInterval':return 'Motion '+r.activity_type+' '+fmtT(r._s);
+  case 'DailyHealthAggregate':return 'Health day '+fmtD(r._s);
+  case 'CalendarEvent':return 'Event '+r.title+' '+fmtD(r._s);
+  case 'App':return r.display_name;
+  case 'Domain':return r.host;
+  case 'ResourceAccess':return 'Access '+((byId[r.app_id]||{}).display_name||'?')+' '+r.category+' '+fmtT(r._s);
+  case 'NetworkAggregate':return 'NetAgg '+r.id;
+  case 'AccountActivity':return 'Acct '+r.activity_kind+' '+fmtT(r._s);
+  case 'Finding':return 'F-'+r.id.slice(-4)+' '+r.finding_kind;
+  case 'Correction':return 'Correction '+r.id;
+  case 'Source':return 'Source '+r.name;
+  case 'ImportBatch':return 'Import '+r.id;
+  default:return r.id}}
+const sens=t=>`<span class="sens">${esc(t)}</span>`;
+const val=v=>v===UNK?'<span class="unk">UNKNOWN</span>':v==null?'<span class="muted">n/a</span>':typeof v==='object'?esc(JSON.stringify(v)):esc(v);
+const cbadge=c=>`<span class="cb c-${c}" title="Epistemic class: ${esc(CLSN[c]||c)}"><i></i>${esc(CLSN[c]||c)}</span>`;
+const chip=(id,txt)=>{const r=byId[id];return `<button class="chip${S.sel===id?' sel':''}" data-sel="${esc(id)}" title="${esc(id)}">${esc(txt||lab(r))}</button>`};
+const srcOf=id=>byId[id];
+
+// ---------- colors ----------
+const cs=getComputedStyle(document.documentElement);
+const C={};['--bg-void','--bg-panel','--line-faint','--line-strong','--text-primary','--text-muted','--accent','--cls-observation','--cls-event','--cls-hypothesis','--cls-inference','--cls-prediction','--state-unknown','--state-alert','--state-ok'].forEach(k=>C[k.slice(2)]=cs.getPropertyValue(k).trim()||'#999');
+const NOIR={'cls-observation':'#c9ced4','cls-event':'#e8eaec','cls-inference':'#ffffff','cls-hypothesis':'#b0b5ba','accent':'#ffffff','line-faint':'#2a2f35','line-strong':'#5b636b','text-muted':'#aab1b8'};
+const col=k=>S.lens===6?(NOIR[k]||C[k]):C[k];
+const FONT=`"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace`;
+
+// ---------- gaps / time helpers ----------
+const gapAt=(src,t)=>GAPS.find(g=>g.src===src&&t>=g.s&&t<g.e);
+const gapLab=g=>`D${p2(dayOf(g.s))} ${fmtT(g.s)} to ${fmtT(g.e)} (${dur(g.e-g.s)})`;
+function viewWin(){
+  if(S.screen==='map')return {a:S.trail===0?0:Math.max(0,S.t-S.trail*1440),b:S.t,lab:S.trail===0?'start to scrub time':S.trail+' d to scrub time'};
+  if(S.screen==='timeline')return {a:S.tl.start*1440,b:Math.min(TOTAL,(S.tl.start+S.tl.span)*1440),lab:'timeline window'};
+  return {a:0,b:TOTAL,lab:'full 28 d window'};
+}
+const ovl=(r,w)=>r._s!=null&&r._e>=w.a&&r._s<=w.b;
+const paused=id=>!!S.paused[id];
+const anyPaused=()=>Object.values(S.paused).some(Boolean);
+
+// ---------- routing & state ----------
+function setScreen(n){if(location.hash!=='#'+n)location.hash='#'+n;else applyHash()}
+function applyHash(){const n=(location.hash||'').slice(1);const ok=SCREENS.some(s=>s[0]===n);const nx=ok?n:S.screen;if(nx!==S.screen||!ok){S.screen=nx}render()}
+window.addEventListener('hashchange',applyHash);
+function select(id,opt){opt=opt||{};if(id&&!byId[id])return;S.sel=id;
+  if(opt.go)setScreen(opt.go);
+  else if(['dossier','graph'].includes(S.screen)){renderView();renderCtx()}
+  else{renderCtx();if(S.screen==='map')drawMap();if(S.screen==='timeline')tlDraw();renderMapChips()}
+  renderStatus();
+  if(!opt.go&&innerWidth<980&&CTX_SCREENS.includes(S.screen)){const c=$('#ctx');if(c&&id)c.scrollIntoView({block:'nearest'})}}
+function setLens(n){S.lens=n;try{localStorage.setItem('pnx-lens',n)}catch(e){}render()}
+function setT(t,soft){S.t=Math.max(0,Math.min(TOTAL-1,t));updateTime(soft)}
+
+// ---------- chrome ----------
+function renderChrome(){
+  $('#app').classList.toggle('fx',S.fx);$('#app').classList.toggle('lens6',S.lens===6);$('#app').classList.toggle('blur',S.blur);
+  const np=Object.values(S.paused).filter(Boolean).length;
+  const ps=T('Source').filter(s=>s.id!=='src-workspace').length;
+  $('#banner').innerHTML=`<span><b>CONSENTED</b><span class="sep">·</span><b>PARTICIPANT-CONTROLLED</b><span class="sep">·</span><b title="Concept banner. This page fetches web fonts and its own JSON; no participant data exists. A real build must verify this claim before showing it.">LOCAL ONLY*</b><span class="sep">·</span><b>SYNTHETIC DEMO</b> <span class="muted">(subject EX-01)</span>${np?`<span class="sep">·</span><b class="warn">${np>=ps?'COLLECTION PAUSED (SIMULATED)':np+' SOURCE'+(np>1?'S':'')+' PAUSED (SIMULATED)'}</b>`:''}</span><span class="clock" id="clock"></span>`;
+  $('#nav').innerHTML=SCREENS.map(([k,l])=>`<button class="tab" data-nav="${k}" ${S.screen===k?'aria-current="page"':''}>${l}</button>`).join('');
+  $('#lenses').innerHTML=LENSES.map((l,i)=>`<button class="lens" data-lens="${i+1}" aria-pressed="${S.lens===i+1}" title="${esc(l[1]+': '+l[2])}"><span>${i+1}</span>${l[0]}</button>`).join('');
+  $('#tools').innerHTML=`<button class="btn${S.fx?' on':''}" data-act="fx" aria-pressed="${S.fx}" title="Cosmetic CRT style for Map and Briefing only. Off by default; ignored in lens 6.">STYLE ${S.fx?'ON':'OFF'}</button><button class="btn" data-act="palette" title="Ctrl/Cmd+K">Cmd+K</button><button class="btn" data-act="help" title="Shortcuts and about">?</button>`;
+  updateClock();
+}
+function updateClock(){const c=$('#clock');if(c)c.innerHTML=`<em>SCRUB</em> ${fmtT(S.t,true)} <em>UTC-05:00 · D${p2(dayOf(S.t))}</em>`}
+function renderStatus(){
+  const w=viewWin();let n=0;R.forEach(r=>{if(r._s!=null&&ovl(r,w))n++});
+  const gaps=GAPS.filter(g=>g.e>w.a&&g.s<w.b).length;
+  $('#status').innerHTML=`<span>workspace: <b>DEMO-01 (synthetic)</b></span><span>lens: <b>${esc(LENSES[S.lens-1][0])}</b></span><span>window: <b>${fmtT(w.a)} to ${fmtT(w.b)}</b></span><span>records in view: <b>${n}</b></span><span>gaps in view: <b>${gaps}</b></span><span>refresh: <b>static fixture, not live</b></span>`;
+}
+function renderAll(){render()}
+function render(){const fa=document.activeElement;let fs=null;if(fa&&fa.dataset){for(const k of ['nav','lens','act','pause','ctxtab','inv','step','tlstep']){if(fa.dataset[k]!=null){fs='[data-'+k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())+'="'+fa.dataset[k]+'"]';break}}}
+  renderChrome();$('#main').className=CTX_SCREENS.includes(S.screen)?'wctx':'';renderView();renderCtx();renderStatus();if(fs){const n=document.querySelector(fs);if(n)n.focus()}}
+
+function updateTime(soft){
+  updateClock();
+  if(S.screen==='map'){drawMap();const r=$('#trange');if(r)r.value=S.t;updateStateLine();updatePH();renderMapChips();if(S.lens===5)renderCtx()}
+  else if(S.screen==='timeline'){updatePH();}
+  else if(S.screen==='briefing'||S.ctxTab==='brief'){if(!soft)renderView();renderCtx()}
+  renderStatus();
+}
+function updatePH(){const p=$('.ph');if(p)p.style.left=`calc(42px + (100% - 42px) * ${S.t/TOTAL})`;const q=$('#tlph');if(q){const m=tlGeom;if(m){const x=m.X(S.t);q.setAttribute('x1',x);q.setAttribute('x2',x);q.style.display=(S.t>=m.ws&&S.t<=m.we)?'':'none'}}}
+
+// ---------- coverage helpers ----------
+const SRCROWS=[['LOC','src-location'],['MOT','src-motion'],['HLTH','src-healthkit'],['CAL','src-eventkit'],['APR','src-apr'],['ACCT','src-account-export']];
+const DAYTYPES={'src-location':['LocationSample'],'src-motion':['ActivityInterval'],'src-healthkit':['DailyHealthAggregate'],'src-eventkit':['CalendarEvent'],'src-account-export':['AccountActivity']};
+const DAYN={};
+(function(){SRCROWS.forEach(([,s])=>{DAYN[s]=new Array(28).fill(0)});
+ R.forEach(r=>{if(r._s==null)return;const d=dayOf(r._s);if(d<0||d>27)return;for(const s in DAYTYPES){if(DAYTYPES[s].includes(r.type)){if(r.type==='DailyHealthAggregate'&&r.steps===UNK)continue;DAYN[s][d]++}}});
+ const apr=DAYN['src-apr'];for(let d=0;d<28;d++)apr[d]=SNAP.filter(s=>s.s<(d+1)*1440&&s.e>d*1440).length})();
+function dayCell(src,d){
+  const a=d*1440,b=a+1440;let gm=0;GAPS.filter(g=>g.src===src).forEach(g=>{gm+=Math.max(0,Math.min(b,g.e)-Math.max(a,g.s))});
+  const n=DAYN[src][d],mx=Math.max(1,...DAYN[src]);let c;
+  if(gm>=1380)c='gap';else if(gm>0)c='pgap';else if(n===0)c='none';else c='d'+Math.max(1,Math.ceil(3*n/mx));
+  const what=src==='src-apr'?'snapshots covering':'records';
+  return {c,n,gm,t:`D${p2(d)} ${fmtD(a)} · ${c==='gap'?'NO DATA (declared gap)':c==='none'?'no records in this window (not evidence of absence)':n+' '+what}${gm&&c!=='gap'?' · partial gap '+dur(gm):''}`};
+}
+function stripHTML(){
+  const rows=S.lens===2?SRCROWS:[SRCROWS[0]];
+  return `<div class="srows" id="srows">${rows.map(([l,s])=>`<div class="srow"><span class="sl" title="${esc(srcOf(s).name)}">${l}</span><div class="cells">${Array.from({length:28},(_,d)=>{const x=dayCell(s,d);return `<i class="dc ${x.c}" title="${esc(x.t)}"></i>`}).join('')}</div></div>`).join('')}<div class="ph" aria-hidden="true"></div></div><div class="sdays" aria-hidden="true"><span>D00</span><span>D07</span><span>D14</span><span>D21</span><span>D27</span></div>`;
+}
+
+// ---------- telemetry ----------
+function timeStr(r){if(r._s==null)return null;return r._e!==r._s?`${fmtT(r._s,1)} to ${fmtT(r._e,1)} (${dur(r._e-r._s)})`:fmtT(r._s,1)}
+function linkedChips(id,max){const g={};nbrs(id).forEach(n=>{const t=byId[n.id].type;(g[t]=g[t]||new Map()).set(n.id,n)});
+  return Object.keys(g).sort().map(t=>{const ids=[...g[t].keys()];const shown=ids.slice(0,max||6);
+    return `<div style="margin:4px 0"><span class="tag">${esc(t)} x${ids.length}</span> ${shown.map(i=>chip(i)).join('')}${ids.length>shown.length?`<button class="chip" data-graph="${esc(id)}">+${ids.length-shown.length} more in graph</button>`:''}</div>`}).join('')||'<span class="muted">no linked objects</span>'}
+function telemetry(id){
+  const r=byId[id];if(!r)return `<div class="hint">No object selected. Click a mark on the map, timeline or graph, or press Ctrl/Cmd+K.<br><span class="mono">Nothing here is real participant data.</span></div>`;
+  const b=r.import_batch_id&&byId[r.import_batch_id];
+  const q=[];if(r.accuracy_m!=null)q.push(`sensor accuracy ±${r.accuracy_m} m (an accuracy radius, not a probability)`);
+  ['confidence','match_confidence','mode_confidence'].forEach(k=>{if(r[k]!=null)q.push(k.replace(/_/g,' ')+': '+(typeof r[k]==='object'?r[k].level+' ('+r[k].basis+')':r[k]))});
+  const pv=r.provenance;
+  const rows=[['Type',esc(r.type)],['Class',cbadge(r.evidence_class)],['Granularity',r.granularity?esc(r.granularity)+(r.granularity==='aggregate'?' (window aggregate, not an event)':''):'n/a (entity / derived object)'],
+    ['Time',timeStr(r)?esc(timeStr(r)):'<span class="muted">n/a</span>']];
+  if(b)rows.push(['Imported',`${esc(fmtT(pt(b.import_time),1))} (${esc(b.status)})`]);
+  if(q.length)rows.push(['Quality',esc(q.join('; '))]);
+  if(r.type==='DailyHealthAggregate'){rows.push(['Steps',val(r.steps)],['Resting HR',val(r.heart_rate_resting)],['Sleep',val(r.sleep_duration)],['Read auth',val(r.read_authorization)])}
+  if(r.type==='AccountActivity')rows.push(['Duration',val(r.duration_seconds)],['Title',sens(r.title)]);
+  if(r.type==='CalendarEvent')rows.push(['Role',esc(r.role)],['Observed',val(r.observed_duration)]);
+  if(r.type==='NetworkAggregate')rows.push(['Hits',esc(r.hits)+' (this snapshot only)'],['Summable','false']);
+  if(pv)rows.push(['Provenance',`${esc(pv.source)} / ${esc(pv.method)} v${esc(pv.method_version)}<br><span class="muted">${esc(pv.line_or_record)}</span>`]);
+  const nm=r.type==='Place'||r.type==='App'||r.type==='Domain'||r.type==='CalendarEvent'?sens(lab(r)):esc(lab(r));
+  return `<div class="panel"><h3>Telemetry · ${esc(r.type)}</h3><div style="margin:0 0 8px;font:600 14px var(--font-mono)">${nm}</div>
+   <dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+   <h3 style="margin-top:12px">Linked objects</h3>${linkedChips(id,5)}
+   <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px"><button class="btn" data-dos="${esc(id)}">Dossier</button><button class="btn" data-graph="${esc(id)}">Graph</button><button class="btn" data-scratch="${esc(id)}">Add to scratch</button></div>
+   ${S.scratch.length?`<div class="note">scratch set: ${S.scratch.length} object(s)</div>`:''}</div>`;
+}
+
+// ---------- context panel ----------
+function renderCtx(){
+  const c=$('#ctx');if(!CTX_SCREENS.includes(S.screen)){c.innerHTML='';return}
+  let h=`<div class="tabs" role="tablist"><button class="tab" role="tab" data-ctxtab="tele" ${S.ctxTab==='tele'?'aria-current="page"':''}>Telemetry</button><button class="tab" role="tab" data-ctxtab="brief" ${S.ctxTab==='brief'?'aria-current="page"':''}>Brief</button></div>`;
+  if(S.ctxTab==='tele'){
+    if(S.screen==='map'&&S.lens===5)h+=exposurePanel();
+    if(S.lens===5&&S.screen!=='map')h+=`<div class="lensnote mono">Shows what these records could expose; it does not show what any company inferred.</div>`;
+    h+=telemetry(S.sel);
+  }else h+=`<div class="panel">${briefHTML(true)}</div>`;
+  c.innerHTML=h;
+}
+
+// ---------- map ----------
+const MAP={cv:null,cx:null,w:0,h:0,dpr:1,hits:[],pat:null};
+function mapGeom(){const b=D.meta.bounding_box,pad=34;const lonS=b.lon_max-b.lon_min,latS=b.lat_max-b.lat_min;
+  const sc=Math.min((MAP.w-pad*2)/lonS,(MAP.h-pad*2)/latS);const bw=lonS*sc,bh=latS*sc,ox=(MAP.w-bw)/2,oy=(MAP.h-bh)/2;
+  return {sc,ox,oy,bw,bh,b,px:(lat,lon)=>[ox+(lon-b.lon_min)*sc,oy+bh-(lat-b.lat_min)*sc],mpx:m=>m*sc/111320}}
+function hatchPat(x){const c=document.createElement('canvas');c.width=c.height=10;const q=c.getContext('2d');q.strokeStyle=C['state-unknown'];q.lineWidth=1.4;q.beginPath();q.moveTo(-1,11);q.lineTo(11,-1);q.stroke();return x.createPattern(c,'repeat')}
+function placeXY(g,id){const p=byId[id];return p?g.px(p.lat,p.lon):[0,0]}
+function brackets(x,cx,cy,s,k){x.beginPath();[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([a,b])=>{x.moveTo(cx+a*s,cy+b*s*.45);x.lineTo(cx+a*s,cy+b*s);x.lineTo(cx+a*s*.45,cy+b*s)});x.stroke()}
+function anchor(g,id){const r=byId[id];if(!r)return null;
+  if(r.type==='Place')return placeXY(g,id);
+  if(r.type==='Visit')return placeXY(g,r.place_id);
+  if(r.type==='Trip'){const a=placeXY(g,r.from_place_id),b=placeXY(g,r.to_place_id);return [(a[0]+b[0])/2,(a[1]+b[1])/2]}
+  if(r.type==='LocationSample')return g.px(r.lat,r.lon);return null}
+function dwellBins(pid,a,b){const bins=new Array(24).fill(0);T('Visit').filter(v=>v.place_id===pid).forEach(v=>{for(let m=Math.max(v._s,a);m<=Math.min(v._e,b);m+=15)bins[Math.floor((m%1440)/60)]+=15});return bins}
+function drawMap(){
+  const x=MAP.cx;if(!x||!MAP.w)return;const g=mapGeom();const L=S.lens;MAP.hits=[];const t=S.t;
+  const w=viewWin();x.setTransform(MAP.dpr,0,0,MAP.dpr,0,0);x.clearRect(0,0,MAP.w,MAP.h);x.fillStyle=col('bg-void');x.fillRect(0,0,MAP.w,MAP.h);
+  const glow=S.fx&&!RM&&L!==6;
+  // grid
+  x.font=`11px ${FONT}`;x.textBaseline='middle';
+  for(let i=0;i<=12;i++){const lat=g.b.lat_min+i*.005,y=g.px(lat,0)[1];x.strokeStyle=i%4===0?col('line-strong'):col('line-faint');x.lineWidth=1;x.beginPath();x.moveTo(g.ox,y);x.lineTo(g.ox+g.bw,y);x.stroke();
+    if(i%4===0){x.fillStyle=col('text-muted');x.textAlign='right';x.fillText(lat.toFixed(2)+'N',g.ox-4,y)}}
+  for(let i=0;i<=12;i++){const lon=g.b.lon_min+i*.005,xx=g.px(0,lon)[0];x.strokeStyle=i%4===0?col('line-strong'):col('line-faint');x.beginPath();x.moveTo(xx,g.oy);x.lineTo(xx,g.oy+g.bh);x.stroke();
+    if(i%4===0){x.fillStyle=col('text-muted');x.textAlign='center';x.fillText(Math.abs(lon).toFixed(2)+'W',xx,g.oy+g.bh+12)}}
+  x.strokeStyle=col('accent');x.lineWidth=2;
+  x.beginPath();[[g.ox,g.oy,1,1],[g.ox+g.bw,g.oy,-1,1],[g.ox+g.bw,g.oy+g.bh,-1,-1],[g.ox,g.oy+g.bh,1,-1]].forEach(([a,b,dx,dy])=>{x.moveTo(a+dx*16,b);x.lineTo(a,b);x.lineTo(a,b+dy*16)});x.stroke();
+  // gap
+  const gap=gapAt('src-location',t);
+  if(gap){if(!MAP.pat)MAP.pat=hatchPat(x);x.save();x.globalAlpha=.55;x.fillStyle=MAP.pat;x.fillRect(g.ox,g.oy,g.bw,g.bh);x.restore();}
+  x.globalAlpha=L===5?.3:1;
+  // trips
+  if(S.layers.trips){T('Trip').forEach(tr=>{if(tr._s>t||tr._e<w.a)return;const a=placeXY(g,tr.from_place_id),b=placeXY(g,tr.to_place_id);
+    const live=t>=tr._s&&t<=tr._e;const age=live?0:Math.min(1,(t-tr._e)/Math.max(1,t-w.a||1));
+    x.save();x.globalAlpha*=live?1:Math.max(.12,.85*(1-age));x.strokeStyle=col('cls-event');x.lineWidth=live?3:(L===6?2.5:1.6);x.setLineDash(tr.mode==='walk'?[2,5]:[9,5]);
+    if(glow){x.shadowColor=C['cls-event'];x.shadowBlur=6}
+    x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();x.setLineDash([]);
+    const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;x.fillStyle=col('cls-event');x.beginPath();x.moveTo(mx+8*Math.cos(ang),my+8*Math.sin(ang));x.lineTo(mx-5*Math.cos(ang)+5*Math.sin(ang),my-5*Math.sin(ang)-5*Math.cos(ang));x.lineTo(mx-5*Math.cos(ang)-5*Math.sin(ang),my-5*Math.sin(ang)+5*Math.cos(ang));x.fill();
+    if(live){x.fillStyle=col('text-primary');x.textAlign='left';x.fillText('IN TRANSIT · route not recorded',mx+10,my-12)}
+    x.restore();MAP.hits.push({id:tr.id,seg:[a[0],a[1],b[0],b[1]],pri:2})})}
+  // samples
+  const showS=S.layers.samples||L===2||L===4;
+  if(showS){T('LocationSample').forEach(s=>{if(s._s>t||s._s<w.a)return;const p=g.px(s.lat,s.lon);const age=(t-s._s)/Math.max(1,t-w.a||1);
+    x.save();x.globalAlpha*=Math.max(.2,1-age*.8);
+    if(L===4){x.strokeStyle=col('cls-observation');x.lineWidth=1;x.beginPath();x.arc(p[0],p[1],Math.max(3,g.mpx(s.accuracy_m*20)),0,7);x.stroke()}
+    x.fillStyle=col('cls-observation');x.beginPath();x.arc(p[0],p[1],2.6,0,7);x.fill();x.restore();MAP.hits.push({id:s.id,x:p[0],y:p[1],r:9,pri:3})})}
+  // places + visits
+  const active=T('Visit').find(v=>t>=v._s&&t<=v._e);
+  T('Place').forEach(pl=>{const p=g.px(pl.lat,pl.lon);const cx=p[0],cy=p[1];
+    let dw=0;T('Visit').forEach(v=>{if(v.place_id===pl.id)dw+=Math.max(0,Math.min(v._e,t)-Math.max(v._s,w.a))});
+    const nVis=T('Visit').filter(v=>v.place_id===pl.id).length;
+    const here=active&&active.place_id===pl.id;
+    // lens 3 polar
+    if(L===3){const bins=dwellBins(pl.id,w.a,t);const mx=Math.max(1,...bins);x.strokeStyle=col('line-strong');x.lineWidth=1;x.beginPath();x.arc(cx,cy,17,0,7);x.stroke();
+      for(let i=0;i<24;i++){const a=i/24*Math.PI*2-Math.PI/2,len=bins[i]?4+26*Math.sqrt(bins[i]/mx):0;if(!len){x.strokeStyle=col('line-faint');x.beginPath();x.moveTo(cx+17*Math.cos(a),cy+17*Math.sin(a));x.lineTo(cx+20*Math.cos(a),cy+20*Math.sin(a));x.stroke();continue}
+        x.strokeStyle=col('cls-event');x.globalAlpha=(L===5?.3:1)*(.35+.65*bins[i]/mx);x.lineWidth=3.5;x.beginPath();x.moveTo(cx+19*Math.cos(a),cy+19*Math.sin(a));x.lineTo(cx+(19+len)*Math.cos(a),cy+(19+len)*Math.sin(a));x.stroke()}
+      x.globalAlpha=L===5?.3:1;x.fillStyle=col('text-muted');x.textAlign='center';x.fillText('00h',cx,cy-52)}
+    // dwell ring (aggregate of Visit records in window)
+    if(S.layers.visits&&L!==3){const rr=14+Math.sqrt(dw/60)*4.5;
+      x.save();if(glow){x.shadowColor=C['cls-event'];x.shadowBlur=8}
+      x.strokeStyle=col('cls-event');x.lineWidth=here&&!gap?3:1.5;x.setLineDash(here&&gap&&active.interrupted_by_gap?[3,4]:[]);
+      if(dw>0){x.beginPath();x.arc(cx,cy,rr,0,7);x.stroke();x.fillStyle=col('cls-event');x.fillRect(cx-3,cy-rr-3,6,6)}
+      x.restore()}
+    if(L===4){const rr=g.mpx(pl.radius_m*20);x.strokeStyle=col('cls-inference');x.setLineDash([2,3]);x.beginPath();x.arc(cx,cy,rr,0,7);x.stroke();x.setLineDash([])}
+    if(S.layers.places){
+      x.save();if(glow){x.shadowColor=C['cls-inference'];x.shadowBlur=9}
+      x.strokeStyle=col('cls-inference');x.lineWidth=L===6?2.5:1.5;
+      x.beginPath();x.arc(cx,cy,6,0,7);x.stroke();x.beginPath();x.arc(cx,cy,10,0,7);x.stroke();
+      x.beginPath();[[0,-1],[1,0],[0,1],[-1,0]].forEach(([a,b])=>{x.moveTo(cx+a*12,cy+b*12);x.lineTo(cx+a*17,cy+b*17)});x.stroke();x.restore();
+      x.fillStyle=col('text-primary');x.textAlign='left';x.font=`12px ${FONT}`;
+      let lb=S.blur?'••••••':pn(pl.id).toUpperCase();x.fillText(lb,cx+16,cy-2);
+      x.fillStyle=col('text-muted');x.font=`11px ${FONT}`;
+      const sub=L===1?`${nVis} visit records`:L===2?(dw?dur(dw)+' dwell (window)':'no dwell in window'):L===4?`label confidence: ${pl.confidence}`:dw?dur(dw)+' dwell':'';
+      if(sub)x.fillText(sub,cx+16,cy+12);x.font=`11px ${FONT}`;
+      MAP.hits.push({id:pl.id,x:cx,y:cy,r:20,pri:1})}
+    if(here&&!gap){x.fillStyle=col('accent');x.textAlign='center';x.fillText('PRESENT RECORD',cx,cy+40)}
+  });
+  x.globalAlpha=1;
+  // last-record ghost
+  if(!gap&&!active&&!T('Trip').some(tr=>t>=tr._s&&t<=tr._e)&&L!==5){
+    const prev=[...T('Visit')].filter(v=>v._e<=t).sort((a,b)=>b._e-a._e)[0];
+    if(prev&&t-prev._e<=360){const p=placeXY(g,prev.place_id);x.strokeStyle=col('text-muted');x.setLineDash([2,4]);x.beginPath();x.arc(p[0],p[1],25,0,7);x.stroke();x.setLineDash([]);x.fillStyle=col('text-muted');x.textAlign='center';x.fillText(`LAST RECORD ${dur(t-prev._e)} ago · not a current position`,p[0],p[1]-32)}}
+  // selection reticle
+  if(S.sel){const a=anchor(g,S.sel);if(a){const r=byId[S.sel];x.save();x.strokeStyle=col('accent');x.lineWidth=2;if(glow){x.shadowColor=C.accent;x.shadowBlur=10}brackets(x,a[0],a[1],26,0);x.restore();
+    x.fillStyle=col('accent');x.font=`11px ${FONT}`;x.textAlign='left';const lbl=`${r.type.toUpperCase()} · ${(CLSN[r.evidence_class]||'').toUpperCase()}`;const tw=x.measureText(lbl).width;x.fillText(lbl,Math.min(a[0]-26,MAP.w-tw-6),a[1]+40)}}
+  // gap label plate
+  if(gap){const msg1=gap.kind==='no_location_day'?'NO SIGNAL · NO LOCATION RECORDS':'NO SIGNAL · BACKGROUND GAP';const msg2=`${gapLab(gap)} · position unknown, NOT stationary`;
+    x.font=`600 13px ${FONT}`;const w1=Math.max(x.measureText(msg1).width,x.measureText(msg2).width)+24;const bx=MAP.w/2-w1/2,by=MAP.h/2-26;
+    x.fillStyle='rgba(7,10,15,.92)';x.fillRect(bx,by,w1,52);x.strokeStyle=col('line-strong');x.lineWidth=1;x.strokeRect(bx,by,w1,52);x.textAlign='center';x.fillStyle=col('text-primary');x.fillText(msg1,MAP.w/2,by+16);x.font=`11px ${FONT}`;x.fillStyle=col('text-muted');x.fillText(msg2,MAP.w/2,by+36)}
+  // HUD
+  x.textAlign='left';x.font=`11px ${FONT}`;x.fillStyle=col('text-muted');x.fillText('PORT MERIDIAN · FICTIONAL GRID · NOT REAL CARTOGRAPHY',8,12);
+  x.textAlign='right';x.fillText(`LENS ${L} ${LENSES[L-1][0]} · trail ${w.lab}`,MAP.w-8,12);
+  x.textAlign='left';
+  const foot=L===4?'accuracy radii and place radii drawn x20 (exaggerated)':L===3?'hour-of-day dwell: aggregate of Visit records in trail window':L===2?'raw samples shown; sparse sampling is a property of the fixture':L===1?'trips: endpoints only, route geometry not recorded':'';
+  if(foot)x.fillText(foot,8,MAP.h-8);
+}
+function mapPick(ev){
+  const r=MAP.cv.getBoundingClientRect(),px=ev.clientX-r.left,py=ev.clientY-r.top;let best=null,bd=1e9;
+  MAP.hits.forEach(h=>{let d;if(h.seg){const [x1,y1,x2,y2]=h.seg;const dx=x2-x1,dy=y2-y1;const l=dx*dx+dy*dy||1;let u=((px-x1)*dx+(py-y1)*dy)/l;u=Math.max(0,Math.min(1,u));d=Math.hypot(px-(x1+u*dx),py-(y1+u*dy));if(d>12)return;d+=6}
+    else{d=Math.hypot(px-h.x,py-h.y);if(d>h.r)return}
+    d+=h.pri*.5;if(d<bd){bd=d;best=h}});
+  if(best)select(best.id,{});else{S.sel=null;renderCtx();drawMap();renderMapChips()}
+  if(best&&ev.shiftKey)addScratch(best.id);
+}
+function stateInfo(){
+  const t=S.t;const gap=gapAt('src-location',t);const mot=T('ActivityInterval').find(a=>t>=a._s&&t<=a._e);
+  const v=T('Visit').find(v=>t>=v._s&&t<=v._e);const tr=T('Trip').find(x=>t>=x._s&&t<=x._e);
+  return {gap,mot,v,tr};
+}
+function updateStateLine(){
+  const el=$('#stateline');if(!el)return;const {gap,mot,v,tr}=stateInfo();
+  let h;
+  if(gap)h=`<b>NO SIGNAL</b> · Location source has no records: ${esc(gap.kind)} (${esc(gapLab(gap))}). Position is UNKNOWN; this is not a stationary state.`;
+  else if(v)h=`<b>VISIT RECORD</b> · ${sens(pn(v.place_id))} (${esc(timeStr(v))}). Bounds are first and last sample, not true arrival or departure.`;
+  else if(tr)h=`<b>TRIP RECORD</b> · ${sens(pn(tr.from_place_id))} to ${sens(pn(tr.to_place_id))}, mode ${esc(tr.mode)} (${esc(tr.mode_confidence)} confidence). Route geometry not recorded.`;
+  else h=`<b>NO VISIT OR TRIP RECORD</b> at this minute. This is "no records in this window", not evidence the participant was absent or still.`;
+  h+=`<br><span class="muted">Motion at T: ${mot?esc(mot.activity_type)+' ('+esc(timeStr(mot))+')':'no interval at this minute'}${gap&&gap.kind==='no_location_day'?' · Motion source is separate from Location.':''}</span>`;
+  el.className='stateline'+(gap?' gap':'');el.innerHTML=h;
+}
+function renderMapChips(){
+  const el=$('#mapchips');if(!el)return;const {v,tr,gap}=stateInfo();
+  let h=T('Place').map(p=>chip(p.id,pn(p.id))).join('');if(v)h+=chip(v.id,'active visit');if(tr)h+=chip(tr.id,'active trip');
+  h+=`<button class="chip" data-sel="src-location" title="Source with the gaps">Source Location${gap?' (gap now)':''}</button>`;
+  el.innerHTML=h;
+}
+function mapView(){
+  const w=viewWin();
+  return `<div class="panel"><h2>Ops map · Port Meridian (fictional)</h2>
+   <div class="layerrow" role="group" aria-label="Layers">${[['places','Places'],['visits','Visits (dwell rings)'],['trips','Trips (trails)'],['samples','Raw samples']].map(([k,l])=>`<label><input type="checkbox" data-layer="${k}" ${S.layers[k]?'checked':''}> ${l}</label>`).join('')}
+    <label>trail <select data-trail aria-label="Trail window">${[[1,'1 d'],[3,'3 d'],[7,'7 d'],[0,'all']].map(([v,l])=>`<option value="${v}" ${S.trail===v?'selected':''}>${l}</option>`).join('')}</select></label></div>
+   <div class="mapwrap fx-surface" id="mapwrap"><canvas id="mapcv" role="img" aria-label="Tactical map of fictional Port Meridian with places, visit rings and trip trails at the scrubbed time. Use the object buttons below for keyboard access."></canvas></div>
+   <div class="scrub"><button class="btn" data-act="play" aria-pressed="${S.play}">${S.play?'PAUSE':'PLAY'}</button>
+    <button class="btn" data-step="-1" aria-label="Back one day">-1d</button><button class="btn" data-step="1" aria-label="Forward one day">+1d</button>
+    <select class="sel-input" data-speed aria-label="Play speed">${[[1,'10 h/s'],[3,'30 h/s'],[12,'5 d/s']].map(([v,l])=>`<option value="${v}" ${S.speed===v?'selected':''}>${l}</option>`).join('')}</select>
+    <input id="trange" type="range" min="0" max="${TOTAL-1}" step="15" value="${S.t}" aria-label="Time scrubber, 28 days"></div>
+   ${stripHTML()}
+   ${S.lens===2?'<div class="note">Coverage lens: hatched = declared gap (NO DATA), dotted = no records in this window (not a gap, not evidence of absence), fill = record count per day. APR row counts overlapping snapshots, not events.</div>':'<div class="note">Strip = Location records per day. Hatched cells are declared gaps (D09 no location day; D17 locked-phone gap). Click the strip to jump.</div>'}
+   <div class="stateline" id="stateline"></div>
+   <h3>Objects in view (keyboard access)</h3><div class="chipbox" id="mapchips"></div>
+   ${S.lens===3?'<div class="lensnote">Time-heat: each ring is hour-of-day dwell of Visit records (normalized events) within the trail window. It is an aggregate of records, not a routine inference.</div>':''}
+   ${S.lens===4?'<div class="lensnote">Uncertainty: dotted circles show sensor accuracy radius (and place radius) drawn x20 exaggerated. Accuracy is a distance, not a probability.</div>':''}
+   ${S.lens===5?'<div class="lensnote">Shows what these records could expose; it does not show what any company inferred. The map is dimmed: the exposure diagram is in the right panel.</div>':''}
+   </div>`;
+}
+function setupMap(){
+  MAP.cv=$('#mapcv');if(!MAP.cv)return;MAP.cx=MAP.cv.getContext('2d');MAP.pat=null;
+  const fit=()=>{const r=MAP.cv.getBoundingClientRect();MAP.dpr=window.devicePixelRatio||1;MAP.w=r.width;MAP.h=r.height;MAP.cv.width=Math.round(r.width*MAP.dpr);MAP.cv.height=Math.round(r.height*MAP.dpr);MAP.pat=null;drawMap()};
+  fit();if(window.ResizeObserver){new ResizeObserver(fit).observe($('#mapwrap'))}
+  MAP.cv.addEventListener('click',mapPick);
+  const sr=$('#srows');if(sr)sr.addEventListener('click',e=>{const c=sr.querySelector('.cells').getBoundingClientRect();setT(Math.round((e.clientX-c.left)/c.width*TOTAL/15)*15)});
+  updateStateLine();renderMapChips();updatePH();
+}
+
+// exposure panel (lens 5)
+function exposurePanel(){
+  const w=viewWin();const cats=['camera','microphone','location','photos','contacts'];const apps=T('App'),doms=T('Domain');
+  const cnt={};T('ResourceAccess').filter(a=>ovl(a,w)).forEach(a=>{const k=a.app_id+'|'+a.category;cnt[k]=(cnt[k]||0)+1});
+  const snaps=SNAP.filter(s=>s.e>w.a&&s.s<w.b);const snap=snaps.length?snaps[snaps.length-1]:null;
+  const hits={};if(snap)T('NetworkAggregate').filter(n=>n.snapshot_id===snap.id).forEach(n=>{hits[n.app_id+'|'+n.domain_id]=n.hits});
+  const H=Math.max(apps.length,doms.length)*26+40;const ay=i=>30+i*26,cy=i=>30+i*(26*apps.length/cats.length)+8,dy=i=>30+i*(26*apps.length/doms.length);
+  const mxA=Math.max(1,...Object.values(cnt)),mxH=Math.max(1,...Object.values(hits));
+  let s=`<svg viewBox="0 0 320 ${H}" role="img" aria-label="Exposure diagram: resource categories, apps, contacted domains"><text x="4" y="12" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">RESOURCE</text><text x="132" y="12" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">APP</text><text x="262" y="12" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">DOMAIN</text>`;
+  apps.forEach((a,i)=>{cats.forEach((c,j)=>{const n=cnt[a.id+'|'+c];if(n)s+=`<line x1="64" y1="${cy(j)}" x2="126" y2="${ay(i)}" stroke="${C['cls-observation']}" stroke-width="${1+4*n/mxA}"><title>${esc(a.display_name)} · ${c}: ${n} access record(s) in window</title></line>`});
+    doms.forEach((d,j)=>{const n=hits[a.id+'|'+d.id];if(n)s+=`<line x1="196" y1="${ay(i)}" x2="256" y2="${dy(j)}" stroke="${C['cls-observation']}" stroke-width="${1+5*n/mxH}" stroke-dasharray="6 3"><title>${esc(a.display_name)} contacted ${esc(d.host)}: ${n} hits in snapshot ${snap.id} (snapshot value, not summed)</title></line>`})});
+  cats.forEach((c,j)=>s+=`<text x="4" y="${cy(j)+4}" fill="${C['text-primary']}" font-size="12" font-family="${FONT}">${c}</text>`);
+  apps.forEach((a,i)=>s+=`<g class="node" data-sel="${a.id}" tabindex="0" role="button" aria-label="${esc(a.display_name)}"><rect x="128" y="${ay(i)-10}" width="70" height="20" fill="${C['bg-panel']}" stroke="${C['cls-observation']}"/><text x="132" y="${ay(i)+4}" fill="${C['text-primary']}" font-size="11" font-family="${FONT}">${esc(a.display_name.replace('Example ',''))}</text></g>`);
+  doms.forEach((d,j)=>s+=`<text x="258" y="${dy(j)+4}" fill="${C['text-primary']}" font-size="10.5" font-family="${FONT}" class="sens">${esc(d.host.replace('.example',''))}</text>`);
+  s+='</svg>';
+  return `<div class="panel"><h3>Privacy exposure · ${esc(w.lab)}</h3><div class="lensnote mono">Shows what these records could expose; it does not show what any company inferred.</div><div class="svgbox">${s}</div>
+   <div class="note">Left edges: count of ResourceAccess records in window (thickness). Right edges (dashed): hits from the latest overlapping snapshot${snap?' ('+esc(snap.id)+')':''} only, never summed across overlapping snapshots. Contact does not imply content seen.</div></div>`;
+}
+
+// ---------- timeline ----------
+let tlGeom=null;
+function tlView(){
+  const w=viewWin();
+  return `<div class="panel"><h2>Timeline · lanes by source</h2>
+   <div class="layerrow"><span>WINDOW <b class="mono">${fmtT(w.a,1)} → ${fmtT(w.b,1)}</b></span>
+    <button class="btn" data-tlstep="-1" aria-label="Previous window">[ prev</button><button class="btn" data-tlstep="1" aria-label="Next window">next ]</button>
+    <label>zoom <select data-tlspan aria-label="Days in window">${[[28,'28 d'],[14,'14 d'],[7,'7 d'],[3,'3 d'],[1,'1 d']].map(([v,l])=>`<option value="${v}" ${S.tl.span===v?'selected':''}>${l}</option>`).join('')}</select></label>
+    <button class="btn${S.tl.table?' on':''}" data-act="tltable" aria-pressed="${S.tl.table}">TABLE ALT</button></div>
+   ${S.lens===5?'<div class="lensnote mono">Shows what these records could expose; it does not show what any company inferred.</div>':''}
+   ${S.lens===2?'<div class="note">Coverage lens: day histograms show record counts per lane; hatch = declared gap (NO DATA).</div>':''}
+   ${S.lens===4?'<div class="note">Uncertainty lens: tick height on Location samples = sensor accuracy; medium-confidence visits and trips are washed out.</div>':''}
+   <div class="tlwrap fx-no" id="tlwrap"></div>
+   <div id="tlextra"></div>${S.tl.table?'<div id="tltab"></div>':''}
+   <div class="legend" aria-label="Glyph legend">
+    <span><svg width="14" height="14"><circle cx="7" cy="7" r="3.5" fill="${C['cls-observation']}"/></svg>point</span>
+    <span><svg width="30" height="14"><path d="M2 3v8M28 3v8M2 7H28" stroke="${C['cls-event']}" fill="none" stroke-width="1.5"/></svg>interval</span>
+    <span><svg width="30" height="14"><path d="M1 12V6l3-2 3 2 3-2 3 2 3-2 3 2 3-2 3 2 3-2v8z" fill="rgba(159,180,200,.25)" stroke="${C['cls-observation']}"/></svg>window aggregate</span>
+    <span><svg width="30" height="14"><rect x="1" y="2" width="28" height="10" fill="rgba(159,180,200,.25)" stroke="${C['cls-observation']}"/></svg>daily AGG</span>
+    <span><svg width="30" height="14"><rect x="1" y="2" width="28" height="10" fill="none" stroke="${C['cls-inference']}" stroke-width="1"/><rect x="3" y="4" width="24" height="6" fill="none" stroke="${C['cls-inference']}"/></svg>derived span</span>
+    <span><svg width="30" height="14"><rect x="1" y="2" width="28" height="10" fill="url(#hat)" stroke="${C['state-unknown']}"/></svg>UNKNOWN / no data</span></div>
+   <div class="note">Timezone: fixed UTC-05:00 (Etc/GMT+5); no DST seam in this window. NetworkAggregate is shown once per snapshot and is never summed across overlapping snapshots. Unknown values are drawn as UNKNOWN, never as 0.</div></div>`;
+}
+function tlDraw(){
+  const wrap=$('#tlwrap');if(!wrap)return;
+  const W=Math.max(300,wrap.clientWidth||300);const narrow=W<560;const Gt=narrow?66:112;const ws=S.tl.start*1440,we=Math.min(TOTAL,ws+S.tl.span*1440);
+  const X=m=>Gt+(Math.max(ws,Math.min(we,m))-ws)/(we-ws)*(W-Gt-8);tlGeom={X,ws,we};
+  const inW=r=>r._s!=null&&r._e>=ws&&r._s<=we;
+  const L=S.lens;const dimP=L===5;
+  const f=FONT;let y=22;let out='';
+  const o=(...a)=>{out+=a.join('')};
+  o(`<defs><pattern id="hat" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${col('state-unknown')}" stroke-width="1.6"/></pattern></defs>`);
+  // axis
+  const step=S.tl.span>14?7:S.tl.span>3?1:.25;
+  for(let m=Math.ceil(ws/(step*1440))*step*1440;m<=we;m+=step*1440){const x=X(m);o(`<line x1="${x}" y1="14" x2="${x}" y2="TLH" stroke="${col('line-faint')}"/>`);
+    o(`<text x="${x+2}" y="11" fill="${col('text-muted')}" font-size="11" font-family="${f}">${step<1?fmtT(m).slice(6):fmtD(m)+(narrow&&step<1?'':'')}${step>=1?' D'+p2(dayOf(m)):''}</text>`)}
+  const lanes=[
+   {k:'loc',lb:'LOCATION',src:'src-location',h:L===4?34:24},{k:'visit',lb:'VISITS',src:'src-location',h:28},{k:'trip',lb:'TRIPS',src:'src-location',h:22},
+   {k:'motion',lb:'MOTION',src:'src-motion',h:24},{k:'health',lb:'HEALTHKIT',src:'src-healthkit',h:78},{k:'cal',lb:'CALENDAR',src:'src-eventkit',h:28},
+   {k:'access',lb:narrow?'APP ACC':'APP ACCESS',src:'src-apr',h:26},{k:'net',lb:narrow?'NET AGG':'NETWORK AGG',src:'src-apr',h:80},
+   {k:'acct',lb:'ACCOUNT',src:'src-account-export',h:24},{k:'find',lb:'FINDINGS',src:'src-workspace',h:84}];
+  const types={loc:'LocationSample',visit:'Visit',trip:'Trip',motion:'ActivityInterval',health:'DailyHealthAggregate',cal:'CalendarEvent',access:'ResourceAccess',net:'NetworkAggregate',acct:'AccountActivity',find:'Finding'};
+  const priv=['access','net'];
+  const sel=id=>S.sel===id;
+  const G=(r,inner,label)=>`<g data-id="${r.id}" tabindex="0" role="button" aria-label="${esc(label||lab(r))}"><title>${esc((label||lab(r))+' · '+(CLSN[r.evidence_class]||''))}</title>${inner}</g>`;
+  const ring=(x,y,w,h)=>`<rect x="${x-2}" y="${y-2}" width="${w+4}" height="${h+4}" fill="none" stroke="${col('accent')}" stroke-width="2"/>`;
+  lanes.forEach(ln=>{
+    const y0=y,h=ln.h;const src=srcOf(ln.src);
+    const recs=ln.k==='find'?T('Finding'):T(types[ln.k]).filter(inW);
+    const dim=(dimP&&!priv.includes(ln.k))?.28:1;
+    o(`<rect x="0" y="${y0}" width="${W}" height="${h}" fill="${y0%2?'transparent':'rgba(20,28,39,.35)'}"/>`);
+    o(`<line x1="0" y1="${y0+h}" x2="${W}" y2="${y0+h}" stroke="${col('line-faint')}"/>`);
+    o(`<text x="6" y="${y0+13}" fill="${col('text-primary')}" font-size="11" font-weight="600" font-family="${f}">${ln.lb}</text>`);
+    o(`<text x="6" y="${y0+26}" fill="${col('text-muted')}" font-size="10.5" font-family="${f}">${recs.length} in view</text>`);
+    o(`<g opacity="${dim}">`);
+    const mid=y0+h/2;
+    if(ln.k==='loc')recs.forEach(s=>{const x=X(s._s);if(L===4){const a=Math.min(h-6,s.accuracy_m*.9);o(`<line x1="${x}" y1="${mid-a/2}" x2="${x}" y2="${mid+a/2}" stroke="${col('cls-observation')}" stroke-width="1" opacity=".7"/>`)}
+      o(G(s,`<circle cx="${x}" cy="${mid}" r="3.2" fill="${col('cls-observation')}"/>${sel(s.id)?`<circle cx="${x}" cy="${mid}" r="7" fill="none" stroke="${col('accent')}" stroke-width="2"/>`:''}`,lab(s)+' ±'+s.accuracy_m+' m'))});
+    if(ln.k==='visit')recs.forEach(v=>{const x1=X(v._s),x2=Math.max(X(v._e),x1+5),bw=x2-x1,by=y0+7,bh=h-14;const wash=(L===4&&v.match_confidence!=='high')?.45:1;
+      let inner=`<g opacity="${wash}"><rect x="${x1}" y="${by}" width="${bw}" height="${bh}" fill="${col('cls-event')}" fill-opacity=".3" stroke="${col('cls-event')}"/><rect x="${x1-1}" y="${by-3}" width="4" height="4" fill="${col('cls-event')}"/><path d="M${x1} ${by-2}v${bh+4}M${x2} ${by-2}v${bh+4}" stroke="${col('cls-event')}" stroke-width="2"/>`;
+      if(v.interrupted_by_gap)GAPS.filter(g=>g.src==='src-location'&&g.e>v._s&&g.s<v._e).forEach(g=>{const gx1=X(Math.max(g.s,v._s)),gx2=X(Math.min(g.e,v._e));inner+=`<rect x="${gx1}" y="${by}" width="${gx2-gx1}" height="${bh}" fill="url(#hat)" stroke="${col('state-unknown')}" stroke-dasharray="3 2"/><rect x="${gx1}" y="${by}" width="${gx2-gx1}" height="${bh}" fill="${col('bg-void')}" fill-opacity=".5"/><rect x="${gx1}" y="${by}" width="${gx2-gx1}" height="${bh}" fill="url(#hat)"/>`});
+      if(bw>46)inner+=`<text x="${x1+6}" y="${by+bh/2+4}" fill="${col('text-primary')}" font-size="11" font-family="${f}" class="sens">${esc(pn(v.place_id))}</text>`;
+      inner+='</g>'+(sel(v.id)?ring(x1,by,bw,bh):'');o(G(v,inner,lab(v)+(v.interrupted_by_gap?' · SPANS A GAP (position unknown inside gap)':'')))});
+    if(ln.k==='trip')recs.forEach(t=>{const x1=X(t._s),x2=Math.max(X(t._e),x1+5),wash=(L===4&&t.mode_confidence!=='high')?.45:1;
+      o(G(t,`<g opacity="${wash}"><rect x="${x1}" y="${mid-4}" width="${x2-x1}" height="8" fill="${col('cls-event')}" fill-opacity=".45" stroke="${col('cls-event')}"/><path d="M${x2} ${mid-6}l5 6-5 6z" fill="${col('cls-event')}"/></g>${sel(t.id)?ring(x1,mid-4,x2-x1+5,8):''}`))});
+    if(ln.k==='motion')recs.forEach(a=>{const x1=X(a._s),x2=Math.max(X(a._e),x1+4);o(G(a,`<rect x="${x1}" y="${mid-7}" width="${x2-x1}" height="14" fill="none" stroke="${col('cls-observation')}"/>${x2-x1>14?`<text x="${x1+3}" y="${mid+4}" fill="${col('text-muted')}" font-size="10.5" font-family="${f}">${esc(a.activity_type[0].toUpperCase())}</text>`:''}${sel(a.id)?ring(x1,mid-7,x2-x1,14):''}`))});
+    if(ln.k==='health'){
+      const rows=[['steps','STEPS AGG/day',y0+16],['heart_rate_resting','HEART RATE',y0+38],['sleep_duration','SLEEP',y0+58]];
+      rows.forEach(([k,t,ry])=>{o(`<text x="${Gt-4}" y="${ry+12}" text-anchor="end" fill="${col('text-muted')}" font-size="10" font-family="${f}">${narrow?t.split(' ')[0]:t}</text>`)});
+      recs.forEach(hl=>{const x1=X(hl._s),x2=X(hl._e);rows.forEach(([k,t,ry])=>{const v=hl[k];const known=v!==UNK;const bw=Math.max(1,x2-x1-1);
+        let inner=known?`<rect x="${x1}" y="${ry}" width="${bw}" height="16" fill="${col('cls-observation')}" fill-opacity=".22" stroke="${col('cls-observation')}"/>${bw>44?`<text x="${x1+3}" y="${ry+12}" fill="${col('text-primary')}" font-size="10.5" font-family="${f}">AGG ${v}</text>`:bw>20?`<text x="${x1+2}" y="${ry+12}" fill="${col('text-muted')}" font-size="10" font-family="${f}">AGG</text>`:''}`
+         :`<rect x="${x1}" y="${ry}" width="${bw}" height="16" fill="url(#hat)" stroke="${col('state-unknown')}"/>${bw>62?`<text x="${x1+3}" y="${ry+12}" fill="${col('text-muted')}" font-size="10" font-family="${f}">UNKNOWN</text>`:''}`;
+        if(sel(hl.id)&&k==='steps')inner+=ring(x1,ry,bw,16);
+        o(G(hl,inner,`${fmtD(hl._s)} ${t}: ${known?v:'UNKNOWN'}${k!=='steps'?' (no producer observed)':hl.steps_status!=='measured'?' ('+hl.steps_status+')':''} · daily aggregate`))})});}
+    if(ln.k==='cal')recs.forEach(c=>{const x1=X(c._s),x2=Math.max(X(c._e),x1+5),conf=c.role==='observed_activity';
+      o(G(c,`<rect x="${x1}" y="${mid-8}" width="${x2-x1}" height="16" fill="${conf?col('cls-observation'):'none'}" fill-opacity=".35" stroke="${col('cls-observation')}"/>${conf?`<circle cx="${x1+4}" cy="${mid}" r="2" fill="${col('cls-observation')}"/>`:''}${x2-x1>40?`<text x="${x1+(conf?9:4)}" y="${mid+4}" fill="${col('text-primary')}" font-size="10.5" font-family="${f}" class="sens">${esc(c.title)}</text>`:''}${sel(c.id)?ring(x1,mid-8,x2-x1,16):''}`,lab(c)+(conf?' · confirmed by explicit link':' · SCHEDULED context, not observed activity')))});
+    if(ln.k==='access')recs.forEach(a=>{const x1=X(a._s),x2=Math.max(X(a._e),x1+5);o(G(a,`<rect x="${x1}" y="${mid-7}" width="${x2-x1}" height="14" fill="${col('cls-observation')}" fill-opacity=".45" stroke="${col('cls-observation')}"/><text x="${x2+3}" y="${mid+4}" fill="${col('text-muted')}" font-size="10" font-family="${f}">${esc(a.category.slice(0,3).toUpperCase())}</text>${sel(a.id)?ring(x1,mid-7,x2-x1,14):''}`))});
+    if(ln.k==='net')SNAP.forEach((sn,i)=>{const ry=y0+4+i*25;const x1=X(sn.s),x2=X(sn.e);if(sn.e<ws||sn.s>we)return;const first=T('NetworkAggregate').find(n=>n.snapshot_id===sn.id);const bw=x2-x1;
+      let d=`M${x1} ${ry+19}V${ry+7}`;for(let x=x1;x<x2;x+=8){d+=`l4 -5l4 5`}d+=`V${ry+19}z`;
+      const dupe=T('ImportBatch').find(b=>b.duplicate_of===sn.id);const days=Math.round((sn.e-sn.s)/1440);
+      o(G(first,`<path d="${d}" fill="${col('cls-observation')}" fill-opacity=".22" stroke="${col('cls-observation')}"/>${bw>90?`<text x="${x1+6}" y="${ry+16}" fill="${col('text-primary')}" font-size="10.5" font-family="${f}">${sn.id.replace('ib-apr-','')} · ${days}d window · ${sn.n} counters${dupe&&bw>240?' · x2 imports (counted once)':''}</text>`:`<text x="${x1+3}" y="${ry+16}" fill="${col('text-primary')}" font-size="10" font-family="${f}">${sn.id.replace('ib-apr-','')}</text>`}${sel(first.id)?ring(x1,ry+2,bw,18):''}`,`NetworkAggregate snapshot ${sn.id}: ${days}-day window, ${sn.n} app-domain counters${dupe?', duplicate import x2 counted once (records_added '+dupe.records_added+')':''}. Never summed.`));
+      if(dupe&&bw<=240&&bw>40)o(`<text x="${x1+6}" y="${ry+4}" fill="${col('cls-hypothesis')}" font-size="10" font-family="${f}">x2 imports</text>`)});
+    if(ln.k==='acct')recs.forEach(a=>o(G(a,`<circle cx="${X(a._s)}" cy="${mid}" r="3.4" fill="${col('cls-observation')}"/>${sel(a.id)?`<circle cx="${X(a._s)}" cy="${mid}" r="7" fill="none" stroke="${col('accent')}" stroke-width="2"/>`:''}`,lab(a)+' · duration UNKNOWN')));
+    if(ln.k==='find')T('Finding').forEach((fd,i)=>{const ry=y0+4+i*20;const a=pt(fd.input_window.start),b=pt(fd.input_window.end);const x1=X(a),x2=X(b);if(b<ws||a>we)return;const hyp=fd.evidence_class==='hypothesis';const c=col(hyp?'cls-hypothesis':'cls-inference');
+      const inner=hyp?`<rect x="${x1}" y="${ry}" width="${x2-x1}" height="14" fill="none" stroke="${c}" stroke-dasharray="5 3"/>`:`<rect x="${x1}" y="${ry}" width="${x2-x1}" height="14" fill="none" stroke="${c}"/><rect x="${x1+2}" y="${ry+2}" width="${x2-x1-4}" height="10" fill="none" stroke="${c}"/>`;
+      o(G(fd,inner+`<text x="${Math.max(x1,Gt)+6}" y="${ry+11}" fill="${col('text-primary')}" font-size="10.5" font-family="${f}">F-${fd.id.slice(-4)} · ${fd.finding_kind.replace(/_/g,' ')} · ${hyp?'HYPOTHESIS (untested)':'INFERENCE'}</text>${sel(fd.id)?ring(x1,ry,x2-x1,14):''}`,lab(fd)))});
+    o('</g>');
+    // gaps
+    GAPS.filter(g=>g.src===ln.src&&g.e>ws&&g.s<we&&(ln.k!=='health'||true)).forEach(g=>{const x1=X(g.s),x2=X(g.e);const gy=ln.k==='health'?y0+14:y0+1,gh=ln.k==='health'?20:h-2;
+      o(`<g><title>NO DATA: ${esc(g.name)} ${esc(g.kind)} ${esc(gapLab(g))}</title><rect x="${x1}" y="${gy}" width="${Math.max(2,x2-x1)}" height="${gh}" fill="url(#hat)" opacity=".85" stroke="${col('state-unknown')}"/>${x2-x1>70?`<text x="${x1+4}" y="${gy+gh/2+4}" fill="${col('text-primary')}" font-size="10.5" font-weight="600" font-family="${f}">NO DATA</text>`:''}</g>`)});
+    // lens 2 histogram
+    if(L===2&&DAYN[ln.src]&&!['trip','visit'].includes(ln.k)){const mx=Math.max(1,...DAYN[ln.src]);for(let d=Math.floor(ws/1440);d<Math.ceil(we/1440)&&d<28;d++){const n=DAYN[ln.src][d],x1=X(d*1440),x2=X(d*1440+1440);const bh=n?2+8*n/mx:0;
+      o(n?`<rect x="${x1+1}" y="${y0+h-bh-1}" width="${Math.max(1,x2-x1-2)}" height="${bh}" fill="${col('text-muted')}" opacity=".7"><title>D${p2(d)}: ${n}</title></rect>`:`<line x1="${x1+1}" x2="${x2-1}" y1="${y0+h-2}" y2="${y0+h-2}" stroke="${col('line-strong')}" stroke-dasharray="1 2"><title>D${p2(d)}: no records in this window (not evidence of absence)</title></line>`)}}
+    // paused
+    if(paused(ln.src)){o(`<g><title>PAUSED BY PARTICIPANT (simulated, UI only)</title><rect x="${Gt}" y="${y0}" width="${W-Gt}" height="${h}" fill="rgba(7,10,15,.6)"/><rect x="${Gt}" y="${y0}" width="${W-Gt}" height="${h}" fill="url(#hat)" opacity=".5"/><text x="${Gt+8}" y="${y0+h/2+4}" fill="${col('cls-hypothesis')}" font-size="11" font-weight="600" font-family="${f}">[LOCK] PAUSED BY PARTICIPANT (simulated)</text></g>`)}
+    y+=h;
+  });
+  const TLH=y+4;
+  o(`<line id="tlph" x1="${X(S.t)}" x2="${X(S.t)}" y1="14" y2="${y}" stroke="${col('accent')}" stroke-width="2" style="${S.t>=ws&&S.t<=we?'':'display:none'}"/>`);
+  wrap.innerHTML=`<svg width="${W}" height="${TLH}" viewBox="0 0 ${W} ${TLH}" role="group" aria-label="Multi-lane timeline">${out.replace(/TLH/g,y)}</svg>`;
+  // extras
+  const ex=$('#tlextra');
+  if(ex)ex.innerHTML=L===3?heatMatrix(ws,we):'';
+  const tb=$('#tltab');if(tb)tb.innerHTML=tlTable(ws,we);
+}
+function heatMatrix(ws,we){
+  const srcs=[['LOC','LocationSample'],['VIS','Visit'],['MOT','ActivityInterval'],['CAL','CalendarEvent'],['ACC','ResourceAccess'],['ACCT','AccountActivity']];
+  let h=`<h3 style="margin-top:10px">Hour-of-day density · aggregate of window (counts of records starting in each hour)</h3><div class="tscroll"><table style="font-family:var(--font-mono);font-size:11px;min-width:560px"><tr><th></th>${Array.from({length:24},(_,i)=>`<th class="num" style="padding:2px">${p2(i)}</th>`).join('')}</tr>`;
+  srcs.forEach(([l,t])=>{const b=new Array(24).fill(0);T(t).forEach(r=>{if(r._s>=ws&&r._s<we)b[Math.floor((r._s%1440)/60)]++});const mx=Math.max(1,...b);
+    h+=`<tr><th>${l}</th>${b.map((n,i)=>`<td title="${l} hour ${p2(i)}: ${n}" style="padding:0"><div style="height:16px;background:rgba(92,168,255,${n?(.12+.75*n/mx).toFixed(2):0});${n?'':'border:1px dotted var(--line-strong)'}"></div></td>`).join('')}</tr>`});
+  return h+`</table></div><div class="note">Shows counts of records, not behaviour. Sparse sampling and declared gaps shape these counts. Any routine read from this is a hypothesis until tested.</div>`;
+}
+function tlTable(ws,we){
+  const rows=R.filter(r=>r._s!=null&&r._e>=ws&&r._s<=we&&!['Link'].includes(r.type)).sort((a,b)=>a._s-b._s).slice(0,300);
+  return `<h3 style="margin-top:10px">Tabular alternative (first ${rows.length} records in window)</h3><div class="tscroll" style="max-height:320px;overflow-y:auto"><table><tr><th>time</th><th>type</th><th>class</th><th>gran.</th><th>label</th></tr>${rows.map(r=>`<tr><td class="mono">${esc(timeStr(r))}</td><td>${esc(r.type)}</td><td>${esc(CLSN[r.evidence_class])}</td><td>${esc(r.granularity||'')}</td><td><button class="chip" data-sel="${r.id}">${esc(lab(r))}</button></td></tr>`).join('')}</table></div>`;
+}
+
+// ---------- dossier ----------
+const NOTSAY={Place:['not a confirmed role or purpose of the place','nothing about what happened inside it','label is a synthetic assignment in this demo'],
+ Visit:['bounds are first and last location sample, not true arrival or departure','a gap inside a visit is unknown time, not stationary time'],
+ Trip:['route geometry is not recorded; only endpoints','mode is a categorical estimate'],
+ App:['aggregates of contact, not browsing or content','does not show what any company inferred'],
+ Domain:['a contact with a host, not a page or content viewed'],
+ Finding:['a correlation is not causation','a short window validates the pipeline; it is not stable statistical significance'],
+ DailyHealthAggregate:['UNKNOWN heart rate and sleep mean no producer observed; not zero, not denied'],
+ CalendarEvent:['scheduled context is not observed activity unless explicitly confirmed'],
+ AccountActivity:['no duration, scroll depth or viewed content is recorded'],
+ NetworkAggregate:['window aggregate from one snapshot; never summed with overlapping snapshots','does not show content'],
+ ResourceAccess:['an access record is not what the app did with the access'],
+ LocationSample:['sparse samples; accuracy is a radius, not a probability']};
+function trail(r){
+  const steps=[];const idsOf=a=>[...new Set(a)];
+  const ev=l=>l.flatMap(x=>x.evidence_ids||[]);
+  if(r.type==='Place'){const vs=T('Visit').filter(v=>v.place_id===r.id);const links=T('Link').filter(l=>l.link_type==='VISITED'&&l.to===r.id);const samples=idsOf(ev(links)).filter(i=>byId[i]&&byId[i].type==='LocationSample');
+    steps.push({c:'observation',t:'Observation',d:`${samples.length} LocationSample records · ios.core_location via probe_export v${(byId[samples[0]]||{provenance:{method_version:'?'}}).provenance.method_version}`,ids:samples});
+    steps.push({c:'normalized_event',t:'Normalized event',d:`${vs.length} Visit records · method ${vs[0]?vs[0].provenance.method+' v'+vs[0].provenance.method_version:'n/a'}`,ids:vs.map(v=>v.id)});
+    steps.push({c:'inference',t:'Inference',d:`Place · method ${r.provenance.method} v${r.provenance.method_version} · basis ${r.label_basis}`,ids:[r.id]});}
+  else if(r.type==='Visit'||r.type==='Trip'){const l=T('Link').filter(x=>x.from===r.id);const e=idsOf(ev(l));steps.push({c:'observation',t:'Observation',d:`${e.filter(i=>byId[i]&&byId[i].type==='LocationSample').length} samples / ${e.filter(i=>byId[i]&&byId[i].type==='ActivityInterval').length} motion intervals cited by Links`,ids:e.filter(i=>i!==r.id)});steps.push({c:'normalized_event',t:'Normalized event',d:`${r.type} · method ${r.provenance.method} v${r.provenance.method_version}`,ids:[r.id]})}
+  else if(r.type==='Finding'){steps.push({c:'observation',t:'Evidence examined',d:`${(r.supporting_evidence_ids||[]).length} supporting · ${(r.contradicting_evidence_ids||[]).length} contradicting records`,ids:[...(r.supporting_evidence_ids||[]),...(r.contradicting_evidence_ids||[])]});steps.push({c:r.evidence_class,t:CLSN[r.evidence_class],d:`method ${r.method} v${r.method_version}`,ids:[r.id]});}
+  else steps.push({c:r.evidence_class,t:CLSN[r.evidence_class],d:r.provenance?`${r.provenance.source} / ${r.provenance.method} v${r.provenance.method_version}`:'entity',ids:[r.id]});
+  const b=r.import_batch_id&&byId[r.import_batch_id];if(b)steps.push({c:'observation',t:'Import batch',d:`${b.id} · imported ${fmtT(pt(b.import_time),1)} · ${b.status}${b.records_added!=null?' · records_added '+b.records_added:''} · digest ${b.content_digest_sha256.slice(0,12)}...`,ids:[b.id]});
+  return steps;
+}
+function correctionsFor(r){
+  const direct=T('Correction').filter(c=>c.target_id===r.id);
+  let via=[];if(r.type==='Place'){const vs=new Set(T('Visit').filter(v=>v.place_id===r.id).map(v=>v.id));T('Finding').forEach(f=>{if([...(f.supporting_evidence_ids||[]),...(f.contradicting_evidence_ids||[])].some(i=>vs.has(i)))T('Correction').filter(c=>c.target_id===f.id).forEach(c=>via.push({c,f}))})}
+  return {direct,via};
+}
+function corrCard(c){const f=byId[c.target_id];return `<div class="panel flat" style="border-color:var(--cls-observation);margin:6px 0">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${cbadge(c.evidence_class)}<span class="tag ok">${esc(c.status)}</span><span class="tag">${esc(c.correction_kind)}</span><span class="mono muted">${esc(fmtT(pt(c.created_at),1))}</span></div>
+  <p>"${esc(c.participant_text)}"</p>
+  <dl class="kv"><dt>effect</dt><dd>${esc(c.effect)}</dd><dt>target</dt><dd>${chip(c.target_id)}</dd><dt>original</dt><dd>${f?esc(f.statement):''} <span class="muted">(preserved; history is not rewritten)</span></dd></dl></div>`}
+function appExtra(a){
+  const acc=T('ResourceAccess').filter(r=>r.app_id===a.id);const cats={};acc.forEach(r=>(cats[r.category]=cats[r.category]||[]).push(r));
+  const nets=T('NetworkAggregate').filter(n=>n.app_id===a.id);const ds=[...new Set(nets.map(n=>n.domain_id))];
+  return `<div class="panel"><h3>Resource access records</h3>${Object.keys(cats).length?Object.keys(cats).map(c=>`<div><span class="tag">${esc(c)} x${cats[c].length}</span> ${cats[c].slice(0,6).map(r=>chip(r.id,fmtT(r._s))).join('')}</div>`).join(''):'<span class="muted">no ResourceAccess records</span>'}</div>
+  <div class="panel"><h3>Network aggregates by snapshot (never summed)</h3>${ds.length?`<div class="tscroll"><table><tr><th>domain</th>${SNAP.map(s=>`<th class="num">${s.id.replace('ib-apr-','')}</th>`).join('')}</tr>${ds.map(d=>`<tr><td class="sens">${esc(byId[d].host)}</td>${SNAP.map(s=>{const n=nets.find(x=>x.domain_id===d&&x.snapshot_id===s.id);return `<td class="num">${n?`<button class="chip" data-sel="${n.id}">${n.hits}</button>`:'<span class="unk">NOT IN SNAPSHOT</span>'}</td>`}).join('')}</tr>`).join('')}</table></div>
+   <div class="note warn">Snapshot windows overlap, so a total is not computed. The linking rule is "latest snapshot only, never sum". These are counts of contact within a window, not browsing or content.</div>`:'<span class="muted">no NetworkAggregate records</span>'}</div>`;
+}
+function dossierView(){
+  const id=S.sel&&byId[S.sel]?S.sel:'place-work';const r=byId[id];
+  const picks=[['place-work','Place · Work'],['place-home','Place · Home'],['app-social','App · Social'],['finding-0001','Finding F-0001 (with Correction)'],['src-healthkit','Source · HealthKit']];
+  const skip=new Set(['id','workspace_id','provenance','evidence_class','type','missing_periods','supporting_evidence_ids','contradicting_evidence_ids','snapshots','signals','last_probe']);
+  const rows=Object.keys(r).filter(k=>!skip.has(k)&&k[0]!=='_').map(k=>{const v=r[k];return [k,v===UNK?'<span class="unk">UNKNOWN</span>':Array.isArray(v)?(v.length&&typeof v[0]==='string'&&byId[v[0]]?v.slice(0,8).map(i=>chip(i)).join('')+(v.length>8?` +${v.length-8}`:''):esc(JSON.stringify(v))):typeof v==='object'&&v?esc(JSON.stringify(v)):(typeof v==='string'&&byId[v]&&k!=='source_id'?chip(v):esc(v))]});
+  const co=correctionsFor(r);const ns=NOTSAY[r.type]||[];
+  const tr=trail(r);
+  return `<div class="panel"><h2>Object dossier</h2><div class="chipbox">${picks.map(([i,l])=>`<button class="chip${i===id?' sel':''}" data-sel="${i}">${esc(l)}</button>`).join('')}<button class="chip" data-act="palette">other object (Ctrl/Cmd+K)</button></div></div>
+  <div class="grid2"><div>
+   <div class="panel"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">${cbadge(r.evidence_class)}<span class="tag">${esc(r.type)}</span>${r.granularity?`<span class="tag">${esc(r.granularity)}</span>`:''}</div>
+    <div style="font:600 17px var(--font-mono);margin-bottom:8px" class="sens">${esc(lab(r))}</div>
+    <dl class="kv">${rows.map(([k,v])=>`<dt>${esc(k.replace(/_/g,' '))}</dt><dd>${v}</dd>`).join('')}</dl></div>
+   <div class="panel"><h3>What this does NOT say</h3>${ns.length?'<ul style="margin:0;padding-left:18px">'+ns.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>':'<span class="muted">no standing notes for this type</span>'}</div>
+   <div class="panel"><h3>Actions</h3><button class="btn" data-graph="${id}">Open in graph</button> <button class="btn" data-scratch="${id}">Add to scratch</button> <button class="btn" disabled title="Concept only">Correct label</button> <button class="btn" disabled title="Concept only">Delete..</button><div class="note">Correct / delete are not wired in this concept. Deletion preview lives in Control.</div></div>
+  </div><div>
+   <div class="panel"><h3>Linked objects</h3>${linkedChips(id,8)}</div>
+   <div class="panel"><h3>Provenance trail</h3><ol class="trail">${tr.map((s,i)=>`<li><span>${i+1}</span><div>${cbadge(s.c)} <span class="mono" style="font-size:12px">${esc(s.d)}</span><details><summary>show record ids (${s.ids.length})</summary><div class="chipbox">${s.ids.slice(0,40).map(i=>byId[i]?chip(i,i):'').join('')}${s.ids.length>40?'...':''}</div></details></div></li>`).join('')}</ol></div>
+   <div class="panel"><h3>Corrections &amp; history</h3>${co.direct.map(corrCard).join('')}${co.via.map(x=>`<div class="note">Via derived ${chip(x.f.id)}:</div>${corrCard(x.c)}`).join('')}${!co.direct.length&&!co.via.length?'<span class="muted">No Correction records target this object or findings derived from it.</span>':''}
+    ${r.type==='Correction'?corrCard(r):''}</div>
+   ${r.type==='App'?appExtra(r):''}
+   ${r.type==='Source'&&r.id==='src-healthkit'?`<div class="panel"><h3>HealthKit probe</h3><dl class="kv"><dt>read authorization</dt><dd><span class="unk">UNKNOWN</span> not observable</dd><dt>last probe</dt><dd>${esc(r.last_probe.types.join(', '))}: ${r.last_probe.rows_returned} rows returned, interpretation ${esc(r.last_probe.interpretation)}</dd></dl><div class="note warn">Empty results are not read as denial.</div></div>`:''}
+  </div></div>`;
+}
+
+// ---------- graph ----------
+const SHAPE={Place:'c',App:'h',Domain:'t',Visit:'s',Trip:'d',Source:'c',Finding:'o',Correction:'s',ImportBatch:'s',CalendarEvent:'r',DailyHealthAggregate:'r',NetworkAggregate:'r',ResourceAccess:'h',AccountActivity:'c',LocationSample:'c',ActivityInterval:'d'};
+function shapeSVG(sh,x,y,r,cls,sel){
+  const c=cls==='hypothesis'?C['cls-hypothesis']:cls==='inference'?C['cls-inference']:cls==='normalized_event'?C['cls-event']:C['cls-observation'];
+  const st=(extra)=>`class="nshape" fill="${cls==='normalized_event'?'rgba(92,168,255,.25)':C['bg-panel']}" stroke="${sel?C.accent:c}" stroke-width="${sel?3:1.6}" ${cls==='hypothesis'?'stroke-dasharray="4 3"':''} ${extra}`;
+  const base=sh==='c'?`<circle cx="${x}" cy="${y}" r="${r}" ${st('')}/>`:sh==='s'?`<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" ${st('')}/>`:sh==='d'?`<polygon points="${x},${y-r-2} ${x+r+2},${y} ${x},${y+r+2} ${x-r-2},${y}" ${st('')}/>`:sh==='t'?`<polygon points="${x},${y-r-1} ${x+r+2},${y+r} ${x-r-2},${y+r}" ${st('')}/>`:sh==='r'?`<rect x="${x-r-3}" y="${y-r*.7}" width="${2*r+6}" height="${r*1.4}" ${st('')}/>`:sh==='o'?`<polygon points="${[0,1,2,3,4,5,6,7].map(i=>{const a=i*Math.PI/4+Math.PI/8;return (x+(r+2)*Math.cos(a)).toFixed(1)+','+(y+(r+2)*Math.sin(a)).toFixed(1)}).join(' ')}" ${st('')}/>`:`<polygon points="${[0,1,2,3,4,5].map(i=>{const a=i*Math.PI/3;return (x+(r+1)*Math.cos(a)).toFixed(1)+','+(y+(r+1)*Math.sin(a)).toFixed(1)}).join(' ')}" ${st('')}/>`;
+  return base+(cls==='inference'?(sh==='c'?`<circle cx="${x}" cy="${y}" r="${r-4}" fill="none" stroke="${c}" stroke-width="1.2"/>`:`<rect x="${x-r+4}" y="${y-r+4}" width="${2*r-8}" height="${2*r-8}" fill="none" stroke="${c}" stroke-width="1.2"/>`):'');
+}
+function graphView(){
+  const id=S.sel&&byId[S.sel]?S.sel:'place-work';const c=byId[id];
+  const groups={};nbrs(id).forEach(n=>{const k=byId[n.id].type+'|'+n.rel+'|'+n.dir;(groups[k]=groups[k]||{type:byId[n.id].type,rel:n.rel,dir:n.dir,ids:[],e:n.e}).ids.push(n.id)});
+  const gl=Object.keys(groups).sort().map(k=>groups[k]);
+  const nodes=[];gl.forEach(g=>{g.ids=[...new Set(g.ids)].sort();const key=g.type+'|'+g.rel+'|'+g.dir;
+    if(g.ids.length>6&&!S.gx[key])nodes.push({cluster:true,key,g,n:g.ids.length});
+    else{const cap=S.gx[key]?30:6;g.ids.slice(0,cap).forEach(i=>nodes.push({id:i,g}));if(g.ids.length>cap)nodes.push({cluster:true,key,g,n:g.ids.length-cap,more:true})}});
+  const W=640,H=520,cx=W/2,cy=H/2,R1=Math.min(200,70+nodes.length*9);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Link graph around ${esc(lab(c))}"><defs><pattern id="hat2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${C['state-unknown']}" stroke-width="1.5"/></pattern></defs>`;
+  const pos=nodes.map((n,i)=>{const a=-Math.PI/2+i/Math.max(1,nodes.length)*Math.PI*2;const rr=nodes.length>14&&i%2?R1+34:R1;return [cx+rr*Math.cos(a)*1.28,cy+rr*Math.sin(a)*.95]});
+  nodes.forEach((n,i)=>{const [x,y]=pos[i];const inf=['inference','hypothesis'].includes(n.g.e.cls);const w=1+Math.min(4,Math.log2(1+(n.cluster?n.n:n.g.e.n||1)));
+    s+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${C['line-strong']}" stroke-width="${w}" ${inf?'stroke-dasharray="6 4"':''}><title>${esc(n.g.rel)} (${n.g.dir==='out'?'from selected':'to selected'}) · ${inf?'inferred link':'recorded link'}${n.g.e.n?' · '+n.g.e.n+' evidence id(s)':''}</title></line>`;
+    s+=`<text x="${(cx+x)/2}" y="${(cy+y)/2-3}" text-anchor="middle" fill="${C['text-muted']}" font-size="10" font-family="${FONT}" paint-order="stroke" stroke="${C['bg-void']}" stroke-width="3">${esc(n.g.rel)}</text>`});
+  nodes.forEach((n,i)=>{const [x,y]=pos[i];
+    if(n.cluster)s+=`<g class="node" data-gx="${esc(n.key)}" tabindex="0" role="button" aria-label="Cluster of ${n.n} ${n.g.type} objects, activate to ${n.more?'show':'expand'}"><rect x="${x-26}" y="${y-16}" width="52" height="32" fill="url(#hat2)" stroke="${C['cls-observation']}" stroke-dasharray="3 2"/><rect x="${x-24}" y="${y-14}" width="48" height="28" fill="${C['bg-panel']}" fill-opacity=".85"/><text x="${x}" y="${y-1}" text-anchor="middle" fill="${C['text-primary']}" font-size="11" font-family="${FONT}">${esc(n.g.type.slice(0,9))}</text><text x="${x}" y="${y+11}" text-anchor="middle" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">x${n.n} AGG</text></g>`;
+    else{const r=byId[n.id];s+=`<g class="node" data-sel="${r.id}" tabindex="0" role="button" aria-label="${esc(lab(r))}"><title>${esc(lab(r))} · ${esc(CLSN[r.evidence_class])}</title>${shapeSVG(SHAPE[r.type]||'c',x,y,13,r.evidence_class,false)}<text x="${x}" y="${y+28}" text-anchor="middle" fill="${C['text-primary']}" font-size="10.5" font-family="${FONT}" class="sens">${esc(lab(r).replace(/^(Visit|Trip|Sample|Event|Acct|Access|Motion|Health day) /,'').slice(0,22))}</text></g>`}});
+  s+=`<g><title>${esc(lab(c))}</title>${shapeSVG(SHAPE[c.type]||'c',cx,cy,22,c.evidence_class,true)}<text x="${cx}" y="${cy+4}" text-anchor="middle" fill="${C['text-primary']}" font-size="11" font-weight="600" font-family="${FONT}">${esc(c.type.slice(0,8))}</text><text x="${cx}" y="${cy+42}" text-anchor="middle" fill="${C.accent}" font-size="12" font-family="${FONT}" class="sens">${esc(lab(c).slice(0,28))}</text></g></svg>`;
+  return `<div class="panel"><h2>Link graph · 1 hop around the selection</h2>
+   <div class="note">Showing neighbours of one object, <b>not</b> the whole graph. Hop depth 1. Click a neighbour to re-centre (expand one more hop); hatched boxes are clusters (aggregate counts), click to expand. Dashed edge = inferred link; thickness = evidence count. Layout is deterministic.</div>
+   <div class="svgbox">${s}</div>
+   <div class="legend"><span>shape = type (circle place / hexagon app / square visit / diamond trip / octagon finding / triangle domain / bar aggregate)</span><span>outline = class (solid obs, filled event, dashed hypothesis, double inference)</span></div></div>
+  <div class="panel"><h3>Neighbours as a table (text alternative)</h3><div class="tscroll"><table><tr><th>relation</th><th>direction</th><th>type</th><th class="num">count</th><th>examples</th></tr>${gl.map(g=>`<tr><td class="mono">${esc(g.rel)}</td><td>${g.dir==='out'?'from selected':'to selected'}</td><td>${esc(g.type)}</td><td class="num">${g.ids.length}</td><td>${g.ids.slice(0,3).map(i=>chip(i)).join('')}</td></tr>`).join('')}</table></div></div>`;
+}
+
+// ---------- coverage ----------
+function authText(s){const v=s.authorization||s.read_authorization;if(s.id==='src-healthkit')return '<span class="unk">UNKNOWN</span> <span class="muted">not observable; empty ≠ denied</span>';if(!v)return '<span class="muted">NOT RECORDED</span>';return esc(v.replace(/_synthetic_value|_synthetic/g,'').replace(/_/g,' '))+' <span class="muted">(synthetic)</span>'}
+function coverageView(){
+  const srcs=T('Source').filter(s=>s.id!=='src-workspace');
+  const hk=byId['src-healthkit'];
+  const batches=T('ImportBatch');
+  const have=srcs.filter(s=>s.record_count>0).length;
+  return `<div class="panel"><h2>Source coverage board</h2>
+   <div class="note warn">Synthetic fixture. "Export success" below is a fixture flag and is <b>not evidence</b> that any real Core Location, HealthKit, EventKit, App Privacy Report or export capability works.</div>
+   <div class="tscroll"><table><tr><th>source</th><th>support</th><th>provisioning</th><th>auth</th><th class="num">records</th><th>latest</th><th>granularity</th><th>coverage</th><th>gaps</th><th>export</th></tr>
+   ${srcs.map(s=>`<tr><td><button class="chip" data-sel="${s.id}">${esc(s.name)}</button></td><td>${esc((s.support||'').replace(/_/g,' '))}</td><td>${esc((s.provisioning||'').replace(/_/g,' '))}</td><td>${authText(s)}</td><td class="num">${s.record_count}</td><td class="mono">${s.latest_event_time===UNK?'<span class="unk">UNKNOWN</span>':esc(fmtT(pt(s.latest_event_time),1))}</td><td>${esc(s.source_granularity)}</td><td>${esc(s.coverage_status.replace(/_/g,' '))}</td><td class="num">${s.missing_periods.length}</td><td>${esc((s.export_success||'').replace(/_/g,' '))}</td></tr>`).join('')}</table></div>
+   <div class="note">Source "Derived" (Findings, Corrections) is not a collection source and is omitted. ${have} of ${srcs.length} sources hold records in this fixture. Progress toward the provisional "three useful categories across two domains" target cannot be judged from synthetic data.</div></div>
+  <div class="panel"><h3>Coverage strips · 28 days (D00 = ${fmtD(0)})</h3>
+   <div class="srows" style="margin-top:0">${SRCROWS.map(([l,s])=>`<div class="srow" style="height:18px"><span class="sl">${l}</span><div class="cells">${Array.from({length:28},(_,d)=>{const x=dayCell(s,d);return `<i class="dc ${x.c}" title="${esc(x.t)}"></i>`}).join('')}</div></div>`).join('')}</div>
+   <div class="sdays"><span>D00</span><span>D07</span><span>D14</span><span>D21</span><span>D27</span></div>
+   <div class="legend"><span><i class="dc d3" style="width:14px;height:12px;display:inline-block"></i>data (density)</span><span><i class="dc none" style="width:14px;height:12px;display:inline-block"></i>no records in window (not a gap)</span><span><i class="dc gap" style="width:14px;height:12px;display:inline-block"></i>declared gap / NO DATA</span></div></div>
+  <div class="grid2"><div class="panel"><h3>Missing periods (declared)</h3>${GAPS.length?`<table><tr><th>source</th><th>period</th><th>kind</th></tr>${GAPS.map(g=>`<tr><td>${esc(g.name)}</td><td class="mono">${esc(gapLab(g))}</td><td>${esc(g.kind.replace(/_/g,' '))}<br><span class="muted">${esc(g.reason.replace(/_/g,' '))}</span></td></tr>`).join('')}</table>`:'none'}
+   <div class="note">Absence of records is not absence of behaviour. Motion continues on D09 while Location has no records.</div></div>
+  <div class="panel"><h3>HealthKit signals</h3><table><tr><th>signal</th><th>state</th></tr>
+   <tr><td>steps</td><td>${esc(hk.signals.steps)} · ${hk.missing_periods.length} missing day (${esc(gapLab(hk.missing_periods[0]&&{s:pt(hk.missing_periods[0].start),e:pt(hk.missing_periods[0].end)}))})</td></tr>
+   <tr><td>heart rate</td><td><span class="unk">UNKNOWN</span> ${esc(hk.signals.heart_rate.replace(/_/g,' '))}</td></tr>
+   <tr><td>sleep</td><td><span class="unk">UNKNOWN</span> ${esc(hk.signals.sleep.replace(/_/g,' '))}</td></tr>
+   <tr><td>read authorization</td><td><span class="unk">UNKNOWN</span></td></tr>
+   <tr><td>producers</td><td>${val(hk.producers)}</td></tr></table>
+   <div class="note warn">Last probe: ${hk.last_probe.rows_returned} rows for ${esc(hk.last_probe.types.join(' and '))}; measured value ${esc(hk.last_probe.measured_value)}. Empty results are not read as denial and not as zero.</div></div></div>
+  <div class="panel"><h3>Import batches (${batches.length})</h3><div class="tscroll"><table><tr><th>batch</th><th>source</th><th>imported</th><th>status</th><th class="num">records_added</th><th>digest</th></tr>
+   ${batches.map(b=>`<tr><td><button class="chip" data-sel="${b.id}">${esc(b.id)}</button></td><td>${esc(srcOf(b.source_id).name)}</td><td class="mono">${esc(fmtT(pt(b.import_time),1))}</td><td>${b.status==='duplicate_skipped'?`<span class="tag warn">duplicate skipped</span> of ${chip(b.duplicate_of)}`:esc(b.status)}</td><td class="num">${b.records_added==null?'<span class="muted">n/a</span>':b.records_added}</td><td class="mono">${esc(b.content_digest_sha256.slice(0,12))}...</td></tr>`).join('')}</table></div>
+   <div class="note">The duplicate import is collapsed and counted once (x2 imports); it attributed no records. APR snapshot windows overlap (${esc(byId['src-apr'].overlap)}) so network aggregates are never summed.</div></div>`;
+}
+
+// ---------- investigation ----------
+function verdict(f){const st=f.statistic||{};
+  if(f.finding_kind==='correlation'&&st.ci95_approx){const [lo,hi]=st.ci95_approx;return lo<=0&&hi>=0?{c:'inc',t:'INCONCLUSIVE',d:'The interval includes zero. Weak association, not distinguishable from no association in this window. A valid result.'}:{c:'desc',t:'INTERVAL EXCLUDES ZERO',d:'Still a correlation, not causation.'}}
+  if(f.finding_kind==='null_or_insufficient')return {c:'ins',t:'INSUFFICIENT DATA · NO CONCLUSION',d:`Groups ${st.n_groups.join(' vs ')} are below the minimum of ${st.min_n_rule} per group. Absence of a detected difference is not evidence of no effect. A valid, finished outcome.`};
+  if(f.finding_kind==='hypothesis')return {c:'hyp',t:'UNTESTED HYPOTHESIS',d:'Awaiting evidence. Not evidence of anything.'};
+  return {c:'desc',t:'DESCRIPTIVE PATTERN (not a test)',d:'Counts of records in the window; no inferential test is attached.'}}
+function invPlot(f){const st=f.statistic||{};const W=560;
+  if(f.finding_kind==='correlation'&&st.ci95_approx){const x=v=>30+(v+1)/2*(W-60);const [lo,hi]=st.ci95_approx;
+    return `<svg class="invplot" viewBox="0 0 ${W} 110" role="img" aria-label="Spearman rho ${st.value.toFixed(2)} with interval ${lo} to ${hi}, crossing zero"><rect x="${x(lo)}" y="26" width="${x(hi)-x(lo)}" height="30" fill="${C['cls-inference']}" fill-opacity=".18" stroke="${C['cls-inference']}"/>
+    <line x1="${x(0)}" y1="14" x2="${x(0)}" y2="70" stroke="${C['text-primary']}" stroke-dasharray="4 3"/><text x="${x(0)+4}" y="22" fill="${C['text-primary']}" font-size="11" font-family="${FONT}">0 = no association</text>
+    <line x1="${x(lo)}" y1="41" x2="${x(hi)}" y2="41" stroke="${C['cls-inference']}" stroke-width="2"/><line x1="${x(lo)}" y1="32" x2="${x(lo)}" y2="50" stroke="${C['cls-inference']}" stroke-width="2"/><line x1="${x(hi)}" y1="32" x2="${x(hi)}" y2="50" stroke="${C['cls-inference']}" stroke-width="2"/>
+    <circle cx="${x(st.value)}" cy="41" r="6" fill="${C['bg-void']}" stroke="${C['cls-inference']}" stroke-width="3"/>
+    <line x1="30" y1="76" x2="${W-30}" y2="76" stroke="${C['line-strong']}"/>${[-1,-.5,0,.5,1].map(v=>`<line x1="${x(v)}" y1="76" x2="${x(v)}" y2="81" stroke="${C['line-strong']}"/><text x="${x(v)}" y="95" text-anchor="middle" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">${v}</text>`).join('')}
+    <text x="${x(st.value)}" y="18" text-anchor="middle" fill="${C['cls-inference']}" font-size="11" font-family="${FONT}">rho ${st.value.toFixed(2)}</text>
+    <text x="${x(lo)}" y="66" text-anchor="middle" fill="${C['text-muted']}" font-size="10.5" font-family="${FONT}">${lo}</text><text x="${x(hi)}" y="66" text-anchor="middle" fill="${C['text-muted']}" font-size="10.5" font-family="${FONT}">${hi}</text></svg>`}
+  if(f.finding_kind==='null_or_insufficient'){const g=st.n_groups,mn=st.min_n_rule,mx=Math.max(mn,...g)+3;const bx=n=>30+n/mx*(W-60);
+    return `<svg class="invplot" viewBox="0 0 ${W} 110" role="img" aria-label="Group sizes ${g.join(' and ')} against minimum ${mn}">${g.map((n,i)=>`<rect x="30" y="${14+i*30}" width="${bx(n)-30}" height="20" fill="${C['cls-observation']}" fill-opacity=".3" stroke="${C['cls-observation']}"/><text x="${bx(n)+6}" y="${29+i*30}" fill="${C['text-primary']}" font-size="12" font-family="${FONT}">n = ${n}</text>`).join('')}
+    <line x1="${bx(mn)}" y1="6" x2="${bx(mn)}" y2="80" stroke="${C['cls-hypothesis']}" stroke-dasharray="4 3" stroke-width="2"/><text x="${bx(mn)}" y="98" text-anchor="middle" fill="${C['cls-hypothesis']}" font-size="11" font-family="${FONT}">minimum ${mn} per group</text></svg>`}
+  if(st.value!=null&&st.n!=null)return `<svg class="invplot" viewBox="0 0 ${W} 80" role="img" aria-label="Share ${st.value} of n ${st.n}, interval not reported"><rect x="30" y="14" width="${W-60}" height="22" fill="url(#hat3)" stroke="${C['state-unknown']}"/><defs><pattern id="hat3" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${C['state-unknown']}" stroke-width="1.5"/></pattern></defs><rect x="30" y="14" width="${(W-60)*st.value}" height="22" fill="${C['cls-inference']}" fill-opacity=".4" stroke="${C['cls-inference']}"/><text x="34" y="52" fill="${C['text-primary']}" font-size="12" font-family="${FONT}">share ${st.value} (n = ${st.n}) · interval: UNKNOWN (not reported by method v${f.method_version})</text><text x="30" y="70" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">0</text><text x="${W-30}" y="70" text-anchor="end" fill="${C['text-muted']}" font-size="11" font-family="${FONT}">1</text></svg>`;
+  return '';}
+function invView(){
+  const fs=T('Finding');const f=byId[S.invSel]||fs[0];const v=verdict(f);const st=f.statistic||{};
+  const ev=ids=>(ids&&ids.length)?`<div class="chipbox">${ids.slice(0,14).map(i=>chip(i,i)).join('')}${ids.length>14?`<span class="tag">+${ids.length-14} more</span>`:''}</div>`:'<span class="muted">none recorded</span>';
+  const stRows=Object.keys(st).map(k=>[k.replace(/_/g,' '),val(st[k])]);
+  const hyp=fs.filter(x=>x.evidence_class==='hypothesis');
+  const main=fs.filter(x=>x.evidence_class!=='hypothesis');
+  return `<div class="panel"><h2>Investigation workspace</h2>
+   <div class="note">A 28-day window validates the pipeline; it is not stable statistical significance. Findings here are built-in properties of the synthetic generator, so they illustrate presentation, not discovery.</div>
+   ${main.map(x=>`<button class="fcard" data-inv="${x.id}" aria-pressed="${x.id===f.id}"><span class="t">F-${x.id.slice(-4)} · ${esc(x.finding_kind.replace(/_/g,' '))} · ${esc(x.status.replace(/_/g,' '))}</span><br>${cbadge(x.evidence_class)} ${esc(x.statement.length>96?x.statement.slice(0,96)+'...':x.statement)}</button>`).join('')}
+   <details ${f.evidence_class==='hypothesis'?'open':''}><summary>SUGGESTIONS (NOT EVIDENCE) · ${hyp.length}</summary>${hyp.map(x=>`<button class="fcard" data-inv="${x.id}" aria-pressed="${x.id===f.id}"><span class="t">F-${x.id.slice(-4)} · suggestion</span><br>${cbadge(x.evidence_class)} ${esc(x.statement)}</button>`).join('')}</details></div>
+  <div class="panel" style="border-color:${f.evidence_class==='hypothesis'?'var(--cls-hypothesis)':'var(--cls-inference)'}"><h2>FINDING · F-${f.id.slice(-4)} · ${esc(f.status.replace(/_/g,' ').toUpperCase())}</h2>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">${cbadge(f.evidence_class)}${f.finding_kind==='correlation'?'<span class="tag warn">CORRELATION, NOT CAUSATION</span>':''}<span class="tag">causal claim: ${f.causal_claim?'yes':'false'}</span></div>
+   <p style="font-size:15px">${esc(f.statement)}</p>
+   <div class="verdict ${v.c}"><span>VERDICT</span><span>${v.t}</span></div><p class="muted">${esc(v.d)}</p>
+   <div class="grid2"><dl class="kv"><dt>method</dt><dd>${esc(f.method)} v${esc(f.method_version)} <span class="muted">(pinned)</span></dd><dt>input window</dt><dd>${esc(fmtT(pt(f.input_window.start),1))} to ${esc(fmtT(pt(f.input_window.end),1))}</dd>
+    <dt>sample size</dt><dd>${st.n!=null?'n = '+st.n:st.n_groups?'n = '+st.n_groups.join(' vs ')+' (groups)':'<span class="unk">UNKNOWN</span> not applicable'}</dd><dt>missing</dt><dd>${f.excluded_unknown_days?'excluded unknown day index(es): '+f.excluded_unknown_days.join(', '):'<span class="muted">none recorded</span>'}</dd>
+    <dt>effect</dt><dd>${st.value!=null?esc(st.name.replace(/_/g,' '))+' = '+esc(st.value):'<span class="unk">UNKNOWN</span> no effect computed'}</dd>
+    <dt>interval</dt><dd>${st.ci95_approx?esc(JSON.stringify(st.ci95_approx))+' approx. 95% ('+esc(st.ci_method.replace(/_/g,' '))+')':'<span class="unk">UNKNOWN</span> not reported'}</dd>
+    <dt>confidence</dt><dd>${esc(f.confidence.level)} <span class="muted">(${esc(f.confidence.basis)})</span></dd></dl>
+    <div class="svgbox">${invPlot(f)}</div></div>
+   <div class="note">${esc(f.uncertainty)}</div></div>
+  <div class="grid2"><div class="panel"><h3>Supporting evidence · ${(f.supporting_evidence_ids||[]).length}</h3>${f.evidence_class==='hypothesis'?'<span class="muted">A hypothesis cites no evidence.</span>':ev(f.supporting_evidence_ids)}
+    ${f.finding_kind==='null_or_insufficient'?'<div class="note">For this null result the listed ids are the evidence examined, not support for an effect.</div>':''}</div>
+   <div class="panel"><h3>Contradicting evidence · ${(f.contradicting_evidence_ids||[]).length}</h3>${ev(f.contradicting_evidence_ids)}</div></div>
+  <div class="grid2"><div class="panel"><h3>Alternative explanations</h3>${f.alternative_explanations?'<ul style="margin:0;padding-left:18px">'+f.alternative_explanations.map(a=>`<li>${esc(a)}</li>`).join('')+'</ul>':'<span class="muted">none recorded in the data for this finding</span>'}
+    ${f.needs_evidence?`<div class="note warn">Needs: ${esc(f.needs_evidence.join('; '))}</div>`:''}${f.motivated_by_ids?`<div>motivated by ${f.motivated_by_ids.map(i=>chip(i)).join('')}</div>`:''}</div>
+   <div class="panel"><h3>Participant review &amp; reproduce</h3><dl class="kv"><dt>review</dt><dd>${esc(f.participant_review_status)}</dd><dt>correction</dt><dd>${f.participant_correction?chip(f.participant_correction):'<span class="muted">none</span>'}</dd><dt>parameters</dt><dd>${st.permutations?'permutations '+st.permutations+'; ':''}${st.ci_method?esc(st.ci_method)+'; ':''}method v${esc(f.method_version)}</dd></dl>
+    ${f.participant_correction?corrCard(byId[f.participant_correction]):''}
+    <div style="margin-top:8px"><button class="btn" disabled>confirm</button> <button class="btn" disabled>reject</button> <button class="btn" disabled>annotate</button> <button class="btn" disabled>re-run</button></div><div class="note">Controls are not wired in this concept. Lock is for forecasts only, and none exist here.</div></div></div>
+  <div class="panel"><h3>Scratch set (${S.scratch.length})</h3>${S.scratch.length?`<div class="chipbox">${S.scratch.map(i=>chip(i)).join('')}</div> <button class="btn" data-act="clearscratch">clear</button>`:'<span class="muted">Empty. Use "Add to scratch" in a telemetry card or Shift+Enter on a selected object.</span>'}</div>`;
+}
+
+// ---------- control ----------
+function cascade(src){
+  const base=R.filter(r=>r.source_id===src&&r.type!=='Source');const del=new Set(base.map(r=>r.id));const casc=[];const seen=new Set();
+  let ch=true,guard=0;
+  const deps=r=>r.type==='Link'?[r.from,r.to]:r.type==='Finding'?[...(r.supporting_evidence_ids||[]),...(r.contradicting_evidence_ids||[])]:r.type==='Correction'?[r.target_id]:[];
+  while(ch&&guard++<6){ch=false;R.forEach(r=>{if(del.has(r.id)||seen.has(r.id))return;
+    if(r.type==='Link'){if(del.has(r.from)||del.has(r.to)){casc.push({r,k:'invalidated'});seen.add(r.id);del.add(r.id);ch=true}}
+    else if(r.type==='Finding'){const d=deps(r).filter(i=>del.has(i)),tot=deps(r).length;
+      if(r.evidence_class==='hypothesis'&&r.motivated_by_ids&&r.motivated_by_ids.some(i=>seen.has(i)||del.has(i))){casc.push({r,k:'re-review',note:'motivating finding is affected'});seen.add(r.id);ch=true}
+      else if(tot&&d.length===tot){casc.push({r,k:'invalidated',note:'all evidence removed'});seen.add(r.id);del.add(r.id);ch=true}
+      else if(d.length){casc.push({r,k:'recompute',note:`${d.length} of ${tot} evidence ids removed`});seen.add(r.id);ch=true}}
+    else if(r.type==='Correction'){if(del.has(r.target_id)||seen.has(r.target_id)){casc.push({r,k:'orphaned',note:'participant-authored; kept for the participant to decide'});seen.add(r.id)}}})}
+  return {base,casc};
+}
+function controlView(){
+  const srcs=T('Source').filter(s=>s.id!=='src-workspace');const {base,casc}=cascade(S.delSrc);const sd=srcOf(S.delSrc);
+  const bt={};base.forEach(r=>bt[r.type]=(bt[r.type]||0)+1);
+  const ct={};casc.forEach(x=>{const k=x.r.type+(x.r.type==='Link'?' · '+x.r.link_type:'');(ct[k]=ct[k]||[]).push(x)});
+  const batches=T('ImportBatch').filter(b=>b.source_id===S.delSrc);
+  const allPaused=srcs.every(s=>paused(s.id));
+  return `<div class="panel"><h2>Participant control room</h2>
+   <div class="sim"><b class="mono">SIMULATED · UI ONLY</b> No collection exists in this demo. Toggles change how this page draws lanes and the banner; nothing is paused, shared or deleted.</div>
+   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="btn${allPaused?' on':''}" data-act="pauseall" aria-pressed="${allPaused}">${allPaused?'RESUME ALL':'PAUSE ALL'}</button><span class="muted mono">Ctrl/Cmd+Shift+P</span></div>
+   <table><tr><th>source</th><th>collection (simulated)</th><th>state</th></tr>${srcs.map(s=>`<tr><td>${esc(s.name)}</td><td><div class="switch"><button class="btn${paused(s.id)?'':' on'}" data-pause="${s.id}" aria-pressed="${!paused(s.id)}" aria-label="${esc(s.name)} collection ${paused(s.id)?'paused, activate to resume':'on, activate to pause'}">${paused(s.id)?'PAUSED':'ON'}</button></div></td><td>${paused(s.id)?'<span class="tag warn">[LOCK] PAUSED BY PARTICIPANT</span>':'<span class="tag ok">on</span>'}</td></tr>`).join('')}</table></div>
+  <div class="panel"><h3>Scope &amp; sharing</h3><dl class="kv"><dt>current share</dt><dd>NONE (self-operated)</dd><dt>last export</dt><dd>none</dd><dt>activity log</dt><dd>nothing has left this workspace (demo)</dd></dl></div>
+  <div class="panel"><h2>Delete preview · simulated</h2>
+   <div class="sim"><b class="mono">SIMULATED</b> Preview only. Cascade computed in this page from the Link records and evidence id lists in the persona file. Nothing is deleted and no data store exists.</div>
+   <label class="mono">target source <select class="sel-input" data-delsrc>${srcs.map(s=>`<option value="${s.id}" ${s.id===S.delSrc?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
+   <div class="grid2" style="margin-top:10px"><div><h3>Will remove · ${base.length} records with source ${esc(sd.name)}</h3>${Object.keys(bt).length?`<table>${Object.keys(bt).sort().map(k=>`<tr><td>${esc(k)}</td><td class="num">${bt[k]}</td></tr>`).join('')}</table>`:'<span class="muted">no records</span>'}</div>
+   <div><h3>Derived cascade · ${casc.length} (from Links and evidence lists)</h3>${casc.length?Object.keys(ct).sort().map(k=>`<div style="margin:4px 0"><span class="tag ${ct[k][0].k==='invalidated'?'alert':'warn'}">${esc(k)} x${ct[k].length} · ${esc(ct[k][0].k.toUpperCase())}</span>${ct[k][0].r.type!=='Link'?ct[k].map(x=>`<div style="margin-left:8px">${chip(x.r.id)} <span class="muted">${esc(x.k)}: ${esc(x.note||'')}</span></div>`).join(''):`<span class="muted"> (links with a deleted endpoint)</span>`}</div>`).join(''):'<span class="muted">no derived records from other sources depend on this source</span>'}</div></div>
+   <h3 style="margin-top:12px">Unverified / possibly remaining copies (cannot be confirmed by the app)</h3>
+   <ul style="margin:0;padding-left:18px"><li>Original files behind ${batches.length} import batch(es): ${batches.map(b=>`<span class="mono">${esc(b.id)} (${esc(b.content_digest_sha256.slice(0,8))}...)</span>`).join(', ')||'none'}. Their location is unknown to the app.</li>
+    <li>Any exported encrypted package (none created in this demo; if one existed, deletion could not be confirmed).</li><li>Mac backups and OS snapshots (outside app control).</li><li>Screenshots and shared view snapshots, if any.</li></ul>
+   <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label class="mono" for="deltype">type DELETE</label><input id="deltype" class="sel-input" style="width:110px" value="${esc(S.delTyped)}" autocomplete="off"><button class="btn danger" data-act="simdelete" ${S.delTyped==='DELETE'?'':'disabled'}>simulate delete</button></div>
+   ${S.delResult?`<div class="sim" role="status"><b class="mono">${esc(S.delResult)}</b></div>`:''}</div>`;
+}
+
+// ---------- briefing ----------
+function viewFacts(){
+  const w=viewWin();const inw=t=>T(t).filter(r=>ovl(r,w));
+  const vs=inw('Visit'),tr=inw('Trip'),ac=inw('ActivityInterval'),ca=inw('CalendarEvent'),ra=inw('ResourceAccess'),aa=inw('AccountActivity'),ls=inw('LocationSample');
+  const places=[...new Set(vs.map(v=>v.place_id))];
+  const gaps=GAPS.filter(g=>g.e>w.a&&g.s<w.b);const longest=gaps.slice().sort((a,b)=>(b.e-b.s)-(a.e-a.s))[0];
+  const snaps=SNAP.filter(s=>s.e>w.a&&s.s<w.b);
+  return {w,vs,tr,ac,ca,ra,aa,ls,places,gaps,longest,snaps};
+}
+function briefHTML(compact){
+  const f=viewFacts();const w=f.w;const sc=SCREENS.find(s=>s[0]===S.screen)[1];
+  const facts=[
+   `${f.vs.length} Visit records (normalized events) across ${f.places.length} Place records; ${f.tr.length} Trip records.`,
+   `${f.ls.length} Location samples, ${f.ac.length} Motion intervals, ${f.ca.length} Calendar events (${f.ca.filter(c=>c.role==='observed_activity').length} explicitly confirmed), ${f.aa.length} account activity points.`,
+   `${f.ra.length} App Privacy Report access records; ${f.snaps.length} network snapshot window(s) overlap this view, each shown once and never summed.`,
+   f.gaps.length?`${f.gaps.length} declared gap(s): longest is ${f.longest.name} ${gapLab(f.longest)}.`:'No declared gaps overlap this window.',
+   `HealthKit heart rate and sleep: UNKNOWN (no producer observed); read authorization UNKNOWN.`];
+  if(anyPaused())facts.push(`${Object.values(S.paused).filter(Boolean).length} source(s) shown as paused (simulated).`);
+  const sents=[];
+  if(f.places.length)sents.push({t:`Within this window the visit records involve ${f.places.length} place(s), led by ${sens(pn(topPlace(f.vs)))}. This describes the records, not what the participant did there.`,c:[topPlace(f.vs)]});
+  if(f.longest)sents.push({t:`Records stop for ${esc(f.longest.name)} during ${esc(f.longest.kind.replace(/_/g,' '))}. The fixture labels the cause "${esc(f.longest.reason.replace(/_/g,' '))}"; with real data the cause would be unknown, and absence of records is not absence of behaviour.`,c:[f.longest.src]});
+  if(f.gaps.some(g=>g.src==='src-location')&&f.ac.length)sents.push({t:'Motion records exist separately from Location, so a location gap does not mean no movement was recorded anywhere.',c:['src-motion','src-location']});
+  sents.push({t:'Heart rate and sleep are UNKNOWN, so no sleep-related statement can be made from this data.',c:['src-healthkit']});
+  const corr=byId['finding-0002'];if(S.screen==='investigation'||S.screen==='briefing')sents.push({t:`The one correlation on file (rho ${corr.statistic.value.toFixed(2)}, interval ${corr.statistic.ci95_approx.join(' to ')}) is inconclusive; it is a correlation, not causation.`,c:['finding-0002']});
+  return `<div class="facts"><div class="lbl">FROM THE DATA · generated by code, reproducible</div>
+   <div class="mono muted" style="font-size:12px">view: ${esc(sc)} · lens ${esc(LENSES[S.lens-1][0])} · ${esc(fmtT(w.a,1))} to ${esc(fmtT(w.b,1))} (${esc(w.lab)})</div>
+   <ul style="margin:8px 0 0;padding-left:18px">${facts.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+   <div class="expl fx-surface"><div class="lbl">EXPLANATION — NOT PROOF</div><div class="mono muted" style="font-size:12px;margin-bottom:6px">templated text from the numbers above · model: none (no LLM call)</div>
+   ${sents.map(s=>`<div class="sent${s.c.length?'':' unl'}">${s.t}${s.c.length?' '+s.c.map(i=>byId[i]?chip(i,i):'').join(''):' <span class="tag alert">unlinked sentence</span>'}</div>`).join('')}
+   ${compact?'':'<div class="note">Every sentence cites its objects; an unlinked sentence would be flagged. Local versus external model selection stays deferred and provider-neutral; no data leaves this page.</div>'}</div>`;
+}
+function topPlace(vs){const c={};vs.forEach(v=>c[v.place_id]=(c[v.place_id]||0)+1);return Object.keys(c).sort((a,b)=>c[b]-c[a]||(a<b?-1:1))[0]}
+function briefingView(){return `<div class="panel"><h2>Briefing · current view</h2>${briefHTML(false)}</div>`}
+
+// ---------- render view ----------
+function renderView(){
+  const v=$('#view');let h='';
+  switch(S.screen){case 'map':h=mapView();break;case 'timeline':h=tlView();break;case 'dossier':h=dossierView();break;case 'graph':h=graphView();break;case 'coverage':h=coverageView();break;case 'investigation':h=invView();break;case 'control':h=controlView();break;case 'briefing':h=briefingView();break}
+  v.innerHTML=h;
+  if(S.screen==='map')setupMap();else{MAP.cv=null;}
+  if(S.screen==='timeline')tlDraw();
+}
+
+// ---------- actions ----------
+function addScratch(id){if(id&&!S.scratch.includes(id))S.scratch.push(id);if(S.screen==='investigation')renderView();renderCtx()}
+function togglePlay(){S.play=!S.play;clearInterval(playT);if(S.play){const step=RM?360:S.speed*60;playT=setInterval(()=>{let n=S.t+step;if(n>=TOTAL-1){n=TOTAL-1;S.play=false;clearInterval(playT);const b=document.querySelector('[data-act=play]');if(b){b.textContent='PLAY';b.setAttribute('aria-pressed','false')}}setT(n,true)},RM?700:100)}
+  const b=document.querySelector('[data-act=play]');if(b){b.textContent=S.play?'PAUSE':'PLAY';b.setAttribute('aria-pressed',String(S.play))}}
+let playT=null;
+function setPauseAll(on){T('Source').filter(s=>s.id!=='src-workspace').forEach(s=>S.paused[s.id]=on)}
+function doAction(a){
+  if(a==='play'){togglePlay();return}
+  if(a==='fx'){S.fx=!S.fx;try{localStorage.setItem('pnx-fx',S.fx?'1':'0')}catch(e){}render();return}
+  if(a==='palette'){openPalette();return}
+  if(a==='help'){openHelp();return}
+  if(a==='tltable'){S.tl.table=!S.tl.table;renderView();return}
+  if(a==='pauseall'){setPauseAll(!T('Source').filter(s=>s.id!=='src-workspace').every(s=>paused(s.id)));render();return}
+  if(a==='clearscratch'){S.scratch=[];render();return}
+  if(a==='simdelete'){S.delResult=`SIMULATION ONLY · nothing was deleted. A real build would remove ${cascade(S.delSrc).base.length} records and recompute the cascade above, and still could not verify external copies.`;renderView();return}
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-nav],[data-lens],[data-act],[data-sel],[data-dos],[data-graph],[data-scratch],[data-step],[data-tlstep],[data-pause],[data-inv],[data-ctxtab],[data-gx]');if(!t)return;
+  const d=t.dataset;
+  if(d.nav){setScreen(d.nav)}
+  else if(d.lens){setLens(+d.lens)}
+  else if(d.act){doAction(d.act)}
+  else if(d.sel){select(d.sel,{});if(e.shiftKey)addScratch(d.sel)}
+  else if(d.dos){S.sel=d.dos;setScreen('dossier');if(S.screen==='dossier')render()}
+  else if(d.graph){S.sel=d.graph;setScreen('graph');if(S.screen==='graph')render()}
+  else if(d.scratch){addScratch(d.scratch)}
+  else if(d.step){setT(S.t+(+d.step)*1440)}
+  else if(d.tlstep){S.tl.start=Math.max(0,Math.min(28-S.tl.span,S.tl.start+(+d.tlstep)*S.tl.span));renderView();renderStatus()}
+  else if(d.pause){S.paused[d.pause]=!S.paused[d.pause];render()}
+  else if(d.inv){S.invSel=d.inv;renderView()}
+  else if(d.ctxtab){S.ctxTab=d.ctxtab;renderCtx()}
+  else if(d.gx){S.gx[d.gx]=!S.gx[d.gx];renderView()}
+});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('svg g[tabindex]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:e.shiftKey}));
+  const id=e.target.dataset.id||e.target.dataset.sel;if(id){if(e.target.dataset.id)select(id,{})}}});
+document.addEventListener('click',e=>{const g=e.target.closest('svg g[data-id]');if(g){select(g.dataset.id,{});if(e.shiftKey)addScratch(g.dataset.id)}});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='trange'){setT(+t.value,true)}
+  else if(t.id==='deltype'){S.delTyped=t.value;const b=document.querySelector('[data-act=simdelete]');if(b)b.disabled=t.value!=='DELETE'}
+});
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.layer){S.layers[t.dataset.layer]=t.checked;drawMap()}
+  else if('trail' in t.dataset){S.trail=+t.value;drawMap();renderStatus();updateStateLine();if(S.lens===5)renderCtx()}
+  else if('speed' in t.dataset){S.speed=+t.value;if(S.play){togglePlay();togglePlay()}}
+  else if('tlspan' in t.dataset){S.tl.span=+t.value;S.tl.start=Math.max(0,Math.min(28-S.tl.span,Math.floor(S.tl.start/S.tl.span)*S.tl.span));renderView();renderStatus()}
+  else if('delsrc' in t.dataset){S.delSrc=t.value;S.delResult='';renderView()}
+});
+let rz=null;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.screen==='timeline')tlDraw()},120)});
+
+// ---------- palette / help ----------
+let pItems=[],pIdx=0,gPending=0;
+function buildItems(){
+  const it=[];SCREENS.forEach(([k,l])=>it.push({k:'screen',l:'Go to '+l,h:'go '+l+' '+k,run:()=>setScreen(k)}));
+  LENSES.forEach((l,i)=>it.push({k:'lens',l:'Lens '+(i+1)+' '+l[1],h:'lens '+l[1]+' '+l[2],run:()=>setLens(i+1)}));
+  it.push({k:'action',l:'Toggle STYLE (CRT) effects',h:'style crt scanline effects',run:()=>doAction('fx')});
+  it.push({k:'action',l:'Pause / resume all collection (simulated)',h:'pause resume collection',run:()=>doAction('pauseall')});
+  it.push({k:'action',l:'Open delete preview (simulated)',h:'delete preview cascade',run:()=>setScreen('control')});
+  it.push({k:'action',l:'Toggle privacy blur',h:'blur hide sensitive',run:()=>{S.blur=!S.blur;render()}});
+  it.push({k:'action',l:'Shortcuts and about',h:'help shortcuts about',run:openHelp});
+  R.forEach(r=>{if(['Link','LocationSample','NetworkAggregate'].includes(r.type))return;it.push({k:r.type,l:lab(r),h:(r.type+' '+lab(r)+' '+r.id+' '+(r.evidence_class||'')).toLowerCase(),run:()=>select(r.id,{go:['Finding'].includes(r.type)?'investigation':['Source'].includes(r.type)?'coverage':'dossier'}),obj:r.id})});
+  return it;
+}
+let allItems=null;
+function openPalette(){if(!allItems)allItems=buildItems();$('#palette').hidden=false;$('#pq').value='';filterP();$('#pq').focus()}
+function closeModal(){$('#palette').hidden=true;$('#help').hidden=true}
+function filterP(){
+  const q=$('#pq').value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  pItems=allItems.filter(i=>q.every(t=>(i.h||i.l.toLowerCase()).includes(t)||i.l.toLowerCase().includes(t))).slice(0,40);pIdx=0;paintP();
+}
+function paintP(){$('#pl').innerHTML=pItems.map((i,n)=>`<li><button role="option" aria-selected="${n===pIdx}" data-p="${n}"><span class="k">${esc(i.k)}</span><span>${esc(i.l)}</span></button></li>`).join('')||'<li><div class="help muted">No match</div></li>';const s=$('#pl [aria-selected=true]');if(s)s.scrollIntoView({block:'nearest'})}
+function runP(n){const i=pItems[n];if(!i)return;closeModal();i.run()}
+$('#pq').addEventListener('input',filterP);
+$('#pl').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b)runP(+b.dataset.p)});
+$('#palette').addEventListener('click',e=>{if(e.target.id==='palette')closeModal()});
+$('#help').addEventListener('click',e=>{if(e.target.id==='help')closeModal()});
+$('#pq').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();pIdx=Math.min(pItems.length-1,pIdx+1);paintP()}else if(e.key==='ArrowUp'){e.preventDefault();pIdx=Math.max(0,pIdx-1);paintP()}else if(e.key==='Enter'){e.preventDefault();runP(pIdx)}});
+function openHelp(){$('#helpbody').innerHTML=`<h2 class="mono" style="margin-top:0">Shortcuts · about</h2>
+ <p><b>Synthetic design exploration</b> of the Panoptes explorer look and feel (working names). Not the explorer implementation; no framework is selected. All data is invented persona EX-01 in fictional Port Meridian.</p>
+ <table><tr><td class="mono">Ctrl/Cmd+K</td><td>command palette</td></tr><tr><td class="mono">1 to 6</td><td>lens</td></tr><tr><td class="mono">G then M T D L C I P B</td><td>Map, Timeline, Dossier, Link graph, Coverage, Investigation, Participant control, Briefing</td></tr><tr><td class="mono">[ and ]</td><td>step the scrub time by one day</td></tr><tr><td class="mono">Space</td><td>play / pause (map)</td></tr><tr><td class="mono">Enter / Shift+Enter</td><td>open selection in dossier / add to scratch set</td></tr><tr><td class="mono">P</td><td>provenance of selection (dossier)</td></tr><tr><td class="mono">Esc</td><td>close, clear selection</td></tr><tr><td class="mono">Ctrl/Cmd+Shift+H</td><td>blur sensitive labels</td></tr><tr><td class="mono">Ctrl/Cmd+Shift+P</td><td>pause / resume all collection (simulated)</td></tr></table>
+ <div class="note">* LOCAL ONLY is a concept banner. This page fetches web fonts and its own JSON, so a real build must verify the claim before asserting it.</div>
+ <div class="note">STYLE adds CRT scanlines to the Map and Briefing only; it is off by default and is not a lens.</div>
+ <p><button class="btn" data-act="closehelp">close</button></p>`;$('#help').hidden=false;const b=$('#helpbody .btn');if(b)b.focus()}
+document.addEventListener('click',e=>{if(e.target.closest('[data-act=closehelp]'))closeModal()});
+document.addEventListener('keydown',e=>{
+  const mod=e.ctrlKey||e.metaKey;
+  if(mod&&!e.shiftKey&&e.key.toLowerCase()==='k'){e.preventDefault();if($('#palette').hidden)openPalette();else closeModal();return}
+  if(e.key==='Escape'){if(!$('#palette').hidden||!$('#help').hidden){closeModal();return}if(S.sel&&!/input|select|textarea/i.test(e.target.tagName)){S.sel=null;if(['dossier','graph'].includes(S.screen))renderView();renderCtx();if(S.screen==='map'){drawMap();renderMapChips()}if(S.screen==='timeline')tlDraw()}return}
+  if(!$('#palette').hidden||!$('#help').hidden)return;
+  if(mod&&e.shiftKey&&e.key.toLowerCase()==='h'){e.preventDefault();S.blur=!S.blur;render();return}
+  if(mod&&e.shiftKey&&e.key.toLowerCase()==='p'){e.preventDefault();doAction('pauseall');return}
+  if(mod||e.altKey||/input|select|textarea/i.test(e.target.tagName))return;
+  const k=e.key;
+  if(Date.now()<gPending){gPending=0;const s=GKEYS[k.toLowerCase()];if(s){e.preventDefault();setScreen(s)}return}
+  if(k>='1'&&k<='6'){setLens(+k);return}
+  if(k==='g'||k==='G'){gPending=Date.now()+1200;return}
+  if(k==='['){setT(S.t-1440);return}if(k===']'){setT(S.t+1440);return}
+  if(k==='?'){openHelp();return}
+  if(k===' '&&S.screen==='map'&&e.target===document.body){e.preventDefault();doAction('play');return}
+  if(k==='Enter'&&S.sel&&e.target===document.body){if(e.shiftKey)addScratch(S.sel);else{setScreen('dossier')}return}
+  if((k==='p'||k==='P')&&S.sel){setScreen('dossier');return}
+});
+
+if(!location.hash)history.replaceState(null,'','#map');
+applyHash();
+})();
+</script>
