@@ -1,6 +1,6 @@
 # Transfer package design options
 
-**Status:** PROVISIONAL design-options document. It selects nothing final: no cryptographic scheme, package format, key store, deployment target, or transport is adopted. It informs a future decision (proposed as D-031) and the XFR-01, ISO-01, and DEL-01 cases in [the collection protocol](collection-probe.md). Nothing here has been implemented, built, or tested; the Mac preflight (D-027) is still pending.
+**Status:** PROVISIONAL design-options document. It selects nothing final: no cryptographic scheme, package format, key store, deployment target, or transport is adopted. It is recorded as provisional D-031 and informs the XFR-01, ISO-01, and DEL-01 cases in [the collection protocol](collection-probe.md). Nothing here has been implemented, built, or tested; the Mac preflight (D-027) is still pending.
 
 **Scope:** the participant-initiated encrypted batch export from the iPhone to a local Mac workbench (D-008). Account exports and App Privacy Report files enter through a separate import/staging path (see section 7) but share the same Mac-side protections.
 
@@ -19,13 +19,13 @@
 | XFR-01 | Scope selection, validation, integrity/authentication, round-trip evidence. Tamper rejection, wrong-recipient/workspace handling, duplicate import, chosen replay/idempotency policy. A hash is not encryption or authentication. |
 | ISO-01 / SYN-09 | Colliding source IDs across two workspaces must not leak. |
 | DEL-01 / SYN-10 | Derived-data invalidation, cache/export inventory, unverified copies recorded, no sensitive values in audit text. |
-| SYN-04 | Same file imported twice must not inflate activity; the current inspector only covers byte-identical repeats within one call, not persistent idempotency. |
+| SYN-04 | Same file imported twice must not inflate activity; the inspector now has an opt-in digest ledger for cross-call repeats (D-034); near-duplicate re-exports are not detected. |
 
 ## 2. Threat model
 
 ### Assets
 
-Identifiable raw records (location, motion, health, calendar, privacy-report metadata, account exports); the manifest itself (category names, date ranges, and sizes are sensitive); keys and passphrases; the mapping between a package and a workspace or person.
+Identifiable raw records (location, motion, health, calendar, privacy-report metadata, account exports); the manifest itself (category names, date ranges, and sizes are sensitive); keys and passphrases; enrollment state and replay/tombstone ledgers; the mapping between a package and a workspace or person.
 
 ### Adversaries and failure modes in scope
 
@@ -49,13 +49,14 @@ Identifiable raw records (location, motion, health, calendar, privacy-report met
 - Traffic-analysis of the fact that a transfer occurred.
 - Participant error, such as choosing the wrong recipient with a verification step skipped.
 - Hardware, OS, and Apple framework vulnerabilities **[UNVERIFIED]** beyond what the project can assess.
-- Legal compulsion and nonparticipant data inside provider exports (handled by minimization in the trust doc).
+- Legal compulsion.
+- Nonparticipant data inside provider exports (handled by minimization in the trust doc, not by package cryptography).
 
 ## 3. Cross-cutting design principles
 
 1. Use only standard, peer-reviewed primitives through platform libraries; no custom cipher, mode, or key-exchange construction. Name algorithms and parameters in the final decision so they can be reviewed.
 2. Use authenticated encryption (AEAD) so confidentiality and integrity are one primitive. A standalone hash or checksum is for corruption detection only. It gives no confidentiality and, unkeyed, no authentication.
-3. Separate three properties and test each: confidentiality (recipient only), integrity (not modified), authenticity (from the participant's enrolled phone). Design A as described below delivers the first two, and the third only to the extent that the passphrase is a shared secret known to few parties.
+3. Separate three properties and test each: confidentiality (recipient only), integrity (not modified), authenticity (from the participant's enrolled phone). Design A delivers confidentiality and integrity only if the passphrase resists offline guessing; it is never stronger than the passphrase. It delivers authenticity only to the extent that the passphrase is a shared secret known to few parties.
 4. Bind the context into the authenticated data: format version, package ID, workspace ID, recipient key identifier, sender key identifier, chunk index and chunk count, range and categories digest. A package must fail to open in any other context.
 5. Encrypt the manifest too, with only a minimal cleartext header (format version, package ID, key identifiers, algorithm identifiers).
 6. Never roll back or silently downgrade: unknown algorithm or version identifiers cause rejection.
@@ -86,7 +87,7 @@ All three assume the same logical package: one header, an encrypted manifest, an
 
 ### Design C. Paired static keys with mutual authentication (recommended direction)
 
-- **Mechanism:** a one-time pairing ceremony enrolls two public keys with each other: the Mac's recipient key (as in B) and a phone signing/agreement key, created on the iPhone and bound to the app. The participant verifies both fingerprints on both screens, or scans a QR code in each direction, in person. Each package is then encrypted to the recipient (as in B) and authenticated by the sender, either through a digital signature over the header and manifest digest, or by HPKE authenticated modes using the sender's static key. The Mac importer refuses packages whose sender key is not enrolled for that workspace.
+- **Mechanism:** a one-time pairing ceremony enrolls two public keys with each other: the Mac's recipient key (as in B) and a phone signing/agreement key, created on the iPhone and bound to the app. The participant verifies both fingerprints on both screens, or scans a QR code in each direction, in person. Each package is then encrypted to the recipient (as in B) and authenticated by the sender, either through HPKE auth mode (RFC 9180; requires a DHKEM, with the sender's static key in the key schedule) or a digital signature over a transcript that includes the header, the encrypted manifest, and every chunk tag. A signature over only the header and manifest digest does not bind the chunk ciphertexts. Neither option provides non-repudiation, and none is needed. The Mac importer refuses packages whose sender key is not enrolled for that workspace.
 - **Standard primitives:** HPKE (RFC 9180) base or auth mode, or ECDH plus HKDF plus AEAD, combined with Ed25519 (RFC 8032) or ECDSA P-256 signatures; AEAD as in B.
 - **Platform availability [UNVERIFIED]:** CryptoKit signing for Curve25519 and P-256, Keychain storage with access control flags, optional Secure Enclave for P-256 keys, and the available QR/camera pairing UI are all to be verified. If the phone key is a Keychain item rather than Secure Enclave-held, the extractability, the backup/migration behavior, and the interaction with iCloud Keychain and device-to-device restore must be checked and the item explicitly marked device-only **[UNVERIFIED]**.
 - **Pros:** confidentiality, integrity, sender and recipient authentication, and workspace binding in one design; closes T4; allows revocation by removing an enrolled key; enrolled key identifiers support clear audit entries without sensitive values; matches the project's "participant-controlled" stance because enrollment requires the participant's physical presence.
@@ -100,7 +101,7 @@ All three assume the same logical package: one header, an encrypted manifest, an
 | Confidentiality independent of human secret | No | Yes | Yes |
 | Sender authenticity | No | No | Yes (if enrollment verified) |
 | Per-workspace cryptographic separation | No | Yes | Yes |
-| Replay resistance | Bookkeeping only | Bookkeeping only | Bookkeeping plus enrolled sender and counters |
+| Replay resistance | Bookkeeping only | Bookkeeping only | Bookkeeping plus enrolled sender and counters; old validly signed packages still need a tombstone ledger or key retirement (section 6) |
 | Setup effort | Low | Medium | High |
 | Key loss impact | Passphrase forgotten means data loss | Mac key loss means data loss | Either key loss; requires re-enrollment |
 | Matches D-008 and the real-data gate | Weakly | Partly | Best |
@@ -112,11 +113,11 @@ Requirements for any selected design:
 - **Encryption is not authentication; a hash is neither.** A SHA-256 manifest digest or file checksum detects accidental corruption. It does not hide content, and an attacker who can modify the file can recompute it. Hashes inside the manifest are acceptable only because the manifest itself is AEAD-protected and bound to the sender.
 - **AEAD authentication tags** cover each chunk. The associated data must include package ID, chunk index, total chunk count, format version, workspace ID, recipient key ID, and sender key ID. This defeats chunk reordering, truncation, cross-package mixing, and wrong-workspace import.
 - **Completeness:** the manifest lists the chunk count and a digest of each chunk (or a Merkle-style summary). The importer rejects a package with missing, extra, or reordered chunks.
-- **Sender authentication (T4):** a signature or authenticated-HPKE mode under a pre-enrolled sender key (Design C). Without it, state plainly in the participant and operator documentation that the package proves only that someone with the recipient public key (or passphrase) built it.
+- **Sender authentication (T4):** a signature or authenticated-HPKE mode under a pre-enrolled sender key (Design C), covering the entire package (header, encrypted manifest, every chunk). A sender key ID in the header or AAD is a label only; it authenticates nothing unless the key schedule or signature binds it. With ephemeral-static encryption alone (Design B), that ID is attacker-writable. Without sender authentication, state plainly in the participant and operator documentation that the package proves only that someone with the recipient public key (or passphrase) built it.
 - **Verification before use:** decrypt and fully validate in an isolated temporary location before any record reaches the workspace; on any failure, import nothing and delete the temporary output. Failure messages must not echo record values.
-- **No oracle leakage:** report generic failure classes (unreadable, not for this workspace, not an enrolled sender, integrity failure) without exposing which byte or field differed, if the distinction would aid an attacker. Whether that matters in a local single-user tool is an open question.
+- **No oracle leakage:** report generic failure classes (unreadable, not for this workspace, not an enrolled sender, integrity failure) without exposing which byte or field differed, if the distinction would aid an attacker. Provisional leaning for the local single-user V1: show generic failure classes only and put detail, without record values, in a local debug log.
 - **Algorithm agility:** carry explicit algorithm and version identifiers in the cleartext header; reject unknown or downgraded combinations.
-- **Nonce discipline:** a unique nonce per AEAD message under a given key. Per-package fresh content keys plus counter-derived or randomly generated nonces avoid reuse. The exact nonce construction must follow the primitive's specification and be reviewed **[UNVERIFIED against the chosen API's nonce handling]**.
+- **Nonce and key discipline:** use a fresh random content key per package. In Designs B and C, it comes from HKDF over a fresh ephemeral key agreement. In Design A, it comes from the password KDF with a fresh random salt of at least 16 bytes per package, never reused; a reused passphrase-plus-salt would reuse the key and therefore risk nonce reuse. Within a package, use a deterministic counter nonce (chunk index), or a 96-bit random nonce, so that reuse under one key is impossible by construction. HKDF `info` must include the format version, package ID, and a purpose label (domain separation). For Design A, the cleartext salt, KDF identifier, and cost parameters must be bound as AAD and checked against a minimum floor. The exact nonce construction must follow the primitive's specification and be reviewed **[UNVERIFIED against the chosen API's nonce handling]**.
 
 ## 6. Replay, idempotency, key handling, and rotation
 
@@ -130,12 +131,14 @@ Requirements for any selected design:
 
 A provisional leaning is R1 plus R2 for ordinary idempotency, with R3 evaluated for the case where a deleted record could otherwise be resurrected by importing an old package. A deletion tombstone ledger (IDs only, not values) may be needed so that re-import of an old package does not silently restore deleted data; this must be reconciled with the deletion policy and with the "no sensitive values in audit text" rule.
 
+Resurrection defense needs one of the following: (a) a per-workspace tombstone ledger of package IDs and source keys (IDs only), checked before promotion; or (b) retiring the recipient key that the old packages were encrypted to (see Rotation). R1 and R3 alone do not provide it. A restored phone, or an old ciphertext recovered from a backup, Time Machine, or iCloud, can present a validly authenticated older package. A bare package-ID ledger also does not stop a re-exported package under a new ID.
+
 ### Key handling
 
 - **Generation:** on-device or on-Mac, through the platform's secure random source and key generation APIs. No keys derived from predictable data.
 - **Storage (phone, Mac):** Keychain items with the strictest availability class workable, device-only (not synchronized, not included in backups), and Secure Enclave for private keys where the algorithm allows. These properties are the intended settings; every attribute name, flag, and behavior is **[UNVERIFIED]** against the installed SDK and must be tested on a physical device and on the Mac. A Mac without a Secure Enclave or a signed-out keychain may behave differently **[UNVERIFIED]**.
 - **No keys in Git, logs, crash reports, screenshots, or the shared workspace.** Fingerprints (short digests of public keys) may be shown to the participant and recorded in audit entries.
-- **Fingerprint verification:** pairing is only as strong as the human comparison. Define display format, length, and what happens on mismatch.
+- **Fingerprint verification:** pairing is only as strong as the human comparison. Provisional rule: fingerprint = SHA-256 over (algorithm ID || canonical public-key encoding), displayed with at least 128 bits, grouped for reading. A short authentication string is acceptable only with a commit-then-reveal exchange, because a short string can be ground by an attacker. A QR scan in each direction is acceptable because it carries the full key or full digest. A mismatch aborts pairing and stores nothing.
 - **Per-workspace separation:** one recipient key per workspace (and a separate key for an authorized researcher grant) so compromise or deletion of one workspace does not expose another. Whether to additionally derive at-rest storage keys from the same hierarchy is a separate decision.
 - **Rotation:** define triggers (suspected compromise, researcher grant ended, device replacement, periodic) and mechanics: generate a new recipient key, enroll its public half on the phone, mark the old key retired (decrypt-only), and re-encrypt or purge old packages according to the retention policy. Rotation does not protect packages already captured under the old key; their lifetime is the old key's lifetime, which is a reason to delete packages and retire the key together.
 - **Revocation:** removing an enrolled sender or recipient from the Mac and phone, and rejecting subsequent packages. This is a future-sharing control, not a recall of earlier copies.
@@ -151,19 +154,27 @@ Native exports from sources (Health export, App Privacy Report NDJSON, calendar 
 | Location | Concern | Control to design and test |
 |---|---|---|
 | iPhone app container: generated export file before encryption | Readable by backups or file-sharing features if misplaced | Write to a protected location with the strongest practical data protection class **[UNVERIFIED]**, exclude from backup **[UNVERIFIED]**, encrypt then delete the plaintext immediately, delete on app-launch recovery if a crash left one. |
-| Files app, shared folders, iCloud Drive, AirDrop inbox | Cloud-synced or user-visible copies | Never place plaintext there. Ciphertext only. Treat cloud-synced folders as uncontrolled for ciphertext retention. |
-| Participant-provided source exports (App Privacy Report, account export) as received | They arrive as plaintext | Import through a staging area on the Mac or phone with a stated lifetime; delete or re-encrypt after parsing; record that the original in the Files app or downloads folder is outside the project's control until the participant removes it. |
+| Files app, shared folders, iCloud Drive, AirDrop received-file location **[UNVERIFIED]** | Cloud-synced or user-visible copies | Never place plaintext there. Ciphertext only. Treat cloud-synced folders as uncontrolled for ciphertext retention. |
+| Participant-provided source exports (App Privacy Report, account export) as received | They arrive as plaintext | Import through a staging area on the Mac or phone with a stated lifetime; delete or re-encrypt after parsing; record that the original in the Files app or downloads folder **[UNVERIFIED received-file location]** is outside the project's control until the participant removes it. |
 | Mac temporary decryption output | Left behind after failure | Isolated temp directory, validation before promotion, wipe on both success and failure, with startup sweep. |
-| Mac workspace store, indexes, caches, search indexes, thumbnails, Spotlight, Time Machine and other backups, swap | Derived or copied plaintext | Out of scope of the package design but must be listed in the at-rest design and the deletion inventory. Spotlight and backup exclusion are **[UNVERIFIED]** behaviors. |
+| Mac workspace store, indexes, caches, search indexes, thumbnails, Spotlight, Time Machine and other backups, swap | Derived or copied plaintext | Out of scope of the package design but must be listed in the at-rest design and the deletion inventory. Spotlight, swap, Time Machine scope, and backup exclusion are **[UNVERIFIED]** behaviors. |
 | Logs, crash reports, analytics, clipboard, screenshots | Accidental value capture | No record values in logs; redaction tests. |
 | Repository | Committed real data or keys | Synthetic fixtures only; ignore rules and a pre-commit scan for key and export patterns. Outside this document's authority but a precondition. |
 | Test copies of real data used during development | Forgotten copies | A named inventory entry per test copy, with owner, location, creation time, and verified deletion. |
+
+### Single-owner V1 requirements (most probable leaks)
+
+For one owner on one Mac, backups, sync, and a lost phone are the likeliest exposures, so they are requirements rather than footnotes:
+
+- Place staging and workspace directories outside iCloud Drive's Desktop and Documents sync and outside any Time Machine-included path. Otherwise, list the backup copy as an uncontrolled copy in the DEL-S5 inventory. Exact exclusion mechanics are **[UNVERIFIED]**.
+- Require FileVault on the Mac and record whether it is enabled.
+- Lost phone: the app's data sits behind the device passcode, and the phone key is non-exportable **[UNVERIFIED attributes]**. The documented response is Find My remote erase plus Mac-side revocation of the enrolled phone key. Record a lost-phone drill as a test (DEL-S7, SEC-S1).
 
 ### Deletion of test copies and staging files
 
 - Assign each staged file or package a package/evidence ID and a deletion deadline when created.
 - Delete plaintext immediately after successful encryption or parse; delete ciphertext after confirmed import according to the participant's retention choice.
-- Secure-erase semantics on modern flash storage and APFS are not reliable by overwriting alone **[UNVERIFIED]**. The more dependable strategy is to keep staging data under a key that is then destroyed (crypto-erase), ideally with encryption at rest on the volume. Whether file-level data protection or volume encryption yields effective erasure on the exact devices must be verified and recorded as such, not assumed.
+- Secure-erase semantics on modern flash storage and APFS are not reliable by overwriting alone **[UNVERIFIED]**. The more dependable strategy is to keep staging data under a key that is then destroyed (crypto-erase), ideally with encryption at rest on the volume. Whether file-level data protection or volume encryption yields effective erasure on the exact devices must be verified and recorded as such, not assumed. Crypto-erase counts as deletion only if the key has been verified never to have existed outside the controlled device: no backup, no iCloud Keychain, no escrow. Otherwise record the data as unverified.
 - Record each deletion as an event (ID, time, location class) without sensitive values; record any copy that could not be verified as unverified.
 - A deletion check is a test (DEL-01), not a statement of intent: list expected locations, check they are empty or unreadable, and keep the result as evidence.
 
@@ -232,11 +243,16 @@ All cases use fictitious identifiers and reserved example domains, never real ex
 | XFR-S7 Wrong workspace | Correct recipient key, importing into another workspace | Rejected based on bound workspace ID. |
 | XFR-S8 Unenrolled or forged sender (Design C) | Build a validly encrypted package with a non-enrolled key | Rejected as not from an enrolled sender; for Design A/B, document that it is accepted, to show the limitation. |
 | XFR-S9 Downgrade or unknown algorithm | Change header algorithm or version | Rejected. |
+| XFR-S9b KDF parameter downgrade (Design A) | Lower the cleartext KDF cost or salt length | Rejected below the minimum floor. |
 | XFR-S10 Duplicate import | Import the same package twice (relates to SYN-04) | Second import reports duplicate; no change in counts. |
 | XFR-S11 Overlapping packages | Two packages with overlapping windows (SYN-03) | Aggregates are not summed; snapshot provenance preserved. |
 | XFR-S12 Replay after deletion | Delete a record, then import an older package that contains it | Behavior matches the chosen policy (reject or tombstone-respect); documented. |
 | XFR-S13 Failure messaging | Trigger each failure above | No record values in messages or logs. |
-| XFR-S14 Nonce uniqueness | Generate many packages and chunks | No nonce reuse under a key (property check). |
+| XFR-S14 Nonce and key uniqueness | Generate many packages and chunks | Deterministic-nonce assertion within a package; no two packages share a content key; no nonce reuse under a key. |
+| XFR-S15 Cleartext header contents | Inspect the header of packages with distinct scopes | Header holds only the allowed fields; no category names, date ranges, or record counts appear in cleartext. |
+| XFR-S16 Atomic promotion | Interrupt the importer between validation and promotion | Workspace holds all or none of the package; leftovers removed by the startup sweep. |
+| XFR-S17 Compression decision | Only if compression is selected (open question 3) | Documented rationale; tests for size-based leakage where secret and attacker-influenced data mix. |
+| XFR-S18 Fingerprint mismatch at pairing | Present a substituted public key during enrollment | Pairing aborted; nothing stored. |
 | XFR-D1 Device round trip | Synthetic payload exported on a physical iPhone, moved by the chosen transport, imported on the Mac | Gate M; records transport, location of intermediate copies, and cleanup. Evidence class: physical-device observation. |
 
 ### ISO-01 mapping
@@ -259,6 +275,14 @@ All cases use fictitious identifiers and reserved example domains, never real ex
 | DEL-S4 Source deletion cascade (SYN-10) | Dependent features, findings, caches, and export copies removed or invalidated per policy; other workspace intact; audit text contains no values. |
 | DEL-S5 Copy inventory | Every copy location in section 7 appears as deleted, verified-empty, or explicitly unverified. |
 | DEL-S6 Test-copy register | Every real-data test copy (once permitted) has an owner, a deadline, and a verified deletion record. |
+| DEL-S7 Backup and sync inventory | Workspace and staging paths checked against Time Machine and iCloud settings; each recorded as included, excluded, or unverified. Gate M. |
+
+### Revocation mapping
+
+| Case | Expected result |
+|---|---|
+| SEC-S1 Lost-phone revocation | After the enrolled phone key is revoked on the Mac, a package signed with that key is rejected. |
+| SEC-S2 Retired recipient key | After key retirement, packages encrypted to the retired key are not promoted into the workspace. |
 
 ### Evidence conventions
 

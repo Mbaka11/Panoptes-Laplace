@@ -15,8 +15,10 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
+import tempfile
 from typing import Any, Iterable
 
 MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024
@@ -473,14 +475,273 @@ def inspect_snapshots(inputs: Iterable[bytes]) -> Inspection:
     return Inspection(tuple(snapshots), tuple(duplicates), tuple(positions))
 
 
+# --- SYN-04: explicit import ledger (digests, times, counts only) -------------
+
+LEDGER_VERSION = "synthetic-import-ledger-v1"
+MAX_LEDGER_ENTRIES = 4096
+MAX_LEDGER_BYTES = 1024 * 1024
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_LEDGER_ENTRY_FIELDS = {
+    "sha256", "imported_at", "byte_count", "physical_lines",
+    "supported_records", "invalid_records", "unsupported_records",
+}
+
+
+class LedgerError(ValueError):
+    """Ledger path or content is unusable. Messages are fixed codes."""
+
+
+class ImportLedger:
+    """Caller-supplied record of artifact digests already imported.
+
+    Holds only SHA-256 digests, import time and counts; never record values,
+    identifiers or domains. path=None keeps it in memory. A path must be chosen
+    by the caller and must not be inside this repository. A matching digest is
+    treated as the same artifact (a content identity, not authentication); the
+    ledger is not tamper-evident, access-controlled, or a workspace boundary.
+    """
+
+    def __init__(self, path: str | os.PathLike[str] | None = None) -> None:
+        self._entries: dict[str, dict[str, Any]] = {}
+        self._path: Path | None = None
+        if path is not None:
+            resolved = Path(path).resolve()
+            if resolved == _REPO_ROOT or _REPO_ROOT in resolved.parents:
+                raise LedgerError("ledger_path_inside_repository")
+            self._path = resolved
+            if resolved.exists():
+                self._load(resolved)
+
+    def _load(self, path: Path) -> None:
+        try:
+            if path.stat().st_size > MAX_LEDGER_BYTES:
+                raise LedgerError("ledger_too_large")
+            document = json.loads(
+                path.read_bytes().decode("utf-8"),
+                object_pairs_hook=_object_without_duplicate_keys,
+            )
+        except LedgerError:
+            raise
+        except (OSError, ValueError, RecursionError):
+            raise LedgerError("ledger_unreadable_or_invalid") from None
+        if (not isinstance(document, dict) or document.keys() != {"ledger_version", "entries"}
+                or document["ledger_version"] != LEDGER_VERSION
+                or not isinstance(document["entries"], list)
+                or len(document["entries"]) > MAX_LEDGER_ENTRIES):
+            raise LedgerError("ledger_invalid_structure")
+        for entry in document["entries"]:
+            if (not isinstance(entry, dict) or entry.keys() != _LEDGER_ENTRY_FIELDS
+                    or not isinstance(entry["sha256"], str) or not _SHA256.match(entry["sha256"])
+                    or _timestamp(entry["imported_at"]) is None
+                    or entry["sha256"] in self._entries
+                    or any(type(entry[k]) is not int or entry[k] < 0
+                           for k in _LEDGER_ENTRY_FIELDS - {"sha256", "imported_at"})):
+                raise LedgerError("ledger_invalid_entry")
+            self._entries[entry["sha256"]] = dict(entry)
+
+    def __contains__(self, digest: str) -> bool:
+        return digest in self._entries
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def entries(self) -> list[dict[str, Any]]:
+        return [dict(self._entries[key]) for key in sorted(self._entries)]
+
+    def record(self, snapshot: Snapshot, imported_at: datetime) -> None:
+        if len(self._entries) >= MAX_LEDGER_ENTRIES and snapshot.sha256 not in self._entries:
+            raise LedgerError("ledger_entry_limit")
+        counts = Counter(r.status for r in snapshot.records)
+        self._entries.setdefault(snapshot.sha256, {
+            "sha256": snapshot.sha256,
+            "imported_at": imported_at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "byte_count": len(snapshot.raw_bytes),
+            "physical_lines": snapshot.physical_lines,
+            "supported_records": counts["supported"],
+            "invalid_records": counts["invalid"],
+            "unsupported_records": counts["unsupported"],
+        })
+
+    def save(self) -> None:
+        """Atomically persist when a path was supplied; no-op in memory."""
+        if self._path is None:
+            return
+        document = {"ledger_version": LEDGER_VERSION, "entries": self.entries()}
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            handle, temporary = tempfile.mkstemp(dir=self._path.parent, suffix=".tmp")
+            try:
+                with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                    json.dump(document, stream, indent=2, sort_keys=True)
+                os.replace(temporary, self._path)
+            except BaseException:
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
+                raise
+        except OSError:
+            raise LedgerError("ledger_write_failed") from None
+
+
+@dataclass(frozen=True)
+class ImportResult:
+    inspection: Inspection  # newly imported artifacts only; positions are original inputs
+    already_imported: tuple[tuple[int, str], ...]  # (one-based input position, sha256)
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "scope": "synthetic_import_ledger_result",
+            "already_imported": [
+                {"input_position": position, "sha256": digest}
+                for position, digest in self.already_imported
+            ],
+            "new_import": self.inspection.summary(),
+            "activity_policy": "already_imported_artifacts_contribute_no_records_or_counts",
+        }
+
+
+def import_snapshots(
+    inputs: Iterable[bytes], ledger: ImportLedger, now: datetime | None = None
+) -> ImportResult:
+    """Inspect only artifacts whose digest the ledger has not seen, then record them.
+
+    Previously imported artifacts (from earlier calls or processes) are reported
+    and contribute no records. Within-call identical repeats are handled by
+    inspect_snapshots. The ledger is updated only after every new artifact
+    inspected successfully; any limit error leaves it unchanged. now must be
+    timezone-aware if supplied (injectable for tests).
+    """
+    stamp = now if now is not None else datetime.now(timezone.utc)
+    if stamp.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    items = list(inputs)
+    if len(items) > MAX_SNAPSHOTS:
+        raise InputLimitError("snapshot_count_limit")
+    fresh: list[bytes] = []
+    original: list[int] = []
+    already: list[tuple[int, str]] = []
+    for position, data in enumerate(items, 1):
+        if not isinstance(data, bytes):
+            raise TypeError("snapshot input must be bytes")
+        digest = hashlib.sha256(data).hexdigest()
+        if digest in ledger:
+            already.append((position, digest))
+        else:
+            fresh.append(data)
+            original.append(position)
+    inspection = inspect_snapshots(fresh)
+    remapped = Inspection(
+        inspection.snapshots,
+        tuple((original[dup - 1], original[first - 1]) for dup, first in inspection.duplicate_inputs),
+        tuple(original[pos - 1] for pos in inspection.snapshot_input_positions),
+    )
+    for snapshot in remapped.snapshots:
+        ledger.record(snapshot, stamp)
+    ledger.save()
+    return ImportResult(remapped, tuple(already))
+
+
+# --- SYN-03: cross-snapshot network aggregate reconciliation ------------------
+
+def _utc_text(stamp: datetime) -> str:
+    return stamp.isoformat().replace("+00:00", "Z")
+
+
+def _ref(observation: dict[str, Any]) -> dict[str, Any]:
+    return {"snapshot_index": observation["snapshot_index"],
+            "first_input_position": observation["first_input_position"],
+            "line": observation["line"], "reported_total": observation["hits"]}
+
+
+def reconcile_network_aggregates(inspection: Inspection) -> dict[str, Any]:
+    """Per (app, domain) provenance view across snapshots, never a sum or delta.
+
+    Snapshots are ordered per aggregate by the source's own last-contact
+    timestamp, not by file order or wall-clock. The latest observed total is one
+    snapshot's reported count, not unique traffic. A lower later count is
+    flagged as inconsistent/possible window rollover; no negative delta (or any
+    delta) is computed. Source identifiers appear here, unlike summary().
+    """
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for index, (position, snapshot) in enumerate(
+        zip(inspection.snapshot_input_positions, inspection.snapshots, strict=True), 1
+    ):
+        for record in snapshot.network_aggregates:
+            value = record.value
+            assert value is not None
+            first = _timestamp(value["firstTimeStamp"])
+            last = _timestamp(value["timeStamp"])
+            assert first is not None and last is not None
+            groups[(value["bundleID"], value["domain"])].append({
+                "snapshot_index": index, "first_input_position": position,
+                "line": record.line, "hits": value["hits"],
+                "_first": first.astimezone(timezone.utc), "_last": last.astimezone(timezone.utc),
+            })
+
+    aggregates = []
+    for (app, domain), observations in sorted(groups.items()):
+        observations.sort(key=lambda o: (o["_last"], o["snapshot_index"], o["line"]))
+        flags: list[dict[str, Any]] = []
+        per_snapshot = Counter(o["snapshot_index"] for o in observations)
+        if any(count > 1 for count in per_snapshot.values()):
+            flags.append({"code": "multiple_records_in_snapshot_not_combined"})
+        for earlier, later in zip(observations, observations[1:]):
+            if earlier["snapshot_index"] == later["snapshot_index"]:
+                continue
+            ref = {"earlier": _ref(earlier), "later": _ref(later)}
+            if later["_last"] == earlier["_last"] and later["hits"] != earlier["hits"]:
+                flags.append({"code": "same_last_timestamp_different_totals", **ref})
+            elif later["hits"] < earlier["hits"]:
+                flags.append({"code": "count_decreased_possible_window_rollover", **ref})
+            if later["_first"] > earlier["_first"]:
+                flags.append({"code": "first_timestamp_advanced_possible_window_rollover", **ref})
+        latest = observations[-1]
+        tied = [o for o in observations if o["_last"] == latest["_last"]]
+        ambiguous_latest = len({o["hits"] for o in tied}) > 1 or len(
+            {o["snapshot_index"] for o in tied}) < len(tied)
+        aggregates.append({
+            "app": app, "domain": domain,
+            "observations": [
+                {**_ref(o), "first_timestamp_utc": _utc_text(o["_first"]),
+                 "last_timestamp_utc": _utc_text(o["_last"])}
+                for o in observations
+            ],
+            "latest_observed": None if ambiguous_latest else {
+                **_ref(latest), "last_timestamp_utc": _utc_text(latest["_last"])},
+            "first_timestamp_utc": _utc_text(min(o["_first"] for o in observations)),
+            "last_timestamp_utc": _utc_text(max(o["_last"] for o in observations)),
+            "flags": flags,
+            "consistent": not flags,
+        })
+    return {
+        "scope": "synthetic_network_reconciliation",
+        "report_version": "synthetic-reconciliation-v1",
+        "evidence_class": "synthetic_input_only_not_device_evidence",
+        "policy": "per_snapshot_provenance_latest_observed_total_no_sum_no_delta_no_events",
+        "ordering": "source_last_contact_timestamp_not_file_order_or_wall_clock",
+        "unique_snapshot_count": len(inspection.snapshots),
+        "aggregates": aggregates,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Synthetic-only App Privacy Report inspection demo.")
     parser.add_argument("--demo", action="store_true", help="read only the bundled synthetic fixtures")
     parser.add_argument("--coverage", action="store_true",
                         help="include source timestamps and line provenance; requires --demo")
+    parser.add_argument("--reconcile", action="store_true",
+                        help="add cross-snapshot network reconciliation (no sums or deltas); requires --demo")
+    parser.add_argument("--ledger", metavar="PATH",
+                        help="import fixtures through a JSON ledger at PATH (outside the repo); requires --demo")
     args = parser.parse_args(argv)
     if args.coverage and not args.demo:
         parser.error("--coverage requires --demo")
+    if (args.reconcile or args.ledger) and not args.demo:
+        parser.error("--reconcile and --ledger require --demo")
+    if args.ledger and args.coverage:
+        parser.error("--ledger cannot be combined with --coverage")
     if not args.demo:
         parser.print_help()
         return 0
@@ -491,11 +752,21 @@ def main(argv: list[str] | None = None) -> int:
             with (directory / name).open("rb") as handle:
                 inputs.append(handle.read(MAX_SNAPSHOT_BYTES + 1))
         # Include a repeated artifact to demonstrate duplicate reporting.
-        inspection = inspect_snapshots([*inputs, inputs[0]])
-    except (OSError, InputLimitError):
+        repeated = [*inputs, inputs[0]]
+        if args.ledger:
+            result = import_snapshots(repeated, ImportLedger(args.ledger))
+            inspection = result.inspection
+        else:
+            inspection = inspect_snapshots(repeated)
+    except (OSError, InputLimitError, LedgerError):
         print("Synthetic fixture inspection failed; check fixture availability and input bounds.")
         return 2
-    output = inspection.coverage_report() if args.coverage else inspection.summary()
+    if args.ledger:
+        output = result.summary()
+    else:
+        output = inspection.coverage_report() if args.coverage else inspection.summary()
+    if args.reconcile:
+        output = {**output, "reconciliation": reconcile_network_aggregates(inspection)}
     print(json.dumps(output, indent=2, sort_keys=True))
     return 1 if any(i.severity == "error" for s in inspection.snapshots for i in s.issues) else 0
 

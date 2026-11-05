@@ -593,5 +593,182 @@ class LimitsAndDemoTests(unittest.TestCase):
         self.assertNotIn("sensitive path", output.getvalue())
 
 
+import tempfile
+from datetime import datetime, timezone
+
+NOW = datetime(2026, 2, 1, 12, 0, tzinfo=timezone.utc)
+
+
+def fixture_bytes(name):
+    return (FIXTURES / name).read_bytes()
+
+
+class LedgerTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.path = Path(self._tmp.name) / "ledger.json"
+        self.a = fixture_bytes("snapshot-a.ndjson")
+        self.b = fixture_bytes("snapshot-b.ndjson")
+
+    def test_second_call_recognizes_prior_import_without_activity(self):
+        first = apr.import_snapshots([self.a], apr.ImportLedger(self.path), NOW)
+        self.assertEqual(len(first.inspection.snapshots), 1)
+        second = apr.import_snapshots([self.a], apr.ImportLedger(self.path), NOW)
+        self.assertEqual(second.inspection.snapshots, ())
+        self.assertEqual(second.already_imported, ((1, hashlib.sha256(self.a).hexdigest()),))
+        self.assertEqual(apr.reconcile_network_aggregates(second.inspection)["aggregates"], [])
+
+    def test_mixed_old_and_new_keeps_original_positions(self):
+        apr.import_snapshots([self.a], apr.ImportLedger(self.path), NOW)
+        result = apr.import_snapshots([self.a, self.b, self.b], apr.ImportLedger(self.path), NOW)
+        self.assertEqual([p for p, _ in result.already_imported], [1])
+        self.assertEqual(result.inspection.snapshot_input_positions, (2,))
+        self.assertEqual(result.inspection.duplicate_inputs, ((3, 2),))
+
+    def test_ledger_holds_only_digest_time_counts(self):
+        apr.import_snapshots([self.a], apr.ImportLedger(self.path), NOW)
+        text = self.path.read_text(encoding="utf-8")
+        for secret in ("example.com", "com.example", "synthetic-location", "api."):
+            self.assertNotIn(secret, text)
+        entry = json.loads(text)["entries"][0]
+        self.assertEqual(set(entry), {
+            "sha256", "imported_at", "byte_count", "physical_lines",
+            "supported_records", "invalid_records", "unsupported_records"})
+        self.assertEqual(entry["imported_at"], "2026-02-01T12:00:00Z")
+        self.assertEqual(entry["supported_records"], 4)
+
+    def test_in_memory_ledger_and_naive_clock(self):
+        ledger = apr.ImportLedger()
+        apr.import_snapshots([self.a], ledger, NOW)
+        self.assertEqual(len(ledger), 1)
+        self.assertEqual(apr.import_snapshots([self.a], ledger, NOW).inspection.snapshots, ())
+        with self.assertRaises(ValueError):
+            apr.import_snapshots([self.b], ledger, datetime(2026, 1, 1))
+
+    def test_limit_error_leaves_ledger_unchanged(self):
+        ledger = apr.ImportLedger(self.path)
+        with self.assertRaises(apr.InputLimitError):
+            apr.import_snapshots([self.a, b"x" * (apr.MAX_SNAPSHOT_BYTES + 1)], ledger, NOW)
+        self.assertEqual(len(ledger), 0)
+        self.assertFalse(self.path.exists())
+
+    def test_path_inside_repository_is_refused(self):
+        with self.assertRaises(apr.LedgerError):
+            apr.ImportLedger(FIXTURES / "ledger.json")
+
+    def test_corrupt_or_malformed_ledgers_fail_closed(self):
+        good = {"ledger_version": apr.LEDGER_VERSION, "entries": []}
+        entry = {"sha256": "a" * 64, "imported_at": "2026-02-01T12:00:00Z", "byte_count": 1,
+                 "physical_lines": 1, "supported_records": 0, "invalid_records": 0,
+                 "unsupported_records": 0}
+        bad = [
+            "not json", "[]", json.dumps({**good, "ledger_version": "x"}),
+            json.dumps({**good, "extra": 1}),
+            json.dumps({**good, "entries": [{**entry, "sha256": "A" * 64}]}),
+            json.dumps({**good, "entries": [{**entry, "imported_at": "yesterday"}]}),
+            json.dumps({**good, "entries": [{**entry, "byte_count": -1}]}),
+            json.dumps({**good, "entries": [{**entry, "hits": 1}]}),
+            json.dumps({**good, "entries": [entry, entry]}),
+        ]
+        for text in bad:
+            with self.subTest(text=text[:40]):
+                self.path.write_text(text, encoding="utf-8")
+                with self.assertRaises(apr.LedgerError):
+                    apr.ImportLedger(self.path)
+        self.path.write_text(json.dumps({**good, "entries": [entry]}), encoding="utf-8")
+        self.assertIn("a" * 64, apr.ImportLedger(self.path))
+
+    def test_cli_ledger_roundtrip_and_repo_path_refused(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(apr.main(["--demo", "--ledger", str(self.path)]), 0)
+        first = json.loads(out.getvalue())
+        self.assertEqual(first["already_imported"], [])
+        out = io.StringIO()
+        with redirect_stdout(out):
+            apr.main(["--demo", "--ledger", str(self.path)])
+        second = json.loads(out.getvalue())
+        self.assertEqual(len(second["already_imported"]), 3)
+        self.assertEqual(second["new_import"]["unique_snapshot_count"], 0)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(apr.main(["--demo", "--ledger", str(FIXTURES / "l.json")]), 2)
+
+    def test_ledger_flag_requires_demo(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            apr.main(["--ledger", str(self.path)])
+
+
+def reconcile(*snapshots):
+    return apr.reconcile_network_aggregates(apr.inspect_snapshots(list(snapshots)))
+
+
+class ReconciliationTests(unittest.TestCase):
+    def test_fixtures_report_latest_total_without_sum_or_delta(self):
+        report = reconcile(fixture_bytes("snapshot-a.ndjson"), fixture_bytes("snapshot-b.ndjson"))
+        (agg,) = report["aggregates"]
+        self.assertEqual(agg["latest_observed"]["reported_total"], 8)
+        self.assertEqual(agg["latest_observed"]["snapshot_index"], 2)
+        self.assertEqual([o["reported_total"] for o in agg["observations"]], [5, 8])
+        self.assertEqual(agg["first_timestamp_utc"], "2026-01-01T08:00:00Z")
+        self.assertEqual(agg["last_timestamp_utc"], "2026-01-03T09:00:00Z")
+        self.assertTrue(agg["consistent"])
+        text = json.dumps(report)
+        for forbidden in ('"delta', "total_hits", '"sum"', ": 13"):
+            self.assertNotIn(forbidden, text)
+
+    def test_order_is_by_source_time_not_input_order(self):
+        report = reconcile(fixture_bytes("snapshot-b.ndjson"), fixture_bytes("snapshot-a.ndjson"))
+        (agg,) = report["aggregates"]
+        self.assertEqual(agg["latest_observed"]["reported_total"], 8)
+        self.assertEqual(agg["latest_observed"]["first_input_position"], 1)
+        self.assertTrue(agg["consistent"])
+
+    def test_lower_later_count_is_flagged_not_negative_delta(self):
+        early = ndjson(network(hits=9, timeStamp="2026-01-02T08:00:00Z"))
+        late = ndjson(network(hits=4, timeStamp="2026-01-05T08:00:00Z",
+                              firstTimeStamp="2026-01-03T08:00:00Z"))
+        (agg,) = reconcile(early, late)["aggregates"]
+        flag_codes = [f["code"] for f in agg["flags"]]
+        self.assertIn("count_decreased_possible_window_rollover", flag_codes)
+        self.assertIn("first_timestamp_advanced_possible_window_rollover", flag_codes)
+        self.assertFalse(agg["consistent"])
+        self.assertEqual(agg["latest_observed"]["reported_total"], 4)
+        self.assertNotIn("-5", json.dumps(agg))
+
+    def test_same_timestamp_different_totals_has_no_latest(self):
+        (agg,) = reconcile(ndjson(network(hits=3)), ndjson(network(hits=4)))["aggregates"]
+        self.assertIsNone(agg["latest_observed"])
+        self.assertIn("same_last_timestamp_different_totals", [f["code"] for f in agg["flags"]])
+
+    def test_multiple_records_in_one_snapshot_not_combined(self):
+        a = ndjson(network(hits=3), network(hits=4, context="other"))
+        (agg,) = reconcile(a)["aggregates"]
+        self.assertIn("multiple_records_in_snapshot_not_combined", [f["code"] for f in agg["flags"]])
+        self.assertIsNone(agg["latest_observed"])
+
+    def test_separate_app_domain_keys_and_invalid_records_ignored(self):
+        a = ndjson(network(), network(domain="cdn.example.com", hits=2),
+                   network(bundleID="com.example.other", hits=1), network(hits=-1))
+        self.assertEqual(len(reconcile(a)["aggregates"]), 3)
+
+    def test_empty_inspection(self):
+        self.assertEqual(reconcile()["aggregates"], [])
+
+    def test_cli_reconcile_is_opt_in_and_default_unchanged(self):
+        default = io.StringIO()
+        with redirect_stdout(default):
+            apr.main(["--demo"])
+        self.assertNotIn("reconciliation", default.getvalue())
+        out = io.StringIO()
+        with redirect_stdout(out):
+            apr.main(["--demo", "--reconcile"])
+        data = json.loads(out.getvalue())
+        self.assertEqual(data["reconciliation"]["aggregates"][0]["latest_observed"]["reported_total"], 8)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            apr.main(["--reconcile"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -53,6 +53,15 @@ Device support, provisioning, OS authorization, and actual source-export success
 
 Unlike the default summary, this opt-in report discloses source timestamps and interval durations. It still omits domains, app identifiers, raw lines, and content hashes. **Neither output is an anonymization or safe-sharing guarantee.** Reporting uses only in-memory values and stdout; no report files are written by the CLI.
 
+## Opt-in import ledger and rolling-snapshot reconciliation
+
+Both are synthetic spike features; their structures (`synthetic-import-ledger-v1`, `synthetic-reconciliation-v1`) are not a production schema.
+
+- `ImportLedger(path=None)` plus `import_snapshots(inputs, ledger, now=None)`: artifacts whose SHA-256 the ledger already holds are reported as already imported (original input positions) and contribute no records. The JSON ledger stores only digest, UTC import time, byte/line counts and record-status counts, never values, identifiers or domains. The caller chooses the path; paths inside this repository are refused. Writes are atomic, loading is strict (unknown fields, duplicate keys, bad digests/times fail closed), and the ledger changes only after every new artifact inspected successfully. CLI: `--demo --ledger PATH` (run twice to see the second run report all three inputs as already imported).
+- `reconcile_network_aggregates(inspection)`: for each (bundleID, domain) it lists each snapshot's reported total with snapshot index, input position and line, ordered by the source's last-contact timestamp, and gives the latest observed total plus earliest first / latest last timestamps. It never sums snapshots or creates delta events. A lower later count, a later first-contact timestamp, equal last timestamps with different totals, or several records for the key in one snapshot are flagged (`consistent: false`); ambiguous ties give no latest total. CLI: `--demo --reconcile` adds a `reconciliation` key. Unlike the default summary it discloses app and domain names (synthetic only).
+
+Limits: the ledger trusts digest equality, so an edited or re-exported copy of the same period is a new artifact; the ledger file is unprotected plain JSON, with no locking or deletion-propagation; flags indicate inconsistency, not a diagnosed cause.
+
 ## Conservative parsing bounds
 
 - Up to 16 input snapshots per call.
@@ -73,8 +82,8 @@ This is bounded synthetic-test code, not a hardened parser for arbitrary untrust
 | APR-02 | Documented subset validation, source semantics, and source-line/timestamp coverage reporting using synthetic inputs | Real export compatibility, measured collection completeness, or production import |
 | SYN-01 | Complete/incomplete/ambiguous intervals within a snapshot | Exact activity duration from incomplete or cross-snapshot boundaries |
 | SYN-02 | One network aggregate stays one record | Unique requests, page views, or payload contents |
-| SYN-03 | Overlapping snapshots remain separate | Reconciliation of rolling totals into unique traffic counts |
-| SYN-04 | Repeated byte-identical artifacts identified within one call | Persistent import idempotency or cross-participant deduplication |
+| SYN-03 | Overlapping snapshots remain separate; opt-in reconciliation view keeps per-snapshot provenance and the latest observed total per (app, domain), flags lower later counts and advanced first-contact times as possible window rollover | Unique traffic counts, event deltas, or knowledge of the source's real window/rollover semantics |
+| SYN-04 | Byte-identical repeats within one call; opt-in caller-supplied digest ledger recognizes a prior import across calls/processes and adds no activity | Tamper-evident or access-controlled state, concurrent writers, near-duplicate artifacts, cross-participant deduplication |
 | SYN-05 | Malformed JSON, unknown data, strict numeric types, and visible diagnostics | Full forward-compatible validation of all Apple record variants |
 | SYN-06 | Offset-aware time comparison, missing/reversed/unsupported times | A final canonical temporal schema |
 
