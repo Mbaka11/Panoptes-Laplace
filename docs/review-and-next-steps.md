@@ -36,7 +36,7 @@ The product must distinguish what available traces **could reveal** from what a 
 | Device location | Canada |
 | Apple Account country/region | Not separately established; Canadian device location already prevents assuming EU customer eligibility |
 | Development Mac | Available with Xcode, reported by the owner |
-| Exact macOS and Xcode versions | Not yet collected |
+| Exact macOS and Xcode versions | macOS 15.7.9 (build 24G830), owner-pasted 2026-11-04. `xcodebuild -version` failed: the active developer directory is Command Line Tools, so Xcode is either not installed or not selected. Xcode version unknown; deployment target still unselected (D-027) |
 | Apple Developer Program membership | Not yet established |
 | Apple Watch / other Health data producers | Not yet established |
 | Current agent environment | Windows; `xcodebuild` is unavailable here |
