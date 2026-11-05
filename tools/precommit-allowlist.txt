@@ -1,0 +1,6 @@
+# Reviewed per-file overrides for tools/precommit_guard.py.
+# Format: <path or glob>  # <mandatory reason>
+# Paths are repository-relative with forward slashes; ** matches across directories.
+# Every use is logged to stderr when the guard runs. Entries are code-reviewed changes:
+# add one only for a file you have inspected and confirmed is synthetic or non-secret.
+# A bare wildcard (for example "*" or "**") is rejected. Keep this list short.

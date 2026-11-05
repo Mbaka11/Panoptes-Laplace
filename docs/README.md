@@ -23,6 +23,8 @@ Start with the product vision and [decision log](decisions.md). The [vision revi
 | [Transfer package design options](transfer-package-design.md) | Provisional encrypted batch-export options, threat model, and synthetic test plan |
 | [Sensor Probe specification](sensor-probe-spec.md) | Provisional native probe contract: modules, participant text, authorization states, acceptance checklist |
 | [Owner manual procedures](owner-manual-procedures.md) | Phone inventory, APR-01/ACC-01 export steps, and BAT-01 protocol the owner can run without a Mac |
+| [Investigation catalogue](investigation-catalogue.md) | Provisional candidate investigations, sample units, null criteria, and first pilot picks |
+| [Explorer UI concept](explorer-ui-concept.md) | Provisional ops-room interface concept, lenses, screens, and prototype plan |
 | [Collection results template](templates/collection-probe-result.md) | Unfilled template for recording actual evidence; not a successful test report |
 | [Synthetic privacy-report spike](../spikes/app-privacy-report.md) | Runnable local inspector, opt-in source-coverage report, limits, and test commands |
 | [Synthetic inspection results](results/app-privacy-report-synthetic.md) | Actual synthetic test evidence, not device validation |

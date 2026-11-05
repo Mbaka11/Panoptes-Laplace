@@ -1,0 +1,14 @@
+#!/bin/sh
+# Opt-in hook: git config core.hooksPath hooks
+# Runs the repository guard on staged content. Works in Git Bash and macOS.
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+if command -v python3 >/dev/null 2>&1 && python3 -c "import sys; sys.exit(sys.version_info < (3, 10))" 2>/dev/null; then
+  py=python3
+elif command -v python >/dev/null 2>&1; then
+  py=python
+else
+  echo "pre-commit guard: Python 3.10+ not found; refusing to commit unchecked." >&2
+  exit 1
+fi
+exec "$py" -m tools.precommit_guard --staged
