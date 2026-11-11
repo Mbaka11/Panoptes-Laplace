@@ -1,0 +1,800 @@
+{
+ "meta": {
+  "contract_version": "persona-contract-0.1-provisional",
+  "status": "PROVISIONAL demonstration data; NOT a production schema",
+  "synthetic": true,
+  "subject": "Fixture-derived workspace (no real person)",
+  "workspace_id": "ws-demo-02",
+  "timezone": "UTC",
+  "window": {
+   "start": "2026-01-01T08:00:00Z",
+   "end": "2026-01-06T08:00:00Z",
+   "basis": "observed_record_extent_not_collection_window"
+  },
+  "exporter": {
+   "name": "spikes.explorer_export",
+   "version": "0.1"
+  },
+  "type_counts": {
+   "Source": 2,
+   "App": 1,
+   "Domain": 3,
+   "ImportBatch": 5,
+   "ResourceAccess": 3,
+   "NetworkAggregate": 2,
+   "AccountActivity": 10,
+   "Link": 6
+  },
+  "unknown_token": "unknown",
+  "evidence_classes": [
+   "observation",
+   "normalized_event",
+   "hypothesis",
+   "inference",
+   "prediction"
+  ],
+  "notice": "Fixture-derived: built from the bundled synthetic fixtures via the parser spikes. All names, hosts, timestamps and counts are invented; not an anonymization example and not evidence about any device or provider export format."
+ },
+ "records": [
+  {
+   "id": "src-apr",
+   "type": "Source",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "name": "AppPrivacyReport",
+   "system": "ios.app_privacy_report",
+   "support": "supported_synthetic",
+   "provisioning": "not_applicable_synthetic",
+   "coverage_status": "unknown",
+   "source_granularity": "interval",
+   "missing_periods": [],
+   "missing_periods_status": "unknown",
+   "export_success": "synthetic_fixture_parsed",
+   "record_count": 6,
+   "latest_event_time": "2026-01-03T09:00:00Z",
+   "snapshot_extents": {
+    "ib-apr-s1": [
+     "2026-01-01T08:00:00Z",
+     "2026-01-02T09:00:00Z"
+    ],
+    "ib-apr-s2": [
+     "2026-01-01T08:00:00Z",
+     "2026-01-03T09:00:00Z"
+    ]
+   },
+   "duplicate_imports": [
+    "ib-apr-s1-dup3"
+   ],
+   "unmeasured": {
+    "device_support": "not_tested",
+    "provisioning": "not_tested",
+    "os_authorization": "not_observed",
+    "participant_scope": "not_applicable_synthetic_only",
+    "source_export_success": "not_tested",
+    "recording_enabled_at": "unknown",
+    "collection_window": "unknown",
+    "source_generated_at": "unknown",
+    "missing_periods": "unknown",
+    "freshness": "not_evaluated"
+   },
+   "overlap": "network aggregates are never summed or differenced across snapshots",
+   "provenance": {
+    "source": "explorer_export",
+    "method": "source_summary",
+    "method_version": "0.1",
+    "line_or_record": "src-apr"
+   }
+  },
+  {
+   "id": "src-account-export",
+   "type": "Source",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "name": "AccountExport",
+   "system": "example-account-export",
+   "support": "supported_synthetic",
+   "provisioning": "not_applicable_synthetic",
+   "coverage_status": "unknown",
+   "source_granularity": "point",
+   "missing_periods": [],
+   "missing_periods_status": "unknown",
+   "export_success": "synthetic_fixture_parsed",
+   "record_count": 10,
+   "latest_event_time": "2026-01-06T08:00:00+00:00",
+   "fields_unavailable": [
+    "duration"
+   ],
+   "field_status": {
+    "viewed_content": "present",
+    "searches": "present",
+    "interactions": "present",
+    "timestamps": "present",
+    "duration": "absent"
+   },
+   "never_inferred": [
+    "dwell_time",
+    "scroll_depth"
+   ],
+   "exports_imported": 2,
+   "duplicate_imports": 1,
+   "schema_status": "invented synthetic shape; real provider schema unverified",
+   "provenance": {
+    "source": "explorer_export",
+    "method": "source_summary",
+    "method_version": "0.1",
+    "line_or_record": "src-account-export"
+   }
+  },
+  {
+   "id": "app-com-example-panoptes-demo",
+   "type": "App",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "bundle_id": "com.example.panoptes-demo",
+   "display_name": "unknown",
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "snapshot_import",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson:L1,L2"
+   }
+  },
+  {
+   "id": "dom-api-example-com",
+   "type": "Domain",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "host": "api.example.com",
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "snapshot_import",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson:L4"
+   }
+  },
+  {
+   "id": "dom-search-example-com",
+   "type": "Domain",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "normalized_event",
+   "host": "search.example.com",
+   "provenance": {
+    "source": "example-account-export",
+    "method": "title_url_host",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L2"
+   }
+  },
+  {
+   "id": "dom-video-example-com",
+   "type": "Domain",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "normalized_event",
+   "host": "video.example.com",
+   "provenance": {
+    "source": "example-account-export",
+    "method": "title_url_host",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L3"
+   }
+  },
+  {
+   "id": "ib-apr-s1",
+   "type": "ImportBatch",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "import_time": "2026-01-10T00:00:00Z",
+   "timezone": "UTC",
+   "content_digest_sha256": "48d39964a27bb888bc477b974e4baef49963bbbc8c317408d20871c17d5fdaa7",
+   "status": "imported",
+   "duplicate_of": null,
+   "records_added": 4,
+   "ledger": {
+    "byte_count": 929,
+    "physical_lines": 4,
+    "supported_records": 4,
+    "invalid_records": 0,
+    "unsupported_records": 0
+   },
+   "observed_extent": {
+    "earliest": "2026-01-01T08:00:00Z",
+    "latest": "2026-01-02T09:00:00Z"
+   },
+   "collection_window": "unknown",
+   "issue_codes": [
+    "incomplete_interval",
+    "unknown_fields_preserved"
+   ],
+   "provenance": {
+    "source": "synthetic-fixture",
+    "method": "batch_import",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson"
+   }
+  },
+  {
+   "id": "ib-apr-s2",
+   "type": "ImportBatch",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "import_time": "2026-01-10T00:00:00Z",
+   "timezone": "UTC",
+   "content_digest_sha256": "51c8c3bfee70a2b41f8e5d2b98bcd82cffa2d455389f362dbd97dca482cf857e",
+   "status": "imported",
+   "duplicate_of": null,
+   "records_added": 2,
+   "ledger": {
+    "byte_count": 461,
+    "physical_lines": 2,
+    "supported_records": 2,
+    "invalid_records": 0,
+    "unsupported_records": 0
+   },
+   "observed_extent": {
+    "earliest": "2026-01-01T08:00:00Z",
+    "latest": "2026-01-03T09:00:00Z"
+   },
+   "collection_window": "unknown",
+   "issue_codes": [
+    "incomplete_interval"
+   ],
+   "provenance": {
+    "source": "synthetic-fixture",
+    "method": "batch_import",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-b.ndjson"
+   }
+  },
+  {
+   "id": "ib-apr-s1-dup3",
+   "type": "ImportBatch",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "import_time": "unknown",
+   "timezone": "UTC",
+   "content_digest_sha256": "48d39964a27bb888bc477b974e4baef49963bbbc8c317408d20871c17d5fdaa7",
+   "status": "duplicate_skipped",
+   "duplicate_of": "ib-apr-s1",
+   "records_added": 0,
+   "collection_window": "unknown",
+   "provenance": {
+    "source": "synthetic-fixture",
+    "method": "batch_import",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson"
+   }
+  },
+  {
+   "id": "ib-account-1",
+   "type": "ImportBatch",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "import_time": "unknown",
+   "timezone": "UTC",
+   "content_digest_sha256": "fd4639c0b3ad3f0dfcce651f8f875d70f24bc7c20f22b4caa48fc5739604899d",
+   "status": "imported",
+   "duplicate_of": null,
+   "records_added": 10,
+   "parse_complete": true,
+   "collection_window": "unknown",
+   "issue_codes": [
+    "invalid_duration",
+    "invalid_products",
+    "invalid_time",
+    "missing_title",
+    "record_not_object",
+    "unclassified_title",
+    "unknown_fields"
+   ],
+   "provenance": {
+    "source": "synthetic-fixture",
+    "method": "batch_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json"
+   }
+  },
+  {
+   "id": "ib-account-2",
+   "type": "ImportBatch",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "import_time": "unknown",
+   "timezone": "UTC",
+   "content_digest_sha256": "fd4639c0b3ad3f0dfcce651f8f875d70f24bc7c20f22b4caa48fc5739604899d",
+   "status": "duplicate_skipped",
+   "duplicate_of": "ib-account-1",
+   "records_added": 0,
+   "parse_complete": true,
+   "collection_window": "unknown",
+   "issue_codes": [
+    "duplicate_import",
+    "invalid_duration",
+    "invalid_products",
+    "invalid_time",
+    "missing_title",
+    "record_not_object",
+    "unclassified_title",
+    "unknown_fields"
+   ],
+   "provenance": {
+    "source": "synthetic-fixture",
+    "method": "batch_import",
+    "method_version": "0.1",
+    "line_or_record": "activity_reformatted_copy.json"
+   }
+  },
+  {
+   "id": "access-s1-01",
+   "type": "ResourceAccess",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "granularity": "interval",
+   "app_id": "app-com-example-panoptes-demo",
+   "category": "location",
+   "endpoint_domain_id": "unknown",
+   "endpoint_match": "unknown",
+   "interval_status": "complete",
+   "duration_seconds": 600.0,
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "paired_access_events",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson:L1,L2"
+   },
+   "import_batch_id": "ib-apr-s1",
+   "timezone": "UTC",
+   "event_start": "2026-01-01T08:00:00Z",
+   "event_end": "2026-01-01T08:10:00Z"
+  },
+  {
+   "id": "access-s1-02",
+   "type": "ResourceAccess",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "granularity": "interval",
+   "app_id": "app-com-example-panoptes-demo",
+   "category": "photos",
+   "endpoint_domain_id": "unknown",
+   "endpoint_match": "unknown",
+   "interval_status": "missing_end",
+   "duration_seconds": "unknown",
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "paired_access_events",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson:L3"
+   },
+   "import_batch_id": "ib-apr-s1",
+   "timezone": "UTC",
+   "event_start": "2026-01-02T09:00:00Z",
+   "event_end": "unknown"
+  },
+  {
+   "id": "access-s2-01",
+   "type": "ResourceAccess",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "granularity": "interval",
+   "app_id": "app-com-example-panoptes-demo",
+   "category": "photos",
+   "endpoint_domain_id": "unknown",
+   "endpoint_match": "unknown",
+   "interval_status": "missing_begin",
+   "duration_seconds": "unknown",
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "paired_access_events",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-b.ndjson:L1"
+   },
+   "import_batch_id": "ib-apr-s2",
+   "timezone": "UTC",
+   "event_start": "unknown",
+   "event_end": "2026-01-02T09:05:00Z"
+  },
+  {
+   "id": "net-s1-01",
+   "type": "NetworkAggregate",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "granularity": "aggregate",
+   "app_id": "app-com-example-panoptes-demo",
+   "domain_id": "dom-api-example-com",
+   "hits": 5,
+   "hits_status": "measured",
+   "snapshot_id": "ib-apr-s1",
+   "summable": false,
+   "initiated_type": "AppInitiated",
+   "unknown_source_fields": [
+    "futureMetadata"
+   ],
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "snapshot_counter",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-a.ndjson:L4"
+   },
+   "import_batch_id": "ib-apr-s1",
+   "timezone": "UTC",
+   "event_start": "2026-01-01T08:00:00Z",
+   "event_end": "2026-01-02T09:00:00Z"
+  },
+  {
+   "id": "net-s2-01",
+   "type": "NetworkAggregate",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "granularity": "aggregate",
+   "app_id": "app-com-example-panoptes-demo",
+   "domain_id": "dom-api-example-com",
+   "hits": 8,
+   "hits_status": "measured",
+   "snapshot_id": "ib-apr-s2",
+   "summable": false,
+   "initiated_type": "AppInitiated",
+   "unknown_source_fields": [],
+   "provenance": {
+    "source": "ios.app_privacy_report",
+    "method": "snapshot_counter",
+    "method_version": "0.1",
+    "line_or_record": "snapshot-b.ndjson:L2"
+   },
+   "import_batch_id": "ib-apr-s2",
+   "timezone": "UTC",
+   "event_start": "2026-01-01T08:00:00Z",
+   "event_end": "2026-01-03T09:00:00Z"
+  },
+  {
+   "id": "acct-1-0001",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "searches",
+   "title": "Searched for synthetic query alpha",
+   "domain_id": "dom-search-example-com",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L2"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-01T08:00:00Z"
+  },
+  {
+   "id": "acct-1-0002",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "viewed_content",
+   "title": "Watched Synthetic Video One",
+   "domain_id": "dom-video-example-com",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L3"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-01T09:30:00Z"
+  },
+  {
+   "id": "acct-1-0003",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "viewed_content",
+   "title": "Watched Synthetic Video Two",
+   "domain_id": "dom-video-example-com",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L4"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-01T09:31:00Z"
+  },
+  {
+   "id": "acct-1-0004",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "interactions",
+   "title": "Liked Synthetic Video One",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L5"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-02T10:00:00Z"
+  },
+  {
+   "id": "acct-1-0005",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "viewed_content",
+   "title": "Visited example.com/page",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L6"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-03T12:00:00Z"
+  },
+  {
+   "id": "acct-1-0006",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "searches",
+   "title": "Searched for synthetic query beta",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [
+    "unknown_fields"
+   ],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L7"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-04T12:15:00Z"
+  },
+  {
+   "id": "acct-1-0007",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "unknown",
+   "title": "Used com.example.app",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [
+    "unclassified_title"
+   ],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L8"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-04T08:00:00Z"
+  },
+  {
+   "id": "acct-1-0008",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "searches",
+   "title": "Searched for synthetic query gamma",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "invalid",
+   "source_issue_codes": [
+    "invalid_time"
+   ],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L9"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "unknown"
+  },
+  {
+   "id": "acct-1-0009",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "unknown",
+   "title": "unknown",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "not_reported",
+   "event_time_status": "measured",
+   "source_issue_codes": [
+    "invalid_products",
+    "missing_title"
+   ],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L10"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-05T08:00:00Z"
+  },
+  {
+   "id": "acct-1-0011",
+   "type": "AccountActivity",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "granularity": "point",
+   "activity_kind": "viewed_content",
+   "title": "Watched Synthetic Video Three",
+   "domain_id": "unknown",
+   "duration_seconds": "unknown",
+   "duration_status": "invalid",
+   "event_time_status": "measured",
+   "source_issue_codes": [
+    "invalid_duration"
+   ],
+   "provenance": {
+    "source": "example-account-export",
+    "method": "activity_json_import",
+    "method_version": "0.1",
+    "line_or_record": "activity.json#L12"
+   },
+   "import_batch_id": "ib-account-1",
+   "timezone": "UTC",
+   "event_time": "2026-01-06T08:00:00Z"
+  },
+  {
+   "id": "link-0001",
+   "type": "Link",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "link_type": "ACCESSED_BY",
+   "from": "access-s1-01",
+   "to": "app-com-example-panoptes-demo",
+   "evidence_ids": [
+    "access-s1-01"
+   ]
+  },
+  {
+   "id": "link-0002",
+   "type": "Link",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "link_type": "ACCESSED_BY",
+   "from": "access-s1-02",
+   "to": "app-com-example-panoptes-demo",
+   "evidence_ids": [
+    "access-s1-02"
+   ]
+  },
+  {
+   "id": "link-0003",
+   "type": "Link",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "link_type": "ACCESSED_BY",
+   "from": "access-s2-01",
+   "to": "app-com-example-panoptes-demo",
+   "evidence_ids": [
+    "access-s2-01"
+   ]
+  },
+  {
+   "id": "link-0004",
+   "type": "Link",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "link_type": "DUPLICATE_OF",
+   "from": "ib-apr-s1-dup3",
+   "to": "ib-apr-s1",
+   "evidence_ids": [
+    "ib-apr-s1-dup3",
+    "ib-apr-s1"
+   ]
+  },
+  {
+   "id": "link-0005",
+   "type": "Link",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-apr",
+   "evidence_class": "observation",
+   "link_type": "CONTACTED",
+   "from": "app-com-example-panoptes-demo",
+   "to": "dom-api-example-com",
+   "evidence_ids": [
+    "net-s1-01",
+    "net-s2-01"
+   ],
+   "combine": "latest_snapshot_only_never_sum",
+   "latest_observed_id": "net-s2-01",
+   "reconciliation_flags": [],
+   "consistent": true
+  },
+  {
+   "id": "link-0006",
+   "type": "Link",
+   "workspace_id": "ws-demo-02",
+   "source_id": "src-account-export",
+   "evidence_class": "observation",
+   "link_type": "DUPLICATE_OF",
+   "from": "ib-account-2",
+   "to": "ib-account-1",
+   "evidence_ids": [
+    "ib-account-2",
+    "ib-account-1"
+   ]
+  }
+ ]
+}

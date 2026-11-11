@@ -85,7 +85,27 @@ select{font:500 10.5px var(--f-data);background:var(--bg);color:var(--ink);borde
 .ttl .rule.b{border-top:none;border-bottom:1px solid var(--faint);padding:0 0 6px}
 .ttl small{font:400 10px var(--f-data);letter-spacing:.2em;color:var(--faint);text-transform:uppercase}
 #err{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:500 12px var(--f-data);color:var(--warn);text-align:center;max-width:420px;line-height:1.6}
+#cap{position:absolute;left:50%;bottom:max(84px,calc(env(safe-area-inset-bottom,0px) + 84px));transform:translateX(-50%);z-index:4;pointer-events:none;
+  display:grid;gap:6px;justify-items:center;text-align:center;width:min(760px,calc(100% - 32px))}
+#cap .eye{font:500 10px var(--f-data);letter-spacing:.28em;color:var(--acc);text-transform:uppercase}
+#cap .line{font:500 clamp(18px,2.6vw,28px)/1.25 var(--f-display);letter-spacing:.04em;color:var(--ink);text-shadow:0 0 18px rgba(4,5,6,.9)}
+#cap .bar{width:100%;height:1px;background:var(--faint);position:relative}
+#cap .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--acc)}
+#tourBtn[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--bg)}
+input[type=range]{accent-color:var(--acc)}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;font:400 11px var(--f-data);color:var(--dim)}
+.src{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;font:400 11px var(--f-data)}
+.src span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars{display:grid;gap:3px}
+.bars div{display:grid;grid-template-columns:28px 1fr 44px;gap:6px;align-items:center;font:400 10.5px var(--f-data);color:var(--dim)}
+.bars b{display:block;height:6px;background:var(--acc)}
+pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:220px;overflow:auto;border:1px solid var(--rule);padding:8px}
 @media (max-width:820px){
+  #cap{bottom:110px}
+  header{flex-wrap:wrap;row-gap:6px}
+  nav{order:3;flex-basis:100%}
+  footer{flex-wrap:wrap;row-gap:6px}
+  .rail{order:-1;flex-basis:100%}
   #hud{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}
   .brand b,.chip.syn{display:none}
   .toggles{display:flex}
@@ -101,6 +121,7 @@ select{font:500 10.5px var(--f-data);background:var(--bg);color:var(--ink);borde
   <canvas class="layer" id="c2" hidden></canvas>
   <div id="labels"></div>
   <div id="tip" hidden></div>
+  <div id="cap" hidden><div class="eye" id="capEye"></div><div class="line" id="capLine"></div><div class="bar"><i id="capBar"></i></div></div>
   <div id="hud">
     <header>
       <div class="brand">PANOPTES <b>/ LAPLACE</b></div>
@@ -108,10 +129,14 @@ select{font:500 10.5px var(--f-data);background:var(--bg);color:var(--ink);borde
         <a href="#corpus" data-lens="corpus"><kbd>1</kbd>Corpus</a>
         <a href="#fan" data-lens="fan"><kbd>2</kbd>Fan</a>
         <a href="#train" data-lens="train"><kbd>3</kbd>Train</a>
-        <a href="#loom" data-lens="loom"><kbd>4</kbd>Loom</a>
+        <a href="#clusters" data-lens="clusters"><kbd>4</kbd>Clusters</a>
+        <a href="#loom" data-lens="loom"><kbd>5</kbd>Loom</a>
+        <a href="#control" data-lens="control"><kbd>6</kbd>Control</a>
       </nav>
+      <button id="tourBtn" type="button" aria-pressed="false">Tour</button>
       <div class="toggles"><button id="tgL" type="button">Controls</button><button id="tgR" type="button">Inspect</button></div>
-      <span class="chip syn">Synthetic · EX-01</span>
+      <select id="ds" aria-label="Workspace"><option value="persona">EX-01 persona</option><option value="fixtures">Fixture export</option></select>
+      <span class="chip syn" id="chip">Synthetic</span>
     </header>
     <div id="status">Loading synthetic workspace…</div>
     <aside class="panel" id="left" aria-label="Lens controls"></aside>
@@ -128,9 +153,9 @@ select{font:500 10.5px var(--f-data);background:var(--bg);color:var(--ink);borde
   </div>
   <div id="intro" role="button" tabindex="0" aria-label="Skip intro">
     <div class="ttl">
-      <div class="rule"><span>WORKSPACE WS-DEMO-01</span><span>WINDOW 28 D</span></div>
+      <div class="rule"><span id="inWs">WORKSPACE</span><span id="inWin">WINDOW</span></div>
       <h1>PANOPTES</h1>
-      <div class="rule b"><span>SUBJECT EX-01</span><span>SYNTHETIC</span></div>
+      <div class="rule b"><span id="inSub">SUBJECT</span><span>SYNTHETIC</span></div>
       <small>Every name, place and number is invented · click to enter</small>
     </div>
   </div>
@@ -163,13 +188,17 @@ const ENTITY=new Set(["Source","Place","App","Domain","ImportBatch"]);
 
 /* ============ data ============ */
 let D,R,byId={},T0,T1,NODES=[],NIDX={},EDGES=[],ADJ=[],HUBS=[],FINDINGS=[];
+let DS="persona";try{DS=sessionStorage.getItem("panoptes-ds")||"persona"}catch(e){}
+if(DS!=="fixtures")DS="persona";
 async function loadData(){
-  for(const p of ["data/persona.json","../explorer-concept/data/persona.json"]){
+  for(const p of DS==="fixtures"?["data/fixtures-workspace.json"]:["data/persona.json","../explorer-concept/data/persona.json"]){
     try{const r=await fetch(p);if(r.ok)return await r.json()}catch(e){}
   }
   throw new Error("Could not load persona.json. Serve this folder over HTTP (python -m http.server) from prototypes/.");
 }
-function tday(s){return s?(Date.parse(s)-T0)/MS_DAY:null}
+let WD=28,UEND=29.4,TZOFF=0;
+const MON=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"],DOW_S=["SUN","MON","TUE","WED","THU","FRI","SAT"];
+function tday(s){if(!s||s==="unknown")return null;const v=Date.parse(s);return isNaN(v)?null:(v-T0)/MS_DAY}
 function startOf(r){return r.event_time||r.event_start||null}
 function placeLbl(id){return (byId[id]&&byId[id].label||id||"?").replace(" (fictional)","")}
 function title(r){
@@ -195,15 +224,16 @@ function title(r){
 }
 function buildModel(){
   R=D.records;R.forEach(r=>byId[r.id]=r);
-  T0=Date.parse(D.meta.window.start);T1=Date.parse(D.meta.window.end);
+  T0=Date.parse(D.meta.window.start);T1=Date.parse(D.meta.window.end);WD=(T1-T0)/MS_DAY;UEND=WD+1.4;
+  const mz=/([+-])(\d\d):(\d\d)$/.exec(D.meta.window.start);TZOFF=mz?(mz[1]==="-"?-1:1)*(+mz[2]*60+ +mz[3])*60000:0;
   NODES=R.filter(r=>r.type!=="Link");NODES.forEach((r,i)=>NIDX[r.id]=i);
   HUBS=[...new Set(NODES.map(r=>r.source_id))].sort((a,b)=>(a==="src-workspace")-(b==="src-workspace"));
   FINDINGS=NODES.filter(r=>r.type==="Finding");
   NODES.forEach(r=>{
-    r._t=tday(startOf(r));r._te=r.event_end?tday(r.event_end):r._t;
+    r._t=tday(startOf(r))??tday(r.event_end);r._te=tday(r.event_end)??r._t;
     if(ENTITY.has(r.type))r._birth=-1;
-    else if(r.type==="Finding")r._birth=28.3+FINDINGS.indexOf(r)*0.15;
-    else if(r.type==="Correction")r._birth=29.0;
+    else if(r.type==="Finding")r._birth=WD+.3+FINDINGS.indexOf(r)*0.15;
+    else if(r.type==="Correction")r._birth=WD+1;
     else r._birth=r._t==null?-1:r._t;
     r._hub=HUBS.indexOf(r.source_id);
   });
@@ -235,14 +265,15 @@ function buildModel(){
 const L=$("#left"),RP=$("#right"),ST=$("#status");
 let lens=null;
 function setLens(name){
-  if(!["corpus","fan","train","loom"].includes(name))name="corpus";
+  if(!LENSES[name])name="corpus";
   if(lens===name)return;
   if(lens&&LENSES[lens].leave)LENSES[lens].leave();
   lens=name;
   document.querySelectorAll("#tabs a").forEach(a=>{if(a.dataset.lens===name)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
-  $("#gl").hidden=name!=="corpus";$("#c2").hidden=name==="corpus";
-  $("#foot").hidden=name!=="corpus";$("#labels").innerHTML="";labelPool.length=0;$("#tip").hidden=true;
-  RP.hidden=name!=="corpus";
+  const g3=name==="corpus"||name==="control";
+  $("#gl").hidden=!g3;$("#c2").hidden=g3;
+  $("#foot").hidden=!g3;$("#labels").innerHTML="";labelPool.length=0;$("#tip").hidden=true;
+  RP.hidden=!g3;
   LENSES[name].enter();
 }
 function area(){
@@ -288,21 +319,21 @@ const FORM_INFO={
   chrono:"One lane per source. Intervals are stretched over their real duration. Red boxes are declared missing periods, not zeros.",
   map:"Fictional city plane. Only records with a position are placed. Everything else stays in the unlocated ring; no position is invented."};
 const CAM_PRESET={anatomy:[0.7,1.2,230],sphere:[0.4,1.25,230],strata:[0.5,1.3,270],chrono:[0,1.5708,235],map:[0.3,0.62,250]};
-const corpus={form:"anatomy",color:"class",uT:0,playing:false,speed:1.4,turning:!REDUCED,sel:-1,hover:-1,ok:false};
+const corpus={form:"anatomy",color:"class",uT:0,playing:false,speed:1.4,turning:!REDUCED,density:innerWidth<820?.6:1,sel:-1,hover:-1,ok:false};
 let renderer,scene,camera,pts,geo,lineGeo,lines,pulseGeo,pulses,decor={};
 let N=0,P_node,P_cur,P_tgt,P_off,P_u,P_k,nodeStart=[],nodeCount=[],A_sel,A_col;
 const cam={th:.7,ph:1.2,d:230,tth:.7,tph:1.2,td:230};
 
 function makeMat(){
   return new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
-    uniforms:{uT:{value:0},uTime:{value:0},uScale:{value:150},uGhost:{value:.1}},
-    vertexShader:`attribute vec3 aColor;attribute float aSize;attribute float aBirth;attribute float aPhase;attribute float aSel;
+    uniforms:{uT:{value:0},uTime:{value:0},uScale:{value:150},uGhost:{value:.1},uDensity:{value:1}},
+    vertexShader:`attribute vec3 aColor;attribute float aSize;attribute float aBirth;attribute float aPhase;attribute float aSel;attribute float aKeep;uniform float uDensity;
       uniform float uT;uniform float uTime;uniform float uScale;uniform float uGhost;varying vec3 vColor;varying float vA;
       void main(){vec3 p=position+vec3(sin(uTime*.6+aPhase*6.28),cos(uTime*.5+aPhase*9.1),sin(uTime*.4+aPhase*4.7))*.35;
         vec4 mv=modelViewMatrix*vec4(p,1.0);float age=uT-aBirth;float ent=step(aBirth,-0.5);
         float on=max(ent,step(0.0,age));float flash=(1.0-ent)*on*exp(-age*4.0)*2.5;
         vA=mix(uGhost,1.0,on)+flash+aSel*1.6;vColor=aColor;
-        gl_PointSize=aSize*(1.0+flash*.6+aSel*.8)*uScale/max(1.0,-mv.z);gl_Position=projectionMatrix*mv;}`,
+        gl_PointSize=aKeep>uDensity?0.0:aSize*(1.0+flash*.6+aSel*.8)*uScale/max(1.0,-mv.z);gl_Position=projectionMatrix*mv;}`,
     fragmentShader:`varying vec3 vColor;varying float vA;void main(){vec2 c=gl_PointCoord-.5;float d=length(c);if(d>.5)discard;
       float a=smoothstep(.5,0.,d);a*=a;gl_FragColor=vec4(vColor*a*vA,1.0);}`});
 }
@@ -314,15 +345,15 @@ function initCorpus(){
   const scale=innerWidth<820?.5:1;
   NODES.forEach((r,i)=>{nodeStart[i]=N;nodeCount[i]=1+Math.round((DUST[r.type]||40)*scale);N+=nodeCount[i]});
   P_node=new Uint16Array(N);P_cur=new Float32Array(N*3);P_tgt=new Float32Array(N*3);P_off=new Float32Array(N*3);P_u=new Float32Array(N);P_k=new Float32Array(N);
-  const aSize=new Float32Array(N),aBirth=new Float32Array(N),aPhase=new Float32Array(N);A_sel=new Float32Array(N);A_col=new Float32Array(N*3);
+  const aSize=new Float32Array(N),aBirth=new Float32Array(N),aPhase=new Float32Array(N),aKeep=new Float32Array(N);A_sel=new Float32Array(N);A_col=new Float32Array(N*3);
   NODES.forEach((r,i)=>{for(let q=0;q<nodeCount[i];q++){const p=nodeStart[i]+q;P_node[p]=i;
     const core=q===0;P_off[p*3]=core?0:gauss();P_off[p*3+1]=core?0:gauss();P_off[p*3+2]=core?0:gauss();
-    P_u[p]=core?.5:rnd();P_k[p]=.02+.05*rnd();aPhase[p]=rnd();aBirth[p]=r._birth;
+    P_u[p]=core?.5:rnd();aKeep[p]=core?0:rnd();P_k[p]=.02+.05*rnd();aPhase[p]=rnd();aBirth[p]=r._birth;
     aSize[p]=core?(ENTITY.has(r.type)||r.type==="Finding"?16:9):2+rnd()*2.6;
     for(let c=0;c<3;c++)P_cur[p*3+c]=gauss()*140;}});
   geo=new THREE.BufferGeometry();
   geo.setAttribute("position",new THREE.BufferAttribute(P_cur,3));
-  [["aColor",A_col,3],["aSize",aSize,1],["aBirth",aBirth,1],["aPhase",aPhase,1],["aSel",A_sel,1]].forEach(([n,a,s])=>geo.setAttribute(n,new THREE.BufferAttribute(a,s)));
+  [["aColor",A_col,3],["aSize",aSize,1],["aBirth",aBirth,1],["aPhase",aPhase,1],["aSel",A_sel,1],["aKeep",aKeep,1]].forEach(([n,a,s])=>geo.setAttribute(n,new THREE.BufferAttribute(a,s)));
   const mat=makeMat();pts=new THREE.Points(geo,mat);pts.frustumCulled=false;scene.add(pts);
   lineGeo=new THREE.BufferGeometry();
   lineGeo.setAttribute("position",new THREE.BufferAttribute(new Float32Array(EDGES.length*6),3));
@@ -336,8 +367,9 @@ function initCorpus(){
   pulseGeo.setAttribute("aBirth",new THREE.BufferAttribute(new Float32Array(E).fill(-1),1));
   pulseGeo.setAttribute("aPhase",new THREE.BufferAttribute(new Float32Array(E),1));
   pulseGeo.setAttribute("aSel",new THREE.BufferAttribute(new Float32Array(E),1));
+  pulseGeo.setAttribute("aKeep",new THREE.BufferAttribute(new Float32Array(E),1));
   pulses=new THREE.Points(pulseGeo,pts.material);pulses.frustumCulled=false;scene.add(pulses);
-  buildDecor();applyColors();setForm("anatomy",true);
+  buildDecor();applyColors();setForm("anatomy",true);pts.material.uniforms.uDensity.value=corpus.density;
   const cv=$("#gl");let down=null;
   cv.addEventListener("pointerdown",e=>{down={x:e.clientX,y:e.clientY,moved:0};cv.setPointerCapture(e.pointerId)});
   cv.addEventListener("pointermove",e=>{
@@ -357,10 +389,10 @@ function lineObj(pairs,col){
 const XT=f=>f*190-95, LANE=h=>42-h*14;
 function rect(a,x0,y0,x1,y1,z){a.push(x0,y0,z,x1,y0,z,x1,y0,z,x1,y1,z,x1,y1,z,x0,y1,z,x0,y1,z,x0,y0,z)}
 function buildDecor(){
-  const grid=[];for(let d=0;d<=28;d++){const x=XT(d/28);grid.push(x,50,0,x,-50,0)}
+  const grid=[];for(let d=0;d<=Math.ceil(WD);d++){const x=XT(d/WD);grid.push(x,50,0,x,-50,0)}
   decor.chronoGrid=lineObj(grid,0x1b2328);
   const miss=[];D.records.filter(r=>r.type==="Source").forEach(s=>{const h=HUBS.indexOf(s.id);(s.missing_periods||[]).forEach(m=>{
-    const a=XT(tday(m.start)/28),b=XT(tday(m.end)/28),y=LANE(h);rect(miss,a,y-5,b,y+5,0);
+    const a=XT(tday(m.start)/WD),b=XT(tday(m.end)/WD),y=LANE(h);rect(miss,a,y-5,b,y+5,0);
     for(let x=a;x<b;x+=1.6)miss.push(x,y-5,0,Math.min(b,x+3),y+5,0);})});
   decor.missing=lineObj(miss,0x5a1820);
   const planes=[];[-48,-16,16,48].forEach(y=>{planes.push(-118,y,-55,100,y,-55,100,y,-55,100,y,55,100,y,55,-118,y,55,-118,y,55,-118,y,-55)});
@@ -384,7 +416,7 @@ function nodeTargets(form){
       const c=[Math.sin(a)*82,12+Math.cos(a*.5)*22,Math.cos(a)*50-6],tan=[Math.cos(a),0,-Math.sin(a)];
       if(r.type==="Source"){set(i,[c[0],c[1]+16,c[2]],null,7);return}
       if(ENTITY.has(r.type)){set(i,[c[0]+g()*6,c[1]-6+g()*3,c[2]+g()*6],null,3.5);return}
-      const f=r._t==null?r2():clamp(r._t/28,0,1),w=Math.sin(f*12+k)*4;
+      const f=r._t==null?r2():clamp(r._t/WD,0,1),w=Math.sin(f*12+k)*4;
       set(i,[c[0]+tan[0]*(f-.5)*40+g()*7,c[1]+w+g()*6,c[2]+tan[2]*(f-.5)*40+g()*7],null,r.granularity==="aggregate"?3:2.2);
     });
   }else if(form==="sphere"){
@@ -395,14 +427,14 @@ function nodeTargets(form){
     const LV={observation:-48,normalized_event:-16,hypothesis:16,inference:48,prediction:72};
     NODES.forEach((r,i)=>{const y=LV[r.evidence_class]??0,z=(r._hub-(HUBS.length-1)/2)*15+g()*2.5;
       if(r._t==null){set(i,[-112+g()*2,y,z],null,1.6);return}
-      set(i,[XT(clamp(r._t/28,0,1.05)),y,z],[XT(clamp(r._te/28,0,1.05)),y,z],1.3)});
+      set(i,[XT(clamp(r._t/WD,0,1.05)),y,z],[XT(clamp(r._te/WD,0,1.05)),y,z],1.3)});
   }else if(form==="chrono"){
     let fi=0;
     NODES.forEach((r,i)=>{const y=LANE(r._hub),z=g()*1.6;
       if(r.type==="Finding"){set(i,[100+fi*3,y,0],null,1.5);fi++;return}
       if(r.type==="Correction"){set(i,[112,y,0],null,1.2);return}
       if(r._t==null){set(i,[-108+g()*2.5,y+g()*2,z],null,1.2);return}
-      set(i,[XT(r._t/28),y+g()*1.4,z],[XT(r._te/28),y+g()*1.4,z],.7)});
+      set(i,[XT(r._t/WD),y+g()*1.4,z],[XT(r._te/WD),y+g()*1.4,z],.7)});
   }else{
     const bb=D.meta.bounding_box,P=(lat,lon)=>[(lon-bb.lon_min)/(bb.lon_max-bb.lon_min)*170-85,0,-((lat-bb.lat_min)/(bb.lat_max-bb.lat_min)*170-85)];
     const stack={};
@@ -426,16 +458,28 @@ function setForm(f,instant){
   decor.chronoGrid.visible=decor.missing.visible=f==="chrono";decor.strata.visible=f==="strata";decor.map.visible=f==="map";
   renderLeftCorpus();
 }
-function applyColors(){
+let NF=null,NRd=null;
+function nodeState(i,nowS){
+  let f=1,red=0;const kt=ctl.dead.get(i);
+  if(kt!=null){const a=nowS-kt;if(a>0){if(a<.5)red=a/.5;else{red=1;f=Math.max(0,1-(a-.5)/.9)}}}
+  const r=NODES[i],pz=ctl.paused[r.source_id];if(pz!=null&&r._birth>pz&&r._birth>=0)f=0;
+  return[f,red];
+}
+function applyColors(nowS){
+  if(!NF){NF=new Float32Array(NODES.length).fill(1);NRd=new Float32Array(NODES.length)}
+  nowS=nowS??performance.now()/1000;let busy=false;
   NODES.forEach((r,i)=>{const col=hex(corpus.color==="class"?CLASS_COL[r.evidence_class]||"#888888":HUB_COL[r.source_id]||"#888888");
-    for(let q=0;q<nodeCount[i];q++){const p=nodeStart[i]+q,m=q===0?1:.5;A_col[p*3]=col[0]*m;A_col[p*3+1]=col[1]*m;A_col[p*3+2]=col[2]*m}});
-  geo.attributes.aColor.needsUpdate=true;
+    const[f,red]=nodeState(i,nowS);NF[i]=f;NRd[i]=red;if(red>0&&f>0)busy=true;
+    const kt=ctl.dead.get(i);if(kt!=null&&kt>nowS)busy=true;
+    const c=[lerp(col[0],1,red),lerp(col[1],.25,red),lerp(col[2],.3,red)];
+    for(let q=0;q<nodeCount[i];q++){const p=nodeStart[i]+q,m=(q===0?1:.5)*f;A_col[p*3]=c[0]*m;A_col[p*3+1]=c[1]*m;A_col[p*3+2]=c[2]*m}});
+  geo.attributes.aColor.needsUpdate=true;return busy;
 }
 function select(i){
   corpus.sel=i;A_sel.fill(0);
   if(i>=0){const mark=(n,v)=>{for(let q=0;q<nodeCount[n];q++)A_sel[nodeStart[n]+q]=Math.max(A_sel[nodeStart[n]+q],v)};
     mark(i,1);ADJ[i].forEach(k=>{const e=EDGES[k];mark(e.i===i?e.j:e.i,.45)});}
-  geo.attributes.aSel.needsUpdate=true;renderInspector();
+  geo.attributes.aSel.needsUpdate=true;if(lens==="control"){ctlPreview(i>=0?[i]:[]);return}renderInspector();
   if(innerWidth<=820&&i>=0){RP.classList.add("open");L.classList.remove("open")}
 }
 const _v=typeof THREE!=="undefined"?new THREE.Vector3():null;
@@ -458,8 +502,9 @@ function anchorsFor(f){
       const n=NODES.filter(r=>r.evidence_class===t.toLowerCase().replace(" ","_")).length;out.push({text:t+" · "+n,pos:[-122,y,-55],cls:"fixed"})});
   }else if(f==="chrono"){
     HUBS.forEach((h,k)=>out.push({text:hubName(k),pos:[-122,LANE(k),0],cls:"fixed"}));
-    for(let w=0;w<4;w++){const d=new Date(BASE_UTC+w*7*MS_DAY);out.push({text:"W"+(w+1)+" · "+d.getUTCDate()+" MAR",pos:[XT(w*7/28),52,0],cls:"fixed"})}
-    out.push({text:"No signal ≠ zero",pos:[XT(9.2/28),LANE(0)+9,0],cls:"warn"});
+    const step=WD>10?7:1;for(let w=0;w*step<WD;w++){const d=new Date(T0+TZOFF+w*step*MS_DAY);out.push({text:(step===7?"W"+(w+1):"D"+w)+" · "+d.getUTCDate()+" "+MON[d.getUTCMonth()],pos:[XT(w*step/WD),52,0],cls:"fixed"})}
+    const ms=D.records.find(x=>x.type==="Source"&&(x.missing_periods||[]).length);
+    if(ms){const m=ms.missing_periods[0];out.push({text:"No signal ≠ zero",pos:[XT((tday(m.start)+tday(m.end))/2/WD),LANE(HUBS.indexOf(ms.id))+9,0],cls:"warn"})}
   }else{
     NODES.forEach((r,i)=>{if(r.type==="Place")grp(placeLbl(r.id)+" · "+NODES.filter(v=>v.place_id===r.id).length+" visits",[i])});
     out.push({text:"Unlocated ring · no position claimed",pos:[0,40,-112],cls:"warn"});
@@ -476,11 +521,11 @@ function drawLabels(){
   if(corpus.sel>=0){const p=nodeStart[corpus.sel]*3,s=toScreen(P_cur[p],P_cur[p+1],P_cur[p+2]);if(s)labelAt(k++,title(NODES[corpus.sel]),s[0],s[1],"solid")}
   hideLabelsFrom(k);
 }
-function fmtT(d){const t=new Date(T0+d*MS_DAY-5*3600e3);
-  return "D"+String(Math.floor(d)).padStart(2,"0")+" · "+DOW[(Math.floor(d)%7+7)%7]+" "+t.getUTCDate()+" MAR "+String(t.getUTCHours()).padStart(2,"0")+":"+String(t.getUTCMinutes()).padStart(2,"0")}
+function fmtT(d){const t=new Date(T0+d*MS_DAY+TZOFF);
+  return "D"+String(Math.floor(d)).padStart(2,"0")+" · "+DOW_S[t.getUTCDay()]+" "+t.getUTCDate()+" "+MON[t.getUTCMonth()]+" "+String(t.getUTCHours()).padStart(2,"0")+":"+String(t.getUTCMinutes()).padStart(2,"0")}
 function drawStrip(){
   const cv=$("#strip"),r=cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);cv.width=r.width*dpr;cv.height=r.height*dpr;
-  const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);const W=r.width,lh=r.height/HUBS.length,mx=29.4;
+  const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);const W=r.width,lh=r.height/HUBS.length,mx=UEND;
   D.records.filter(s=>s.type==="Source").forEach(s=>{const h=HUBS.indexOf(s.id);(s.missing_periods||[]).forEach(m=>{
     g.fillStyle="rgba(255,93,108,.35)";g.fillRect(tday(m.start)/mx*W,h*lh,(tday(m.end)-tday(m.start))/mx*W,lh-1)})});
   NODES.forEach(n=>{if(n._t==null&&n._birth<0)return;const t=n._t??n._birth;g.fillStyle=HUB_COL[n.source_id]||"#888";g.globalAlpha=.7;g.fillRect(t/mx*W,n._hub*lh,1.2,lh-1)});
@@ -495,11 +540,13 @@ function renderLeftCorpus(){
   <h2>Colour</h2><div class="seg" id="colmode">${btn("class",corpus.color,"Evidence class")}${btn("source",corpus.color,"Source")}</div>
   <div class="legend">${corpus.color==="class"?Object.entries(CLASS_COL).slice(0,4).map(([k,c])=>`<span><i class="cls" style="background:${c}"></i>${k.replace("_"," ")}</span>`).join("")
     :HUBS.map(h=>`<span><i class="cls" style="background:${HUB_COL[h]}"></i>${(byId[h]||{}).name||h}</span>`).join("")}</div>
+  <h2>Density <span id="denV">${Math.round(corpus.density*100)}%</span></h2><input id="den" type="range" min="0.05" max="1" step="0.05" value="${corpus.density}" aria-label="Dust density">
   <h2>Motion</h2><div class="seg"><button type="button" id="turn" aria-pressed="${corpus.turning}">Turning</button><button type="button" id="replay">Replay formation</button></div>
   <p class="note">One bright core is one record. The dust around it is only rendering. Links ignite when both ends exist, and a pulse travels along each live link.</p>`;
   L.querySelectorAll("#forms button").forEach(b=>b.onclick=()=>setForm(b.dataset.v));
   L.querySelectorAll("#colmode button").forEach(b=>b.onclick=()=>{corpus.color=b.dataset.v;applyColors();renderLeftCorpus()});
   $("#turn").onclick=()=>{corpus.turning=!corpus.turning;renderLeftCorpus()};
+  $("#den").oninput=e=>{corpus.density=+e.target.value;pts.material.uniforms.uDensity.value=corpus.density;$("#denV").textContent=Math.round(corpus.density*100)+"%"};
   $("#replay").onclick=()=>{corpus.uT=0;setPlaying(true)};
 }
 function fieldVal(v){
@@ -534,14 +581,14 @@ function renderInspector(){
 }
 RP.addEventListener("click",e=>{const b=e.target.closest(".idl");if(b&&b.dataset.id in NIDX)select(NIDX[b.dataset.id])});
 function setPlaying(p){corpus.playing=p;$("#play").textContent=p?"Pause":"Play";$("#play").setAttribute("aria-pressed",p)}
-$("#play").onclick=()=>{if(corpus.uT>=29.39)corpus.uT=0;setPlaying(!corpus.playing)};
+$("#play").onclick=()=>{if(corpus.uT>=UEND-.01)corpus.uT=0;setPlaying(!corpus.playing)};
 $("#scrub").oninput=e=>{corpus.uT=+e.target.value;setPlaying(false)};
 $("#speed").onchange=e=>corpus.speed=+e.target.value;
 let lastT=performance.now();
 function frameCorpus(now,dt){
   if(!corpus.ok)return;
-  if(corpus.playing){corpus.uT+=dt*corpus.speed;if(corpus.uT>=29.4){corpus.uT=29.4;setPlaying(false)}}
-  $("#scrub").value=corpus.uT;$("#readout").textContent=corpus.uT>28?"SYNTHESIS · FINDINGS":fmtT(corpus.uT);
+  if(corpus.playing){corpus.uT+=dt*corpus.speed;if(corpus.uT>=UEND){corpus.uT=UEND;setPlaying(false)}}
+  $("#scrub").value=corpus.uT;$("#readout").textContent=corpus.uT>WD?"SYNTHESIS · FINDINGS":fmtT(corpus.uT);
   for(let p=0;p<N*3;p++){P_cur[p]+=(P_tgt[p]-P_cur[p])*P_k[(p/3)|0]*(dt*60)}
   geo.attributes.position.needsUpdate=true;
   const lp=lineGeo.attributes.position.array,lc=lineGeo.attributes.color.array,pp=pulseGeo.attributes.position.array,pc=pulseGeo.attributes.aColor.array;
@@ -550,25 +597,35 @@ function frameCorpus(now,dt){
     const grow=e.birth<-0.5?1:clamp(age/0.6,0,1);
     const hl=sel>=0&&(e.i===sel||e.j===sel);
     let br=age<0&&e.birth>-0.5?0:(.16+1.1*Math.exp(-Math.max(0,age)*2));if(hl)br=1.2;else if(sel>=0)br*=.35;
-    if(grow>0)live++;
-    const c=hex(EDGE_COL[e.type]||"#888888");
+    const nf=NF?Math.min(NF[e.i],NF[e.j]):1,nr=NRd?Math.max(NRd[e.i],NRd[e.j]):0;br*=nf;
+    if(grow>0&&nf>0)live++;
+    const c0=hex(EDGE_COL[e.type]||"#888888"),c=[lerp(c0[0],1,nr),lerp(c0[1],.25,nr),lerp(c0[2],.3,nr)];
     for(let q=0;q<3;q++){lp[k*6+q]=P_cur[a+q];lp[k*6+3+q]=P_cur[a+q]+(P_cur[b+q]-P_cur[a+q])*grow;lc[k*6+q]=c[q]*br;lc[k*6+3+q]=c[q]*br*(grow<1?2:1)}
     const f=(now/1000*.32+e.ph)%1;
-    for(let q=0;q<3;q++){pp[k*3+q]=P_cur[a+q]+(P_cur[b+q]-P_cur[a+q])*f;pc[k*3+q]=grow>=1?c[q]*(hl?1.4:.55):0}
+    for(let q=0;q<3;q++){pp[k*3+q]=P_cur[a+q]+(P_cur[b+q]-P_cur[a+q])*f;pc[k*3+q]=grow>=1&&nf>.5?c[q]*(hl?1.4:.55):0}
   });
   lineGeo.attributes.position.needsUpdate=lineGeo.attributes.color.needsUpdate=true;
   pulseGeo.attributes.position.needsUpdate=pulseGeo.attributes.aColor.needsUpdate=true;
   if(corpus.turning&&corpus.form!=="chrono")cam.tth+=dt*.05;
   cam.th+=(cam.tth-cam.th)*.05;cam.ph+=(cam.tph-cam.ph)*.05;cam.d+=(cam.td-cam.d)*.05;
-  camera.position.set(cam.d*Math.sin(cam.ph)*Math.sin(cam.th),cam.d*Math.cos(cam.ph),cam.d*Math.sin(cam.ph)*Math.cos(cam.th));camera.lookAt(0,0,0);
+  const dd=cam.d*Math.pow(Math.max(1,1.15/camera.aspect),.85);camera.position.set(dd*Math.sin(cam.ph)*Math.sin(cam.th),dd*Math.cos(cam.ph),dd*Math.sin(cam.ph)*Math.cos(cam.th));camera.lookAt(0,0,0);
   const u=pts.material.uniforms;u.uT.value=corpus.uT;u.uTime.value=now/1000;
   renderer.render(scene,camera);
+  if(ctl.busy)ctl.busy=applyColors(now/1000);
   const liveN=NODES.filter(r=>r._birth<=corpus.uT).length;
-  ST.innerHTML=`Corpus · nodes <em>${NODES.length}</em> · links <em>${live}/${EDGES.length}</em> · particles <em>${N.toLocaleString("en")}</em> · ignited <em>${liveN}</em> · form <em>${corpus.form}</em> · cursor <em>${corpus.uT>28?"synthesis":"D"+corpus.uT.toFixed(2)}</em> · synthetic`;
+  if(lens==="corpus")ST.innerHTML=`Corpus · nodes <em>${NODES.length}</em> · links <em>${live}/${EDGES.length}</em> · particles <em>${N.toLocaleString("en")}</em> · ignited <em>${liveN}</em> · form <em>${corpus.form}</em> · cursor <em>${corpus.uT>WD?"synthesis":"D"+corpus.uT.toFixed(2)}</em> · synthetic`;
   drawLabels();
 }
 function resizeGL(){if(!renderer)return;renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
   pts.material.uniforms.uScale.value=150*renderer.getPixelRatio()*(innerHeight/900)}
+
+/* ============ lens availability ============ */
+const NEEDS={fan:["DailyHealthAggregate","AccountActivity"],train:["Visit","ActivityInterval"],clusters:["Visit","DailyHealthAggregate"],loom:["Finding"]};
+function missingFor(l){const have=new Set(R.map(r=>r.type));return(NEEDS[l]||[]).filter(t=>!have.has(t)).concat(l==="fan"&&!byId["finding-0002"]?["finding-0002"]:[])}
+function blocked(l){const m=missingFor(l);if(!m.length)return false;
+  L.innerHTML=`<h2>${esc(l)} <span>unavailable</span></h2><p>This workspace has no ${m.map(esc).join(", ")} records, so this lens has nothing honest to show.</p>
+  <p class="note">Nothing is filled in or simulated to make the view work. Switch to the EX-01 persona, or add a source that provides these records.</p>`;
+  X.clearRect(0,0,innerWidth,innerHeight);ST.innerHTML=`${esc(l)} · unavailable for <em>${esc(D.meta.workspace_id)}</em> · missing ${m.map(esc).join(", ")}`;return true}
 
 /* ============ LENS: FAN (bootstrap vs null) ============ */
 function ranks(a){const idx=a.map((v,i)=>i).sort((x,y)=>a[x]-a[y]),r=new Array(a.length);
@@ -815,7 +872,8 @@ function loomSetup(){
   loom.chains=ch;loom.k=0;loom.t=0;
   loom.cols=COLS.map((_,c)=>{const ids=[];ch.forEach(x=>{const n=x.nodes[c];if(n&&!ids.includes(n.id))ids.push(n.id)});return ids});
 }
-function loomPos(c,id,a){const ids=loom.cols[c],i=ids.indexOf(id),n=ids.length,x=a.x+40+c*(a.w-200)/(COLS.length-1);
+function colX(c,g){return g.w<600?g.x+14+c*(g.w-40)/(COLS.length-1):g.x+40+c*(g.w-200)/(COLS.length-1)}
+function loomPos(c,id,a){const ids=loom.cols[c],i=ids.indexOf(id),n=ids.length,x=colX(c,a);
   return[x,n<=1?a.y+a.h*.5:a.y+a.h*.16+i*(a.h*.68)/(n-1)]}
 function chainPts(ch,a){const out=[];ch.nodes.forEach((n,c)=>{if(n)out.push({c,n,p:loomPos(c,n.id,a)})});return out}
 function curve(p0,p1,t){const mx=(p0[0]+p1[0])/2,u=1-t;return[u*u*u*p0[0]+3*u*u*t*mx+3*u*t*t*mx+t*t*t*p1[0],u*u*u*p0[1]+3*u*u*t*p0[1]+3*u*t*t*p1[1]+t*t*t*p1[1]]}
@@ -830,8 +888,8 @@ function frameLoom(now,dt){
   const a=area();X.clearRect(0,0,innerWidth,innerHeight);
   const g={x:a.x,y:a.y+26,w:a.w,h:a.h-40};
   X.font=mono(9.5);X.textBaseline="top";
-  COLS.forEach((c,i)=>{const x=g.x+40+i*(g.w-200)/(COLS.length-1);X.strokeStyle="rgba(150,172,184,.10)";X.beginPath();X.moveTo(x+.5,g.y);X.lineTo(x+.5,g.y+g.h);X.stroke();
-    X.fillStyle="#7d888e";X.fillText(("D"+i+" · "+c).toUpperCase(),x-6,a.y)});
+  COLS.forEach((c,i)=>{const x=colX(i,g);X.strokeStyle="rgba(150,172,184,.10)";X.beginPath();X.moveTo(x+.5,g.y);X.lineTo(x+.5,g.y+g.h);X.stroke();
+    X.fillStyle="#7d888e";X.fillText(g.w<600?"D"+i:("D"+i+" · "+c).toUpperCase(),x-6,a.y)});
   X.globalCompositeOperation="lighter";
   const r=mulberry(9);
   loom.chains.forEach(ch=>{const P=chainPts(ch,g);for(let rep=0;rep<7;rep++){const j=(r()-.5)*14;
@@ -847,7 +905,7 @@ function frameLoom(now,dt){
     for(let q=1;q<=16;q++){const pt=curve(P[s].p,P[s+1].p,q/16*seg);X.lineTo(pt[0],pt[1])}X.stroke();X.setLineDash([]);X.beginPath();const e=curve(P[s].p,P[s+1].p,seg);X.moveTo(e[0],e[1])}
   P.forEach((q,s)=>{if(s>prog+.01)return;X.fillStyle="#fff";X.beginPath();X.arc(q.p[0],q.p[1],3,0,7);X.fill();
     const t=nodeText(q.n,q.c),up=s%2===0;box(clamp(q.p[0]-20,g.x,g.x+g.w-260),q.p[1]+(up?-18:18),t.length>44?t.slice(0,43)+"…":t,q.c===4?"#ffc860":q.c===5?"#ffffff":"#ff9f5a")});
-  for(let c=2;c<=3;c++)if(!ch.nodes[c]){const x=g.x+40+c*(g.w-200)/(COLS.length-1);X.font=mono(9.5);X.fillStyle="#5d676c";X.fillText("— NOT LINKED —",x-8,g.y+g.h*.5+28)}
+  for(let c=2;c<=3;c++)if(!ch.nodes[c]){const x=colX(c,g);X.font=mono(9.5);X.fillStyle="#5d676c";X.fillText("— NOT LINKED —",x-8,g.y+g.h*.5+28)}
   if(loom.needs){const x=g.x+g.w-150,y=g.y+g.h*.82;X.setLineDash([3,4]);X.strokeStyle="#ff5d6c";X.beginPath();X.moveTo(P[P.length-1].p[0],P[P.length-1].p[1]);X.lineTo(x,y);X.stroke();X.setLineDash([]);
     box(Math.min(x-60,g.x+g.w-260),y+14,"NEEDS EVIDENCE · NO SLEEP PRODUCER","#ff5d6c")}
   ST.innerHTML=`Loom · ${esc(FINDINGS[loom.f].id)} · chain <em>${loom.k+1}/${loom.chains.length}</em> · ${ch.rel} · evidence class ladder D0→D5 · dashed = level skipped, not linked in this persona · synthetic`;
@@ -869,25 +927,291 @@ function renderLoomPanel(){
 }
 function enterLoom(){size2d();loomSetup();renderLoomPanel()}
 
+/* ============ LENS: CLUSTERS (live k-means over days) ============ */
+const CF=["home h","work h","gym h","cafe h","park h","grocery h","steps","walk min","drive min","cycle min","calendar","acct recs"];
+const PLACE_IDS=["place-home","place-work","place-gym","place-cafe","place-park","place-grocery"];
+const HOUR_COL={"place-home":"#6fd0ff","place-work":"#ffb45e","place-gym":"#86ffad","place-cafe":"#ff9fc8","place-park":"#c8ff6e","place-grocery":"#c49bff",trip:"#ffffff",unknown:"#ff5d6c",none:"#2c353a"};
+const CL_COL=["#9fe6ff","#ffb45e","#86ffad","#c49bff","#ff7a9a"];
+const CAND={"work h":"office-like days","home h":"home days","gym h":"active days","park h":"active days","steps":"active days","walk min":"active days","cycle min":"active days",
+  "cafe h":"errand days","grocery h":"errand days","drive min":"driving days","calendar":"meeting days","acct recs":"screen-heavy days"};
+const cl={days:null,k:3,sil:{},res:null,it:0,t:0,pull:0,pos:null,hub:null,stab:null,seed:1,rings:true,done:false};
+function buildDays(){
+  const loc=byId["src-location"],miss=(loc&&loc.missing_periods||[]).map(m=>[Date.parse(m.start),Date.parse(m.end)]);
+  const visits=R.filter(r=>r.type==="Visit").map(r=>({p:r.place_id,a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
+  const trips=R.filter(r=>r.type==="Trip").map(r=>({a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
+  const acts=R.filter(r=>r.type==="ActivityInterval").map(r=>({t:r.activity_type,a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
+  const steps={};R.filter(r=>r.type==="DailyHealthAggregate").forEach(r=>{if(r.steps_status==="measured"&&typeof r.steps==="number")steps[dayIdx(r.event_start)]=r.steps});
+  const cal=R.filter(r=>r.type==="CalendarEvent").map(r=>dayIdx(r.event_start)),acct=R.filter(r=>r.type==="AccountActivity").map(r=>dayIdx(r.event_time));
+  const days=[];
+  for(let d=0;d<28;d++){
+    const a=T0+d*MS_DAY,b=a+MS_DAY,missH=miss.reduce((s,[x,y])=>s+overlapMin(a,b,x,y),0)/60,locUnknown=missH>=12;
+    const mot=t=>acts.filter(v=>v.t===t).reduce((s,v)=>s+overlapMin(a,b,v.a,v.b),0);
+    const x=PLACE_IDS.map(p=>locUnknown?null:visits.filter(v=>v.p===p).reduce((s,v)=>s+overlapMin(a,b,v.a,v.b),0)/60)
+      .concat([d in steps?steps[d]:null,mot("walking"),mot("automotive"),mot("cycling"),cal.filter(v=>v===d).length,acct.filter(v=>v===d).length]);
+    const hours=[];for(let h=0;h<24;h++){const m=a+h*3600e3+1800e3;
+      if(miss.some(([p,q])=>m>=p&&m<q))hours.push("unknown");
+      else{const v=visits.find(v=>m>=v.a&&m<v.b);hours.push(v?v.p:trips.some(t=>m>=t.a&&m<t.b)?"trip":"none")}}
+    days.push({d,x,hours,weekend:d%7>=5,locUnknown,missF:x.filter(v=>v==null).length});
+  }
+  const F=CF.length,mu=[],sd=[];
+  for(let j=0;j<F;j++){const v=days.map(d=>d.x[j]).filter(v=>v!=null);mu[j]=v.reduce((s,q)=>s+q,0)/v.length;sd[j]=Math.sqrt(v.reduce((s,q)=>s+(q-mu[j])**2,0)/v.length)||1}
+  days.forEach(d=>d.z=d.x.map((v,j)=>v==null?null:(v-mu[j])/sd[j]));
+  // PCA (missing -> mean, i.e. 0 in z space)
+  const Z=days.map(d=>d.z.map(v=>v??0)),C=[...Array(F)].map((_,i)=>[...Array(F)].map((_,j)=>Z.reduce((s,r)=>s+r[i]*r[j],0)/Z.length));
+  const comps=[];for(let c=0;c<2;c++){let v=[...Array(F)].map((_,i)=>Math.sin(i*1.7+c*3)+1.1);
+    for(let it=0;it<200;it++){let w=C.map(row=>row.reduce((s,q,j)=>s+q*v[j],0));comps.forEach(u=>{const dp=w.reduce((s,q,j)=>s+q*u[j],0);w=w.map((q,j)=>q-dp*u[j])});
+      const n=Math.hypot(...w)||1;v=w.map(q=>q/n)}comps.push(v)}
+  days.forEach(d=>{const z=d.z.map(v=>v??0);d.pc=comps.map(u=>z.reduce((s,q,j)=>s+q*u[j],0))});
+  const mx=Math.max(...days.map(d=>Math.abs(d.pc[0]))),my=Math.max(...days.map(d=>Math.abs(d.pc[1])));
+  days.forEach(d=>d.pn=[d.pc[0]/mx,d.pc[1]/my]);
+  cl.comps=comps;cl.days=days;
+  days.forEach((d,i)=>{d.nn=days.map((e,j)=>[j,i===j?1e9:dz(d.z,e.z)]).sort((p,q)=>p[1]-q[1]).slice(0,2).map(p=>p[0])});
+}
+function dz(a,b){let s=0,n=0;for(let j=0;j<a.length;j++)if(a[j]!=null&&b[j]!=null){s+=(a[j]-b[j])**2;n++}return n?s*a.length/n:0}
+function dc(a,c){let s=0,n=0;for(let j=0;j<a.length;j++)if(a[j]!=null){s+=(a[j]-c[j])**2;n++}return n?s*a.length/n:0}
+function kmeansOnce(idx,k,seed){
+  const r=mulberry(seed),P=idx.map(i=>cl.days[i].z),n=P.length;
+  const cents=[P[(r()*n)|0].map(v=>v??0)];
+  while(cents.length<k){const w=P.map(p=>Math.min(...cents.map(c=>dc(p,c)))),tot=w.reduce((s,v)=>s+v,0);
+    let u=r()*tot,j=0;while(j<n-1&&u>w[j]){u-=w[j];j++}cents.push(P[j].map(v=>v??0))}
+  const hist=[];let asg=null;
+  for(let it=0;it<30;it++){
+    const na=P.map(p=>{let b=0,bd=1e18;cents.forEach((c,q)=>{const v=dc(p,c);if(v<bd){bd=v;b=q}});return b});
+    hist.push(na.slice());if(asg&&na.every((v,q)=>v===asg[q]))break;asg=na;
+    for(let q=0;q<k;q++){const mem=P.filter((_,i)=>asg[i]===q);if(!mem.length)continue;
+      cents[q]=cents[q].map((old,j)=>{const v=mem.map(m=>m[j]).filter(v=>v!=null);return v.length?v.reduce((s,x)=>s+x,0)/v.length:old})}
+  }
+  return{asg,cents,hist,inertia:P.reduce((s,p,i)=>s+dc(p,cents[asg[i]]),0)};
+}
+function kmeans(idx,k,seed,restarts){let best=null;for(let t=0;t<restarts;t++){const r=kmeansOnce(idx,k,seed*101+t);if(!best||r.inertia<best.inertia)best=r}return best}
+function silhouette(asg,k){const D_=cl.days,n=D_.length;let s=0;
+  for(let i=0;i<n;i++){const by=[...Array(k)].map(()=>[0,0]);for(let j=0;j<n;j++)if(i!==j){by[asg[j]][0]+=dz(D_[i].z,D_[j].z);by[asg[j]][1]++}
+    const a=by[asg[i]][1]?by[asg[i]][0]/by[asg[i]][1]:0,b=Math.min(...by.map((v,q)=>q===asg[i]||!v[1]?1e18:v[0]/v[1]));
+    s+=by[asg[i]][1]&&b<1e18?(b-a)/Math.max(a,b):0}return s/n}
+function clusterRun(){
+  const idx=[...Array(28).keys()];
+  if(!Object.keys(cl.sil).length)for(let k=2;k<=5;k++)cl.sil[k]=silhouette(kmeans(idx,k,cl.seed,6).asg,k);
+  cl.res=kmeans(idx,cl.k,cl.seed,6);cl.it=0;cl.t=0;cl.pull=0;cl.done=false;
+  cl.stab={B:60,b:0,co:[...Array(28)].map(()=>new Array(28).fill(0)),both:[...Array(28)].map(()=>new Array(28).fill(0))};
+  renderClusterPanel();
+}
+function stabStep(){
+  const S=cl.stab;if(S.b>=S.B)return;const r=mulberry(9000+S.b+cl.seed*1000);
+  const samp=[...Array(28)].map(()=>(r()*28)|0),res=kmeans(samp,cl.k,500+S.b,2),first={};
+  samp.forEach((d,i)=>{if(!(d in first))first[d]=res.asg[i]});
+  const u=Object.keys(first).map(Number);
+  for(const i of u)for(const j of u)if(i<j){S.both[i][j]++;if(first[i]===first[j])S.co[i][j]++}
+  S.b++;if(S.b===S.B)renderClusterPanel();
+}
+function clusterSummary(){
+  const asg=cl.res.asg,k=cl.k,S=cl.stab;
+  return[...Array(k)].map((_,q)=>{const mem=asg.map((a,i)=>a===q?i:-1).filter(i=>i>=0);
+    let s=0,n=0;for(const i of mem)for(const j of mem)if(i<j&&S.both[i][j]){s+=S.co[i][j]/S.both[i][j];n++}
+    const c=cl.res.cents[q],order=c.map((v,j)=>[j,v]).sort((a,b)=>b[1]-a[1]),top=order[0];
+    return{q,mem,n:mem.length,stab:n?s/n:null,cand:CAND[CF[top[0]]],why:CF[top[0]]+" "+(top[1]>=0?"+":"")+top[1].toFixed(1)+"σ",
+      wk:mem.filter(i=>!cl.days[i].weekend).length,we:mem.filter(i=>cl.days[i].weekend).length}});
+}
+function renderClusterPanel(){
+  if(lens!=="clusters")return;const S=cl.stab,done=S&&S.b>=S.B,best=+Object.entries(cl.sil).sort((a,b)=>b[1]-a[1])[0][0];
+  const sum=done?clusterSummary():null;
+  L.innerHTML=`<h2>Clusters <span>k-means · days</span></h2>
+  <p>Each point is one day of the month. The algorithm only sees twelve daily measures, never the weekday. The question is whether the days form groups.</p>
+  <h2>Groups k</h2><div class="seg">${[2,3,4,5].map(k=>`<button type="button" data-k="${k}" aria-pressed="${k===cl.k}">${k}${k===best?" · best":""}</button>`).join("")}</div>
+  <div class="bars">${[2,3,4,5].map(k=>`<div><span>k=${k}</span><b style="width:${Math.max(2,cl.sil[k]*100)}%;background:${k===cl.k?"var(--acc)":"var(--faint)"}"></b><span>${cl.sil[k].toFixed(2)}</span></div>`).join("")}</div>
+  <p class="note">Bars show the silhouette score. Higher means better separated groups. Below about 0.25 the structure is weak.</p>
+  <div class="seg"><button type="button" id="clRe">Rerun · seed ${cl.seed}</button><button type="button" id="clRing" aria-pressed="${cl.rings}">Hour rings</button></div>
+  ${done?`<h2>Groups <span>stability · ${S.B} resamples</span></h2><dl class="kv">${sum.map(c=>`<dt style="color:${CL_COL[c.q]}">C${c.q+1} · n ${c.n}</dt><dd>${c.stab==null?"—":(c.stab*100).toFixed(0)+"% stable"} · ${c.wk} weekdays / ${c.we} weekend<br><span style="color:var(--dim)">candidate name: ${c.cand} (${c.why})</span></dd>`).join("")}</dl>
+  <div class="verdict ${sum.every(c=>c.stab!=null&&c.stab>=.75)?"ok":"inc"}">${sum.every(c=>c.stab!=null&&c.stab>=.75)?"All groups stable at 75% or more":"Some groups are unstable; do not name them"}</div>`
+  :`<div class="verdict inc">Measuring stability ${S?S.b:0}/${S?S.B:60}</div>`}
+  <div class="legend">${Object.entries(HOUR_COL).map(([k,c])=>`<span><i class="cls" style="background:${c}"></i>${k.replace("place-","")}</span>`).join("")}</div>
+  <p class="note">Each ring shows the day's 24 hours, coloured by where the subject was. Red means the location is unknown. A day with unknown location keeps its other measures and is compared only on those. Names are generated from the group's strongest measure. They describe this month, not the person.</p>`;
+  L.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{cl.k=+b.dataset.k;clusterRun()});
+  $("#clRe").onclick=()=>{cl.seed=cl.seed%9+1;cl.sil={};clusterRun()};
+  $("#clRing").onclick=()=>{cl.rings=!cl.rings;renderClusterPanel()};
+}
+function enterClusters(){size2d();if(!cl.days)buildDays();clusterRun()}
+function frameClusters(now,dt){
+  const a=area();X.clearRect(0,0,innerWidth,innerHeight);
+  const res=cl.res,H=res.hist,last=H.length-1;
+  cl.t+=dt;if(!cl.done&&cl.t>(REDUCED?0:.9)){cl.t=0;if(cl.it<last)cl.it++;else cl.done=true}
+  if(cl.done){for(let s=0;s<(REDUCED?60:1);s++)stabStep()}
+  cl.pull+=((cl.done?1:0)-cl.pull)*Math.min(1,dt*2.2);
+  const asg=H[cl.it],pad=70,cx=a.x+a.w/2,cy=a.y+a.h/2,sx=(a.w/2-pad),sy=(a.h/2-pad);
+  const base=cl.days.map(d=>[cx+d.pn[0]*sx,cy+d.pn[1]*sy]);
+  if(!cl.hub||cl.hub.length!==cl.k)cl.hub=[...Array(cl.k)].map(()=>[cx,cy]);
+  for(let q=0;q<cl.k;q++){const m=base.filter((_,i)=>asg[i]===q);if(!m.length)continue;
+    const t=[m.reduce((s,p)=>s+p[0],0)/m.length,m.reduce((s,p)=>s+p[1],0)/m.length];cl.hub[q][0]+=(t[0]-cl.hub[q][0])*Math.min(1,dt*4);cl.hub[q][1]+=(t[1]-cl.hub[q][1])*Math.min(1,dt*4)}
+  if(!cl.pos)cl.pos=base.map(p=>p.slice());
+  cl.days.forEach((d,i)=>{const h=cl.hub[asg[i]],t=[lerp(base[i][0],h[0],cl.pull*.55),lerp(base[i][1],h[1],cl.pull*.55)];
+    cl.pos[i][0]+=(t[0]-cl.pos[i][0])*Math.min(1,dt*3);cl.pos[i][1]+=(t[1]-cl.pos[i][1])*Math.min(1,dt*3)});
+  // axes
+  X.strokeStyle="rgba(150,172,184,.08)";X.beginPath();X.moveTo(a.x,cy);X.lineTo(a.x+a.w,cy);X.moveTo(cx,a.y);X.lineTo(cx,a.y+a.h);X.stroke();
+  X.font=mono(9.5,400);X.fillStyle="#5d676c";X.textBaseline="top";X.fillText("PC1 · "+topLoad(0),a.x+4,cy+4);X.save();X.translate(cx+4,a.y+a.h-4);X.rotate(-Math.PI/2);X.fillText("PC2 · "+topLoad(1),0,0);X.restore();
+  X.globalCompositeOperation="lighter";
+  // kNN links
+  cl.days.forEach((d,i)=>d.nn.forEach(j=>{if(j<i&&cl.days[j].nn.includes(i))return;const same=asg[i]===asg[j];
+    X.strokeStyle=same?hexA(CL_COL[asg[i]],.35):"rgba(255,93,108,.14)";X.lineWidth=same?1.2:.8;X.beginPath();X.moveTo(cl.pos[i][0],cl.pos[i][1]);X.lineTo(cl.pos[j][0],cl.pos[j][1]);X.stroke()}));
+  // spokes to hubs
+  cl.days.forEach((d,i)=>{X.strokeStyle=hexA(CL_COL[asg[i]],.06+.22*cl.pull);X.lineWidth=1;X.beginPath();X.moveTo(cl.pos[i][0],cl.pos[i][1]);X.lineTo(cl.hub[asg[i]][0],cl.hub[asg[i]][1]);X.stroke()});
+  // hour rings
+  if(cl.rings)cl.days.forEach((d,i)=>{d.hours.forEach((h,hr)=>{const ang=hr/24*Math.PI*2-Math.PI/2+(REDUCED?0:now/1000*.12),rr=13;
+    X.fillStyle=hexA(HOUR_COL[h],h==="none"?.35:.9);X.beginPath();X.arc(cl.pos[i][0]+Math.cos(ang)*rr,cl.pos[i][1]+Math.sin(ang)*rr,h==="none"?1:1.8,0,7);X.fill()})});
+  X.globalCompositeOperation="source-over";
+  // hubs
+  const S=cl.stab,sum=S&&S.b>=S.B?clusterSummary():null;
+  cl.hub.forEach((h,q)=>{const n=asg.filter(v=>v===q).length;if(!n)return;const g=X.createRadialGradient(h[0],h[1],0,h[0],h[1],46);g.addColorStop(0,hexA(CL_COL[q],.22));g.addColorStop(1,hexA(CL_COL[q],0));
+    X.fillStyle=g;X.beginPath();X.arc(h[0],h[1],46,0,7);X.fill();X.strokeStyle=hexA(CL_COL[q],.8);X.beginPath();X.arc(h[0],h[1],5,0,7);X.stroke();
+    const s=sum&&sum[q];box(h[0]+10,h[1]-30,"C"+(q+1)+" · N "+n+(s?" · "+(s.stab==null?"—":(s.stab*100).toFixed(0)+"% STABLE")+" · "+s.cand.toUpperCase():""),CL_COL[q])});
+  // day nodes
+  cl.days.forEach((d,i)=>{const p=cl.pos[i];X.fillStyle="#dfe5e8";X.beginPath();X.arc(p[0],p[1],3.2,0,7);X.fill();
+    if(d.locUnknown){X.strokeStyle="#ff5d6c";X.setLineDash([2,2]);X.beginPath();X.arc(p[0],p[1],18,0,7);X.stroke();X.setLineDash([])}
+    X.font=mono(9);X.fillStyle=d.weekend?"#9aa6ad":"#6c767b";X.textBaseline="middle";X.fillText("D"+String(d.d).padStart(2,"0")+" "+DOW[d.d%7],p[0]+19,p[1]+1)});
+  ST.innerHTML=`Clusters · k-means k=<em>${cl.k}</em> · iteration <em>${cl.it+1}/${H.length}</em>${cl.done?" · converged":""} · silhouette <em>${cl.sil[cl.k].toFixed(2)}</em> · stability <em>${S?S.b:0}/${S?S.B:0}</em> resamples · days <em>28</em> · location unknown <em>${cl.days.filter(d=>d.locUnknown).length}</em> · weekday not used · synthetic`;
+}
+function topLoad(c){const v=cl.comps[c].map((w,j)=>[j,w]).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,2);return v.map(([j,w])=>(w>=0?"+":"−")+CF[j].toUpperCase()).join(" ")}
+function hexA(h,a){const c=hex(h);return`rgba(${c[0]*255|0},${c[1]*255|0},${c[2]*255|0},${a})`}
+
+/* ============ LENS: CONTROL (participant control room, simulated) ============ */
+const ctl={paused:{},dead:new Map(),busy:false,plan:null,root:[],last:null,manifest:null};
+function cascadeFrom(roots){
+  const dep=new Map(),q=[];roots.forEach(i=>{dep.set(i,0);q.push(i)});
+  while(q.length){const i=q.shift(),r=NODES[i],d=dep.get(i),kids=[];
+    if(r.type==="Source")NODES.forEach((x,j)=>{if(x.source_id===r.id&&j!==i)kids.push(j)});
+    if(r.type==="ImportBatch")NODES.forEach((x,j)=>{if(x.import_batch_id===r.id)kids.push(j)});
+    FINDINGS.forEach(f=>{if([].concat(f.supporting_evidence_ids||[],f.contradicting_evidence_ids||[],f.motivated_by_ids||[]).includes(r.id))kids.push(NIDX[f.id])});
+    NODES.forEach((x,j)=>{if(x.type==="Correction"&&x.target_id===r.id)kids.push(j)});
+    kids.forEach(j=>{if(!dep.has(j)&&!ctl.dead.has(j)){dep.set(j,d+1);q.push(j)}});
+  }
+  return dep;
+}
+function ctlPreview(roots){
+  roots=roots.filter(i=>!ctl.dead.has(i));ctl.root=roots;ctl.plan=roots.length?cascadeFrom(roots):null;
+  A_sel.fill(0);if(ctl.plan)ctl.plan.forEach((d,i)=>{for(let q=0;q<nodeCount[i];q++)A_sel[nodeStart[i]+q]=d===0?1:.55});
+  geo.attributes.aSel.needsUpdate=true;renderControlRight();
+  if(innerWidth<=820&&ctl.plan){RP.classList.add("open");L.classList.remove("open")}
+}
+function ctlExecute(){
+  if(!ctl.plan)return;const now=performance.now()/1000;let k=0;
+  const ord=[...ctl.plan.entries()].sort((a,b)=>a[1]-b[1]);
+  ord.forEach(([i,d])=>ctl.dead.set(i,now+.3+d*(REDUCED?0:.8)+(REDUCED?0:(k++%30)*.02)));
+  const byDepth={};ord.forEach(([i,d])=>byDepth[d]=(byDepth[d]||0)+1);
+  ctl.last={n:ord.length,root:ctl.root.map(i=>title(NODES[i])).join(", "),findings:ord.filter(([i])=>NODES[i].type==="Finding").map(([i])=>NODES[i].id),
+    links:EDGES.filter(e=>ctl.plan.has(e.i)||ctl.plan.has(e.j)).length};
+  ctl.plan=null;A_sel.fill(0);geo.attributes.aSel.needsUpdate=true;ctl.busy=true;ctl.manifest=null;renderControlRight();renderControlLeft();
+}
+function ctlRestore(){ctl.dead.clear();ctl.paused={};ctl.plan=null;ctl.last=null;ctl.manifest=null;A_sel.fill(0);if(geo){geo.attributes.aSel.needsUpdate=true;applyColors()}}
+const LVL=["Selected","Records and batches it holds","Findings built on them","Corrections and hypotheses that depend on those"];
+function renderControlRight(){
+  if(lens!=="control")return;
+  if(ctl.plan){const by={};ctl.plan.forEach((d,i)=>{by[d]=by[d]||{};const t=NODES[i].type;by[d][t]=(by[d][t]||0)+1});
+    const fs=[...ctl.plan.keys()].filter(i=>NODES[i].type==="Finding").map(i=>NODES[i]);
+    RP.innerHTML=`<h2>Deletion preview <span>simulation</span></h2>
+    <p class="big" style="font-size:15px">${esc(ctl.root.map(i=>title(NODES[i])).join(", "))}</p>
+    <dl class="kv">${Object.keys(by).sort().map(d=>`<dt>${esc(LVL[Math.min(+d,3)])}</dt><dd>${Object.entries(by[d]).map(([t,n])=>n+" "+esc(t)).join(" · ")}</dd>`).join("")}
+    <dt>links that go dark</dt><dd>${EDGES.filter(e=>ctl.plan.has(e.i)||ctl.plan.has(e.j)).length}</dd></dl>
+    ${fs.length?`<h2>Findings that lose evidence</h2><p class="note">${fs.map(f=>esc(f.id)+": "+esc(f.statement.slice(0,90))+"…").join("<br>")}</p><p class="note">They are removed with the source. The workbench can recompute them later from the evidence that remains, and the new version is shown as a new finding.</p>`:""}
+    <div class="seg"><button type="button" id="ctlGo">Run cascade</button><button type="button" id="ctlNo">Cancel</button></div>
+    <p class="note">Out of reach of this cascade: copies already exported, device or cloud backups, and a researcher's copy. Each needs its own deletion and proof. [Rules still to decide]</p>`;
+    $("#ctlGo").onclick=ctlExecute;$("#ctlNo").onclick=()=>ctlPreview([]);return}
+  RP.innerHTML=ctl.last?`<h2>Cascade done <span>simulation</span></h2>
+    <p>${esc(ctl.last.root)}: ${ctl.last.n} records went dark and ${ctl.last.links} links were cut.</p>
+    ${ctl.last.findings.length?`<p class="note">Findings removed: ${ctl.last.findings.map(esc).join(", ")}.</p>`:""}
+    <p class="note">Nothing was deleted from the file. This page only simulates the participant's controls. Use Restore everything to start again.</p>`
+  :`<h2>Control room <span>simulation</span></h2><p>Choose a source on the left, or click any bright record, to preview what deleting it would remove.</p>
+    <p class="note">Deletion follows provenance. A source takes its records and import batches. Findings that used them as evidence go too, then corrections and hypotheses that depend on those findings.</p>`;
+}
+function renderControlLeft(){
+  if(lens!=="control")return;const srcs=NODES.filter(r=>r.type==="Source");
+  L.innerHTML=`<h2>Participant control <span>simulation</span></h2>
+  <p class="note">No collection runs on this page and no copy is stored, so nothing real is paused or deleted.</p>
+  <h2>Sources <span>pause from D${String(Math.floor(Math.min(corpus.uT,WD-.01))).padStart(2,"0")}</span></h2>
+  ${srcs.map(s=>{const i=NIDX[s.id],dead=ctl.dead.has(i);return`<div class="src"><span style="${dead?"text-decoration:line-through;color:var(--dim)":""}"><i class="cls" style="background:${HUB_COL[s.id]||"#888"}"></i>${esc(s.name)}</span>
+    <button type="button" data-pause="${esc(s.id)}" aria-pressed="${s.id in ctl.paused}" ${dead?"disabled":""}>${s.id in ctl.paused?"Paused":"Pause"}</button>
+    <button type="button" data-del="${i}" ${dead?"disabled":""}>Delete</button></div>`}).join("")}
+  <p class="note">Pause shows what would never have been collected after the cursor. Move the time rail first to choose the point.</p>
+  <h2>Export</h2><div class="seg"><button type="button" id="ctlExp">Build export manifest</button></div><div id="manOut"></div>
+  <div class="seg"><button type="button" id="ctlReset">Restore everything</button></div>`;
+  L.querySelectorAll("[data-pause]").forEach(b=>b.onclick=()=>{const id=b.dataset.pause;if(id in ctl.paused)delete ctl.paused[id];else ctl.paused[id]=Math.min(corpus.uT,WD);applyColors();renderControlLeft()});
+  L.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>ctlPreview([+b.dataset.del]));
+  $("#ctlExp").onclick=buildManifest;$("#ctlReset").onclick=()=>{ctlRestore();renderControlLeft();renderControlRight()};
+  if(ctl.manifest)showManifest();
+}
+async function buildManifest(){
+  const keep=NODES.filter((r,i)=>!ctl.dead.has(i)&&!(ctl.paused[r.source_id]!=null&&r._birth>ctl.paused[r.source_id]));
+  const recs=keep.map(r=>{const o={};Object.keys(r).filter(k=>k[0]!=="_").sort().forEach(k=>o[k]=r[k]);return o}).sort((a,b)=>a.id<b.id?-1:1);
+  const body=JSON.stringify(recs);let digest="unavailable in this browser";
+  try{const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(body));digest=[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}catch(e){}
+  const tc={};recs.forEach(r=>tc[r.type]=(tc[r.type]||0)+1);
+  ctl.manifest={workspace_id:D.meta.workspace_id,contract_version:D.meta.contract_version,synthetic:true,record_count:recs.length,
+    excluded_deleted:[...ctl.dead.keys()].length,paused_sources:Object.keys(ctl.paused),type_counts:tc,content_sha256:digest,
+    note:"Preview only. Real V1 exports are participant-initiated encrypted batches; the package format is still provisional."};
+  showManifest();
+}
+function showManifest(){
+  const txt=JSON.stringify(ctl.manifest,null,2),o=$("#manOut");if(!o)return;
+  o.innerHTML=`<pre class="man" id="manPre">${esc(txt)}</pre><div class="seg"><button type="button" id="manCopy">Copy manifest</button></div>`;
+  $("#manCopy").onclick=()=>{navigator.clipboard.writeText(txt).then(()=>$("#manCopy").textContent="Copied").catch(()=>{const r=document.createRange();r.selectNodeContents($("#manPre"));const s=getSelection();s.removeAllRanges();s.addRange(r)})};
+}
+function enterControl(){
+  if(!corpus.ok){L.innerHTML='<p class="note">The control room needs the 3D library, which did not load.</p>';return}
+  corpus.uT=UEND;setPlaying(false);renderControlLeft();renderControlRight();drawStrip();resizeGL();
+}
+function leaveControl(){ctlRestore();corpus.sel=-1}
+function frameControl(){
+  const dead=ctl.dead.size,paused=Object.keys(ctl.paused).length;
+  ST.innerHTML=`Control · simulation · records <em>${NODES.length-dead}/${NODES.length}</em> · deleted <em>${dead}</em> · paused sources <em>${paused}</em>${ctl.plan?" · preview <em>"+ctl.plan.size+"</em> records":""} · nothing real is changed · synthetic`;
+}
+
+/* ============ guided tour ============ */
+const TOUR=[
+  {lens:"corpus",form:"anatomy",replay:true,t:10,eye:"Corpus · anatomy",cap:"One fictional month. Each record lights up when it happens, and links form once both ends exist."},
+  {lens:"corpus",form:"chrono",t:7,eye:"Corpus · chrono",cap:"One lane per source. Red boxes are declared gaps. No signal is never shown as zero."},
+  {lens:"corpus",form:"strata",t:7,eye:"Corpus · strata",cap:"The evidence ladder. Raw observations at the bottom, inferences at the top."},
+  {lens:"corpus",form:"map",t:7,eye:"Corpus · map",cap:"Only records with a position reach the city plane. Everything else waits in the unlocated ring."},
+  {lens:"fan",t:8,run:()=>fanResetLayer(),eye:"Fan · finding-0002",cap:"1,500 resamples against a world with no relationship. They overlap, so the honest answer is inconclusive."},
+  {lens:"train",t:9,run:()=>{initNet();tr.run=true;renderTrainPanel()},eye:"Train · live model",cap:"A small model learns while you watch. Amber pushes up, blue pushes down, pulses follow the gradient."},
+  {lens:"clusters",t:11,eye:"Clusters · days",cap:"Days pull into groups on their own. Each group's stability is measured before anyone names it."},
+  {lens:"loom",t:8,eye:"Loom · provenance",cap:"Every finding hangs on threads that lead back to their sources."},
+  {lens:"control",t:10,run:()=>{const h=NIDX["src-healthkit"]??NIDX[HUBS[0]];if(h==null)return;ctlPreview([h]);setTimeout(()=>{if(tour&&lens==="control")ctlExecute()},2600)},eye:"Control · deletion",cap:"The participant deletes a source. Everything built on it goes dark with it."},
+];
+let tour=null;
+function tourStep(){
+  tour.i++;tour.t=0;if(tour.i>=TOUR.length){stopTour();return}
+  const s=TOUR[tour.i];setLens(s.lens);if(location.hash.slice(1)!==s.lens)location.hash=s.lens;
+  if(s.form&&corpus.ok){setForm(s.form);corpus.turning=true}
+  if(s.lens==="corpus"&&corpus.ok){if(s.replay){corpus.uT=0;corpus.speed=3.2;setPlaying(true)}else if(!corpus.playing)corpus.uT=UEND}
+  if(s.run)s.run();
+  $("#capEye").textContent=`Tour ${String(tour.i+1).padStart(2,"0")}/${String(TOUR.length).padStart(2,"0")} · ${s.eye}`;$("#capLine").textContent=s.cap;
+}
+function tourTick(dt){tour.t+=dt;const s=TOUR[tour.i];if(!s)return;$("#capBar").style.width=Math.min(100,tour.t/s.t*100)+"%";if(tour.t>=s.t)tourStep()}
+function startTour(){const i=$("#intro");if(i)dismissIntro();tour={i:-1,t:0};$("#cap").hidden=false;$("#tourBtn").setAttribute("aria-pressed","true");$("#tourBtn").textContent="Stop tour";tourStep()}
+function stopTour(){tour=null;$("#cap").hidden=true;$("#tourBtn").setAttribute("aria-pressed","false");$("#tourBtn").textContent="Tour";corpus.speed=+$("#speed").value}
+$("#tourBtn").onclick=()=>tour?stopTour():startTour();
+addEventListener("pointerdown",e=>{if(tour&&!e.target.closest("#tourBtn"))stopTour()},true);
+addEventListener("keydown",e=>{if(tour&&e.key!=="Tab")stopTour()},true);
+
 /* ============ lens table, loop, boot ============ */
 const LENSES={
   corpus:{enter(){renderLeftCorpus();renderInspector();if(corpus.ok){drawStrip();resizeGL()}},frame:frameCorpus},
-  fan:{enter:enterFan,frame:frameFan},
-  train:{enter:enterTrain,frame:frameTrain},
-  loom:{enter:enterLoom,frame:frameLoom}};
+  fan:{enter(){size2d();this.off=blocked("fan");if(!this.off)enterFan()},frame(n,d){if(!this.off)frameFan(n,d)}},
+  train:{enter(){size2d();this.off=blocked("train");if(!this.off)enterTrain()},frame(n,d){if(!this.off)frameTrain(n,d)}},
+  clusters:{enter(){size2d();this.off=blocked("clusters");if(!this.off)enterClusters()},frame(n,d){if(!this.off)frameClusters(n,d)}},
+  loom:{enter(){size2d();this.off=blocked("loom");if(!this.off)enterLoom()},frame(n,d){if(!this.off)frameLoom(n,d)}},
+  control:{enter:enterControl,frame:(n,d)=>{frameCorpus(n,d);frameControl(n)},leave:leaveControl}};
 function loop(now){
   const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
   try{LENSES[lens].frame(now,dt)}catch(e){console.error(e)}
+  if(tour)tourTick(dt);
   requestAnimationFrame(loop);
 }
-addEventListener("resize",()=>{size2d();if(lens==="corpus"&&corpus.ok){resizeGL();drawStrip()}if(lens==="fan")fanResetLayer()});
+addEventListener("resize",()=>{size2d();if(LENSES[lens].off)return;if(lens==="corpus"&&corpus.ok){resizeGL();drawStrip()}if(lens==="fan")fanResetLayer()});
 addEventListener("hashchange",()=>setLens(location.hash.slice(1)));
 addEventListener("keydown",e=>{
   if(e.target.closest&&e.target.closest("input,select,textarea"))return;
-  const m={"1":"corpus","2":"fan","3":"train","4":"loom"};
+  const m={"1":"corpus","2":"fan","3":"train","4":"clusters","5":"loom","6":"control"};
   if(m[e.key]){location.hash=m[e.key];return}
   if(e.key===" "&&lens==="corpus"){e.preventDefault();$("#play").click()}
-  if(e.key==="Escape"&&lens==="corpus")select(-1);
+  if(e.key==="Escape"&&(lens==="corpus"||lens==="control"))select(-1);
 });
 function dismissIntro(){const i=$("#intro");if(i.classList.contains("gone"))return;i.classList.add("gone");
   if(lens==="corpus"&&corpus.ok&&!REDUCED){corpus.uT=0;setPlaying(true)}setTimeout(()=>i.remove(),1200)}
@@ -895,8 +1219,14 @@ $("#intro").addEventListener("click",dismissIntro);
 $("#intro").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")dismissIntro()});
 (async()=>{
   try{D=await loadData()}catch(e){ST.textContent=e.message;$("#intro").remove();return}
-  buildModel();size2d();initCorpus();
-  if(REDUCED&&corpus.ok)corpus.uT=29.4;
+  buildModel();size2d();
+  $("#ds").value=DS;$("#ds").onchange=e=>{try{sessionStorage.setItem("panoptes-ds",e.target.value);location.reload()}catch(err){ST.textContent="This browser blocks session storage, so the workspace cannot be switched here."}};
+  $("#chip").textContent="Synthetic · "+(D.meta.workspace_id==="ws-demo-01"?"EX-01":D.meta.workspace_id);
+  $("#inWs").textContent="WORKSPACE "+D.meta.workspace_id.toUpperCase();$("#inWin").textContent="WINDOW "+Math.round(WD)+" D";
+  $("#inSub").textContent=DS==="fixtures"?"FIXTURE EXPORT":"SUBJECT EX-01";
+  $("#scrub").max=UEND;
+  initCorpus();
+  if(REDUCED&&corpus.ok)corpus.uT=UEND;
   setLens(location.hash.slice(1)||"corpus");
   requestAnimationFrame(loop);
   setTimeout(dismissIntro,REDUCED?0:2600);

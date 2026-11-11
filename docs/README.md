@@ -22,6 +22,8 @@ Start with the product vision and [decision log](decisions.md). The [vision revi
 | [Collection feasibility protocol](collection-probe.md) | Native/import test cases, gates, and provisional exit criteria |
 | [Transfer package design options](transfer-package-design.md) | Provisional encrypted batch-export options, threat model, and synthetic test plan |
 | [Sensor Probe specification](sensor-probe-spec.md) | Provisional native probe contract: modules, participant text, authorization states, acceptance checklist |
+| [Participant texts (French, provisional)](participant-text-fr.md) | Draft intro, per-source consent cards, deletion/withdrawal, researcher mode, permission strings (FR/EN); needs legal review (D-041) |
+| [Explorer export spike](../spikes/explorer-export.md) | Maps parser-spike results to the explorer data contract, with a validator; fixture-derived dataset for the UI (D-040) |
 | [Owner manual procedures](owner-manual-procedures.md) | Phone inventory, APR-01/ACC-01 export steps, and BAT-01 protocol the owner can run without a Mac |
 | [Investigation catalogue](investigation-catalogue.md) | Provisional candidate investigations, sample units, null criteria, and first pilot picks |
 | [Explorer UI concept](explorer-ui-concept.md) | Provisional ops-room interface concept, lenses, screens, and prototype plan |
