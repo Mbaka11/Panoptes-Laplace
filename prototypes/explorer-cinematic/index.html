@@ -76,6 +76,7 @@ footer[hidden]{display:none!important}
 .rail{position:relative;flex:1;min-width:80px;display:flex;flex-direction:column;gap:4px}
 #strip{width:100%;height:30px;display:block}
 #readout{font:500 11px var(--f-data);letter-spacing:.08em;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;min-width:150px}
+#ds{max-width:230px;text-overflow:ellipsis}
 select{font:500 10.5px var(--f-data);background:var(--bg);color:var(--ink);border:1px solid var(--rule);padding:5px}
 #intro{position:absolute;inset:0;background:var(--bg);display:grid;place-items:center;z-index:5;transition:opacity 1.1s ease;cursor:pointer}
 #intro.gone{opacity:0;pointer-events:none}
@@ -100,7 +101,28 @@ input[type=range]{accent-color:var(--acc)}
 .bars div{display:grid;grid-template-columns:28px 1fr 44px;gap:6px;align-items:center;font:400 10.5px var(--f-data);color:var(--dim)}
 .bars b{display:block;height:6px;background:var(--acc)}
 pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;margin:0;max-height:220px;overflow:auto;border:1px solid var(--rule);padding:8px}
+#center{grid-column:2;grid-row:3;align-self:stretch;min-height:0;font:400 12px/1.5 var(--f-body)}
+#center h3{font:500 10px var(--f-data);letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:6px 0 0}
+#center .hdr{font:400 11px/1.55 var(--f-data);color:var(--dim)} #center .hdr em{font-style:normal;color:var(--ink)}
+.smgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.sm{display:block;text-align:left;text-transform:none;letter-spacing:0;padding:8px;border:1px solid var(--rule);background:rgba(255,255,255,.02);color:var(--ink);font:400 11px/1.4 var(--f-data)}
+.sm:hover{border-color:var(--faint)} .sm[aria-pressed="true"]{background:rgba(159,230,255,.08);border-color:var(--acc);color:var(--ink)}
+.sm.dim{opacity:.55} .sm .nm{font:500 10.5px var(--f-data);letter-spacing:.1em;text-transform:uppercase;display:flex;justify-content:space-between;gap:8px}
+.sm .eff{color:var(--amber)} .sm .mut{color:var(--dim);font-size:10.5px}
+.sm svg{display:block;width:100%;height:auto;margin:4px 0}
+.sm .dot{fill:var(--ink)} .sm .lb{stroke:var(--amber);stroke-width:1.6} .sm .la{stroke:var(--acc);stroke-width:1.6}
+.sm .cd{stroke:var(--violet);stroke-width:1;stroke-dasharray:3 3} .sm .ax{stroke:var(--rule)} .sm text{font:400 8.5px var(--f-data);fill:var(--dim)}
+.sm .gap{fill:url(#hatch);stroke:var(--warn);stroke-opacity:.35;stroke-width:.5}
+.card{border:1px solid var(--rule);padding:10px 12px;display:grid;gap:7px;background:rgba(255,255,255,.02)}
+.card.sens{border-color:var(--violet);background:rgba(196,155,255,.06)}
+.card .t{font:500 15px var(--f-display);letter-spacing:.02em}
+.card ul{margin:0;padding-left:16px;color:var(--ink)} .card li{margin:1px 0}
+.card .lbl2{font:500 9.5px var(--f-data);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.badge{display:inline-block;font:500 9.5px var(--f-data);letter-spacing:.1em;text-transform:uppercase;border:1px solid currentColor;padding:1px 5px;margin-right:4px}
+.badge.sens{color:var(--violet)} .badge.gated,.badge.unproven,.badge.partly_unproven{color:var(--amber)} .badge.ok{color:var(--ok)} .badge.opt{color:var(--acc)}
+.cands{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
 @media (max-width:820px){
+  #center{grid-column:1}
   #cap{bottom:110px}
   header{flex-wrap:wrap;row-gap:6px}
   nav{order:3;flex-basis:100%}
@@ -127,11 +149,13 @@ pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;
       <div class="brand">PANOPTES <b>/ LAPLACE</b></div>
       <nav id="tabs" aria-label="Lenses">
         <a href="#corpus" data-lens="corpus"><kbd>1</kbd>Corpus</a>
-        <a href="#fan" data-lens="fan"><kbd>2</kbd>Fan</a>
-        <a href="#train" data-lens="train"><kbd>3</kbd>Train</a>
-        <a href="#clusters" data-lens="clusters"><kbd>4</kbd>Clusters</a>
-        <a href="#loom" data-lens="loom"><kbd>5</kbd>Loom</a>
-        <a href="#control" data-lens="control"><kbd>6</kbd>Control</a>
+        <a href="#shifts" data-lens="shifts"><kbd>2</kbd>Shifts</a>
+        <a href="#mirror" data-lens="mirror"><kbd>3</kbd>Mirror</a>
+        <a href="#fan" data-lens="fan"><kbd>4</kbd>Fan</a>
+        <a href="#train" data-lens="train"><kbd>5</kbd>Train</a>
+        <a href="#clusters" data-lens="clusters"><kbd>6</kbd>Clusters</a>
+        <a href="#loom" data-lens="loom"><kbd>7</kbd>Loom</a>
+        <a href="#control" data-lens="control"><kbd>8</kbd>Control</a>
       </nav>
       <button id="tourBtn" type="button" aria-pressed="false">Tour</button>
       <div class="toggles"><button id="tgL" type="button">Controls</button><button id="tgR" type="button">Inspect</button></div>
@@ -139,6 +163,7 @@ pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;
       <span class="chip syn" id="chip">Synthetic</span>
     </header>
     <div id="status">Loading synthetic workspace…</div>
+    <main class="panel" id="center" aria-label="Lens content" hidden></main>
     <aside class="panel" id="left" aria-label="Lens controls"></aside>
     <aside class="panel" id="right" aria-label="Inspector"></aside>
     <footer id="foot">
@@ -174,29 +199,44 @@ function gauss(r=rnd){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const hex=h=>[parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,parseInt(h.slice(5,7),16)/255];
 const REDUCED=matchMedia("(prefers-reduced-motion: reduce)").matches;
-const MS_DAY=864e5, BASE_UTC=Date.UTC(2026,2,2);
+const MS_DAY=864e5; let BASE_UTC=Date.UTC(2026,2,2);
 const DOW=["MON","TUE","WED","THU","FRI","SAT","SUN"];
+function dateOf(d){return new Date(BASE_UTC+d*MS_DAY).toISOString().slice(0,10)}
+function wdIdx(d){return (new Date(BASE_UTC+d*MS_DAY).getUTCDay()+6)%7}
+function dowName(d){return DOW[wdIdx(d)]}
 function dayIdx(s){return Math.round((Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))-BASE_UTC)/MS_DAY)}
 
 const CLASS_COL={observation:"#b9c6cf",normalized_event:"#6fd0ff",hypothesis:"#c49bff",inference:"#ffc860",prediction:"#ff7a5a"};
-const HUB_COL={"src-location":"#6fd0ff","src-motion":"#86ffad","src-healthkit":"#ff7a9a","src-eventkit":"#ffd36e","src-apr":"#b48cff","src-account-export":"#ff9f5a","src-workspace":"#ffffff"};
+const HUB_COL={"src-location":"#6fd0ff","src-motion":"#86ffad","src-healthkit":"#ff7a9a","src-eventkit":"#ffd36e","src-apr":"#b48cff","src-account-export":"#ff9f5a","src-workspace":"#ffffff","src-screentime":"#7be0c3","src-messaging-export":"#ff8ad8","src-weather":"#a8b8c8"};
 const EDGE_COL={VISITED:"#6fd0ff",AT_PLACE:"#6fd0ff",CORROBORATED_BY:"#86ffad",ACCESSED_BY:"#b48cff",CONTACTED:"#b48cff",USES:"#b48cff",
   CONFIRMS:"#ffd36e",SUPPORTED_BY:"#ffc860",EVIDENCE:"#ffc860",CONTRADICTED_BY:"#ff5d6c",DUPLICATE_OF:"#ff9f5a",CORRECTS:"#ffffff",MOTIVATED_BY:"#c49bff"};
 const DUST={Source:600,Place:350,App:220,Domain:160,ImportBatch:120,Finding:700,Correction:300,LocationSample:25,Visit:70,Trip:80,
-  ActivityInterval:55,DailyHealthAggregate:90,CalendarEvent:60,ResourceAccess:50,NetworkAggregate:90,AccountActivity:45};
+  ActivityInterval:55,DailyHealthAggregate:90,CalendarEvent:60,ResourceAccess:50,NetworkAggregate:90,AccountActivity:45,SleepInterval:40,ScreenTimeDaily:10,NotificationDaily:8,MessagingDaily:10,WeatherDaily:25,Transaction:40};
 const ENTITY=new Set(["Source","Place","App","Domain","ImportBatch"]);
 
 /* ============ data ============ */
 let D,R,byId={},T0,T1,NODES=[],NIDX={},EDGES=[],ADJ=[],HUBS=[],FINDINGS=[];
 let DS="persona";try{DS=sessionStorage.getItem("panoptes-ds")||"persona"}catch(e){}
-if(DS!=="fixtures")DS="persona";
+let ORIGIN="static",WSLIST=[{key:"persona",label:"EX-01 persona",workspace_id:"ws-demo-01"},{key:"fixtures",label:"Fixture export",workspace_id:"fixtures"}],METRICS=null;
+async function loadList(){
+  /* The selector is fed by the server; a plain static server keeps the two checked-in workspaces. */
+  try{const r=await fetch("/api/workspaces");if(r.ok&&(r.headers.get("content-type")||"").includes("json")){const j=await r.json();if(j&&Array.isArray(j.workspaces)&&j.workspaces.length)WSLIST=j.workspaces}}catch(e){}
+  if(!WSLIST.some(w=>w.key===DS))DS=WSLIST[0].key;
+}
+async function loadMetrics(){
+  if(ORIGIN!=="api")return;
+  try{const r=await fetch("/api/workspaces/"+encodeURIComponent(DS)+"/metrics");if(r.ok&&(r.headers.get("content-type")||"").includes("json")){const j=await r.json();if(j&&j.metrics&&typeof j.metrics==="object")METRICS=j.metrics}}catch(e){}
+}
 async function loadData(){
-  for(const p of DS==="fixtures"?["data/fixtures-workspace.json"]:["data/persona.json","../explorer-concept/data/persona.json"]){
+  /* Prefer the local explorer server (python -m explorer.server), which builds and validates
+     the workspace from the spikes; fall back to the checked-in files for a plain static server. */
+  try{const r=await fetch("/api/workspaces/"+encodeURIComponent(DS));if(r.ok&&(r.headers.get("content-type")||"").includes("json")){ORIGIN="api";return await r.json()}}catch(e){}
+  for(const p of DS!=="persona"?(DS==="fixtures"?["data/fixtures-workspace.json"]:[]):["data/persona.json","../explorer-concept/data/persona.json"]){
     try{const r=await fetch(p);if(r.ok)return await r.json()}catch(e){}
   }
-  throw new Error("Could not load persona.json. Serve this folder over HTTP (python -m http.server) from prototypes/.");
+  throw new Error("Could not load the workspace. Run python -m explorer.server from the repository root, or serve prototypes/ over HTTP.");
 }
-let WD=28,UEND=29.4,TZOFF=0;
+let WD=28,NDAYS=28,UEND=29.4,TZOFF=0;
 const MON=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"],DOW_S=["SUN","MON","TUE","WED","THU","FRI","SAT"];
 function tday(s){if(!s||s==="unknown")return null;const v=Date.parse(s);return isNaN(v)?null:(v-T0)/MS_DAY}
 function startOf(r){return r.event_time||r.event_start||null}
@@ -217,6 +257,12 @@ function title(r){
     case"ResourceAccess":return"Access · "+r.category+" · "+((byId[r.app_id]||{}).display_name||r.app_id);
     case"NetworkAggregate":return"Network · "+r.hits+" hits (snapshot)";
     case"AccountActivity":return r.title;
+    case"SleepInterval":return"Sleep · "+(r.stage||"interval");
+    case"ScreenTimeDaily":return"Screen Time · "+((byId[r.app_id]||{}).display_name||r.app_id)+" · "+r.minutes+" min";
+    case"NotificationDaily":return"Notifications · "+((byId[r.app_id]||{}).display_name||r.app_id);
+    case"MessagingDaily":return"Messages · "+r.contact_ref;
+    case"WeatherDaily":return"Weather · "+r.condition;
+    case"Transaction":return"Transaction · "+r.merchant_category;
     case"Finding":return"Finding · "+r.finding_kind.replace(/_/g," ");
     case"Correction":return"Participant correction";
   }
@@ -224,11 +270,12 @@ function title(r){
 }
 function buildModel(){
   R=D.records;R.forEach(r=>byId[r.id]=r);
-  T0=Date.parse(D.meta.window.start);T1=Date.parse(D.meta.window.end);WD=(T1-T0)/MS_DAY;UEND=WD+1.4;
+  T0=Date.parse(D.meta.window.start);T1=Date.parse(D.meta.window.end);WD=(T1-T0)/MS_DAY;NDAYS=Math.max(1,Math.round(WD));
+  const w0=D.meta.window.start;BASE_UTC=Date.UTC(+w0.slice(0,4),+w0.slice(5,7)-1,+w0.slice(8,10));
   const mz=/([+-])(\d\d):(\d\d)$/.exec(D.meta.window.start);TZOFF=mz?(mz[1]==="-"?-1:1)*(+mz[2]*60+ +mz[3])*60000:0;
   NODES=R.filter(r=>r.type!=="Link");NODES.forEach((r,i)=>NIDX[r.id]=i);
   HUBS=[...new Set(NODES.map(r=>r.source_id))].sort((a,b)=>(a==="src-workspace")-(b==="src-workspace"));
-  FINDINGS=NODES.filter(r=>r.type==="Finding");
+  FINDINGS=NODES.filter(r=>r.type==="Finding");UEND=WD+Math.max(1.4,.6+.15*FINDINGS.length);
   NODES.forEach(r=>{
     r._t=tday(startOf(r))??tday(r.event_end);r._te=tday(r.event_end)??r._t;
     if(ENTITY.has(r.type))r._birth=-1;
@@ -272,8 +319,10 @@ function setLens(name){
   document.querySelectorAll("#tabs a").forEach(a=>{if(a.dataset.lens===name)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
   const g3=name==="corpus"||name==="control";
   $("#gl").hidden=!g3;$("#c2").hidden=g3;
+  const dom=name==="shifts"||name==="mirror";
   $("#foot").hidden=!g3;$("#labels").innerHTML="";labelPool.length=0;$("#tip").hidden=true;
-  RP.hidden=!g3;
+  RP.hidden=!(g3||dom);$("#center").hidden=!dom;$("#center").scrollTop=0;
+  L.classList.remove("open");RP.classList.remove("open");
   LENSES[name].enter();
 }
 function area(){
@@ -342,8 +391,11 @@ function initCorpus(){
   renderer=new THREE.WebGLRenderer({canvas:$("#gl"),antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor(0x040506,1);
   scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(50,1,1,2000);
-  const scale=innerWidth<820?.5:1;
-  NODES.forEach((r,i)=>{nodeStart[i]=N;nodeCount[i]=1+Math.round((DUST[r.type]||40)*scale);N+=nodeCount[i]});
+  /* Particle budget: decorative dust is scaled down on large workspaces so the page stays responsive.
+     Every record keeps its one bright core (1 + dust), so no record disappears. */
+  const BUDGET=innerWidth<820?18000:36000,raw=NODES.reduce((s,r)=>s+(DUST[r.type]||14),0);
+  const scale=Math.min(innerWidth<820?.5:1,Math.max(0,(BUDGET-NODES.length)/Math.max(raw,1)));
+  NODES.forEach((r,i)=>{nodeStart[i]=N;nodeCount[i]=1+Math.round((DUST[r.type]||14)*scale);N+=nodeCount[i]});
   P_node=new Uint16Array(N);P_cur=new Float32Array(N*3);P_tgt=new Float32Array(N*3);P_off=new Float32Array(N*3);P_u=new Float32Array(N);P_k=new Float32Array(N);
   const aSize=new Float32Array(N),aBirth=new Float32Array(N),aPhase=new Float32Array(N),aKeep=new Float32Array(N);A_sel=new Float32Array(N);A_col=new Float32Array(N*3);
   NODES.forEach((r,i)=>{for(let q=0;q<nodeCount[i];q++){const p=nodeStart[i]+q;P_node[p]=i;
@@ -496,7 +548,7 @@ function anchorsFor(f){
       grp("Import stem · "+NODES.filter(r=>r.type==="ImportBatch").length+" batches",NODES.map((r,i)=>r.type==="ImportBatch"?i:-1).filter(i=>i>=0));
       grp("Findings core · "+FINDINGS.length,FINDINGS.map(r=>NIDX[r.id]),"solid");}
     else{const ord=NODES.map((r,i)=>i).filter(i=>NODES[i]._t!=null).sort((a,b)=>NODES[a]._t-NODES[b]._t);
-      grp("Earliest · D00",[ord[0]]);grp("Latest · D27",[ord[ord.length-1]]);grp("Untimed entities",NODES.map((r,i)=>r._t==null?i:-1).filter(i=>i>=0).slice(0,40));}
+      grp("Earliest · D00",[ord[0]]);grp("Latest · D"+String(Math.max(0,NDAYS-1)).padStart(2,"0"),[ord[ord.length-1]]);grp("Untimed entities",NODES.map((r,i)=>r._t==null?i:-1).filter(i=>i>=0).slice(0,40));}
   }else if(f==="strata"){
     [["Observation",-48],["Normalized event",-16],["Hypothesis",16],["Inference",48]].forEach(([t,y])=>{
       const n=NODES.filter(r=>r.evidence_class===t.toLowerCase().replace(" ","_")).length;out.push({text:t+" · "+n,pos:[-122,y,-55],cls:"fixed"})});
@@ -620,12 +672,20 @@ function resizeGL(){if(!renderer)return;renderer.setSize(innerWidth,innerHeight,
   pts.material.uniforms.uScale.value=150*renderer.getPixelRatio()*(innerHeight/900)}
 
 /* ============ lens availability ============ */
-const NEEDS={fan:["DailyHealthAggregate","AccountActivity"],train:["Visit","ActivityInterval"],clusters:["Visit","DailyHealthAggregate"],loom:["Finding"]};
-function missingFor(l){const have=new Set(R.map(r=>r.type));return(NEEDS[l]||[]).filter(t=>!have.has(t)).concat(l==="fan"&&!byId["finding-0002"]?["finding-0002"]:[])}
-function blocked(l){const m=missingFor(l);if(!m.length)return false;
-  L.innerHTML=`<h2>${esc(l)} <span>unavailable</span></h2><p>This workspace has no ${m.map(esc).join(", ")} records, so this lens has nothing honest to show.</p>
-  <p class="note">Nothing is filled in or simulated to make the view work. Switch to the EX-01 persona, or add a source that provides these records.</p>`;
-  X.clearRect(0,0,innerWidth,innerHeight);ST.innerHTML=`${esc(l)} · unavailable for <em>${esc(D.meta.workspace_id)}</em> · missing ${m.map(esc).join(", ")}`;return true}
+const NEEDS={clusters:["Visit","DailyHealthAggregate"],loom:["Finding"]};
+function unavail(l){
+  const have=new Set(R.map(r=>r.type));
+  const m=(NEEDS[l]||[]).filter(t=>!have.has(t));
+  if(m.length)return"has no "+m.join(", ")+" records";
+  if(l==="fan"&&!fanCands().length)return"has no lagged-association Finding with daily series, and not the EX-01 persona's finding-0002 with its HealthKit and account records";
+  if(l==="train")return trainReason();
+  if(l==="shifts"&&!METRICS&&!SHIFTS().length)return"has no daily-metric series (the /metrics endpoint is not reachable) and no shift Findings";
+  return null;
+}
+function blocked(l){const m=unavail(l);if(!m)return false;
+  L.innerHTML=`<h2>${esc(l)} <span>unavailable</span></h2><p>This workspace ${esc(m)}, so this lens has nothing honest to show.</p>
+  <p class="note">Nothing is filled in or simulated to make the view work. Switch to a workspace that has the data, or add a source that provides it.</p>`;
+  X.clearRect(0,0,innerWidth,innerHeight);ST.innerHTML=`${esc(l)} · unavailable for <em>${esc(D.meta.workspace_id)}</em> · ${esc(m)}`;return true}
 
 /* ============ LENS: FAN (bootstrap vs null) ============ */
 function ranks(a){const idx=a.map((v,i)=>i).sort((x,y)=>a[x]-a[y]),r=new Array(a.length);
@@ -633,14 +693,33 @@ function ranks(a){const idx=a.map((v,i)=>i).sort((x,y)=>a[x]-a[y]),r=new Array(a
 function pearson(x,y){const n=x.length,mx=x.reduce((s,v)=>s+v,0)/n,my=y.reduce((s,v)=>s+v,0)/n;let sxy=0,sxx=0,syy=0;
   for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sxx+=(x[i]-mx)**2;syy+=(y[i]-my)**2}return{r:sxx&&syy?sxy/Math.sqrt(sxx*syy):0,b:sxx?sxy/sxx:0,mx,my}}
 const spear=(x,y)=>pearson(ranks(x),ranks(y)).r;
-const fan={B:1500,k:0,boot:[],nul:[],pts:[],obs:0,showNull:true,off:null};
+const fan={B:1500,k:0,boot:[],nul:[],pts:[],obs:0,showNull:true,off:null,sel:0,cur:null};
+const mname=m=>String(m).replace(/_/g," ");
+function mval(m,d){const v=METRICS&&METRICS[m]?METRICS[m][dateOf(d)]:undefined;return typeof v==="number"?v:null}
+function fanCands(){
+  const out=[],f2=byId["finding-0002"],have=new Set(R.map(r=>r.type));
+  if(f2&&have.has("DailyHealthAggregate")&&have.has("AccountActivity"))out.push({f:f2,kind:"record"});
+  FINDINGS.filter(f=>f.finding_kind==="lagged_association"&&METRICS&&METRICS[f.x_metric]&&METRICS[f.y_metric]).forEach(f=>out.push({f,kind:"metrics"}));
+  return out;
+}
+function niceStep(span,n){const raw=span/n,p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*p}
 function computeFan(){
-  const steps={},eve={};
-  R.filter(r=>r.type==="DailyHealthAggregate").forEach(r=>{if(r.steps_status==="measured"&&typeof r.steps==="number")steps[dayIdx(r.event_start)]=r.steps});
-  R.filter(r=>r.type==="AccountActivity").forEach(r=>{if(+r.event_time.slice(11,13)>=20){const d=dayIdx(r.event_time);eve[d]=(eve[d]||0)+1}});
-  fan.unknownDays=[...Array(28).keys()].filter(d=>!(d in steps));
-  fan.pts=Object.keys(steps).map(Number).sort((a,b)=>a-b).map(d=>({d,x:steps[d],y:eve[d]||0}));
-  const xs=fan.pts.map(p=>p.x),ys=fan.pts.map(p=>p.y);fan.obs=spear(xs,ys);fan.line=pearson(xs,ys);
+  const c=fanCands()[fan.sel]||fanCands()[0];fan.cur=c;let xs,ys,lag=0;
+  if(c.kind==="record"){
+    const steps={},eve={};
+    R.filter(r=>r.type==="DailyHealthAggregate").forEach(r=>{if(r.steps_status==="measured"&&typeof r.steps==="number")steps[dayIdx(r.event_start)]=r.steps});
+    R.filter(r=>r.type==="AccountActivity").forEach(r=>{if(+r.event_time.slice(11,13)>=20){const d=dayIdx(r.event_time);eve[d]=(eve[d]||0)+1}});
+    fan.unknownDays=[...Array(NDAYS).keys()].filter(d=>!(d in steps));
+    fan.pts=Object.keys(steps).map(Number).sort((a,b)=>a-b).map(d=>({d,x:steps[d],y:eve[d]||0}));
+    fan.xlab="STEPS / DAY · HEALTHKIT DAILY AGGREGATE (MEASURED DAYS ONLY)";fan.ylab="EVENING ACCOUNT RECORDS (≥ 20:00)";
+  }else{
+    lag=c.f.lag_days||0;fan.pts=[];fan.unknownDays=[];
+    for(let d=0;d+lag<NDAYS;d++){const x=mval(c.f.x_metric,d),y=mval(c.f.y_metric,d+lag);
+      if(x==null||y==null)fan.unknownDays.push(d);else fan.pts.push({d,x,y})}
+    fan.xlab=mname(c.f.x_metric).toUpperCase()+" · DAILY, KNOWN DAYS ONLY";
+    fan.ylab=mname(c.f.y_metric).toUpperCase()+(lag?" · "+lag+" DAY LATER":" · SAME DAY");
+  }
+  fan.lag=lag;xs=fan.pts.map(p=>p.x);ys=fan.pts.map(p=>p.y);fan.obs=spear(xs,ys);fan.line=pearson(xs,ys);
   const r=mulberry(4242),n=xs.length;fan.boot=[];fan.nul=[];
   for(let b=0;b<fan.B;b++){
     const bx=[],by=[];for(let i=0;i<n;i++){const j=(r()*n)|0;bx.push(xs[j]);by.push(ys[j])}
@@ -650,7 +729,8 @@ function computeFan(){
   }
   const s=fan.boot.map(b=>b.rho).sort((a,b)=>a-b);fan.ci=[s[Math.floor(.025*fan.B)],s[Math.floor(.975*fan.B)-1]];
   fan.pNull=fan.nul.filter(z=>Math.abs(z.rho)>=Math.abs(fan.obs)).length/fan.B;
-  fan.xr=[Math.min(...xs)*.92,Math.max(...xs)*1.04];fan.yr=[-.6,Math.max(...ys)+1];
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),px=(x1-x0||1)*.06,py2=(y1-y0||1)*.08;
+  fan.xr=[x0-px,x1+px];fan.yr=[y0-py2,y1+py2];fan.jit=ys.every(Number.isInteger)&&y1-y0<30;
 }
 function fanGeom(){const a=area(),ph=a.h*.62;return{a,plot:{x:a.x+46,y:a.y+10,w:a.w-62,h:ph-40},hist:{x:a.x+46,y:a.y+ph+22,w:a.w-62,h:a.h-ph-40}}}
 function fanResetLayer(){const c=document.createElement("canvas");c.width=C2.width;c.height=C2.height;fan.off=c;fan.k=0}
@@ -673,11 +753,13 @@ function frameFan(){
   const sx=v=>plot.x+(v-fan.xr[0])/(fan.xr[1]-fan.xr[0])*plot.w,sy=v=>plot.y+plot.h-(v-fan.yr[0])/(fan.yr[1]-fan.yr[0])*plot.h;
   X.strokeStyle="rgba(150,172,184,.25)";X.strokeRect(plot.x+.5,plot.y+.5,plot.w,plot.h);
   X.font=mono(9.5,400);X.fillStyle="#7d888e";X.textBaseline="top";
-  for(let v=Math.ceil(fan.xr[0]/2000)*2000;v<=fan.xr[1];v+=2000){X.fillText(v.toLocaleString("en"),sx(v)-14,plot.y+plot.h+5)}
-  for(let v=0;v<=fan.yr[1];v++){X.fillText(v,plot.x-16,sy(v)-5)}
-  X.fillText("STEPS / DAY · HEALTHKIT DAILY AGGREGATE (MEASURED DAYS ONLY)",plot.x,plot.y+plot.h+20);
-  X.save();X.translate(plot.x-30,plot.y+plot.h);X.rotate(-Math.PI/2);X.fillText("EVENING ACCOUNT RECORDS (≥ 20:00)",0,0);X.restore();
-  fan.pts.forEach(p=>{X.fillStyle="#dfe5e8";X.beginPath();X.arc(sx(p.x),sy(p.y+(((p.d*37)%7)-3)*.02),2.6,0,7);X.fill()});
+  const xst=niceStep(fan.xr[1]-fan.xr[0],Math.max(2,Math.floor(plot.w/90))),yst=niceStep(fan.yr[1]-fan.yr[0],Math.max(2,Math.floor(plot.h/40)));
+  const nf=(v,st)=>st<1?v.toFixed(1):Math.abs(v)>=1000?Math.round(v).toLocaleString("en"):String(Math.round(v*100)/100);
+  for(let v=Math.ceil(fan.xr[0]/xst)*xst;v<=fan.xr[1];v+=xst){X.fillText(nf(v,xst),sx(v)-14,plot.y+plot.h+5)}
+  for(let v=Math.ceil(fan.yr[0]/yst)*yst;v<=fan.yr[1];v+=yst){X.fillText(nf(v,yst),plot.x-40,sy(v)-5)}
+  X.fillText(fan.xlab,plot.x,plot.y+plot.h+20);
+  X.save();X.translate(plot.x-30,plot.y+plot.h);X.rotate(-Math.PI/2);X.fillText(fan.ylab,0,0);X.restore();
+  fan.pts.forEach(p=>{X.fillStyle="#dfe5e8";X.beginPath();X.arc(sx(p.x),sy(p.y+(fan.jit?(((p.d*37)%7)-3)*.02:0)),2.6,0,7);X.fill()});
   const L0=fan.line;X.strokeStyle="#ffffff";X.lineWidth=1.6;X.beginPath();X.moveTo(sx(fan.xr[0]),sy(L0.my+L0.b*(fan.xr[0]-L0.mx)));X.lineTo(sx(fan.xr[1]),sy(L0.my+L0.b*(fan.xr[1]-L0.mx)));X.stroke();
   const bx=sx(fan.xr[1])-6,by=sy(L0.my+L0.b*(fan.xr[1]-L0.mx));
   box(Math.min(bx-190,plot.x+plot.w-200),by-18,"OBSERVED ρ "+fan.obs.toFixed(3)+" · N "+fan.pts.length,"#ffffff");
@@ -697,55 +779,76 @@ function frameFan(){
   X.strokeStyle="#ffffff";X.lineWidth=2;X.beginPath();X.moveTo(hx(fan.obs),hist.y-4);X.lineTo(hx(fan.obs),hist.y+hist.h);X.stroke();X.lineWidth=1;
   X.fillStyle="#7d888e";X.font=mono(9.5,400);[-1,-.5,0,.5,1].forEach(v=>X.fillText(v.toFixed(1),hx(v)-8,hist.y+hist.h+5));
   X.fillText("SPEARMAN ρ ACROSS RESAMPLES",hist.x,hist.y+hist.h+19);
-  ST.innerHTML=`Fan · finding-0002 · resamples <em>${Math.min(fan.k,fan.B)}/${fan.B}</em> · observed ρ <em>${fan.obs.toFixed(3)}</em> · n <em>${fan.pts.length}</em> days · unknown days excluded <em>${fan.unknownDays.length}</em> · correlation ≠ causation · synthetic`;
+  ST.innerHTML=`Fan · ${esc(fan.cur.f.id)} · resamples <em>${Math.min(fan.k,fan.B)}/${fan.B}</em> · observed ρ <em>${fan.obs.toFixed(3)}</em> · n <em>${fan.pts.length}</em> days · unknown days excluded <em>${fan.unknownDays.length}</em>${fan.lag?` · lag <em>${fan.lag} d</em>`:""} · correlation ≠ causation · synthetic`;
 }
 function enterFan(){
-  if(!fan.boot.length)computeFan();size2d();fanResetLayer();
-  const f=byId["finding-0002"],crosses=fan.ci[0]<0&&fan.ci[1]>0;
-  L.innerHTML=`<h2>Investigation <span>finding-0002</span></h2>
-  <p>${esc(f?f.statement:"")}</p>
+  const cands=fanCands();if(fan.sel>=cands.length)fan.sel=0;
+  if(!fan.boot.length||fan.cur.f.id!==cands[fan.sel].f.id)computeFan();size2d();fanResetLayer();
+  const f=fan.cur.f,rec=fan.cur.kind==="record",crosses=fan.ci[0]<0&&fan.ci[1]>0,fnum=(v,d)=>typeof v==="number"?v.toFixed(d):"?";
+  const recRows=rec?`<dt>observed ρ</dt><dd>${fan.obs.toFixed(3)} (recomputed here; record says ${f.statistic?f.statistic.value:"?"})</dd>
+  <dt>record CI</dt><dd>${f.statistic&&f.statistic.ci95_approx?f.statistic.ci95_approx.join(" to "):"?"} (${f.statistic&&f.statistic.ci_method?esc(f.statistic.ci_method.replace(/_/g," ")):""})</dd>`
+    :`<dt>observed ρ</dt><dd>${fan.obs.toFixed(3)} on raw values (record says ${fnum(f.rho,3)}, weekday effects removed)</dd>
+  <dt>record p / q</dt><dd>${fnum(f.permutation_p,3)} / ${fnum(f.q_value,4)} · n ${f.n} · ${f.pairs_tested||"?"} pairs tested</dd>
+  <dt>lag</dt><dd>${f.lag_days||0} day(s): ${esc(mname(f.y_metric))} measured that many days after ${esc(mname(f.x_metric))}</dd>`;
+  L.innerHTML=`<h2>Investigation <span>${esc(f.id)}</span></h2>
+  ${cands.length>1?`<div class="seg" role="group" aria-label="Association">${cands.map((c,i)=>`<button type="button" data-c="${i}" aria-pressed="${i===fan.sel}" title="${esc(c.f.statement||"")}">${esc(c.f.id.replace("finding-","F").replace("ins-","I"))} · ${esc(c.kind==="record"?"steps → evening":mname(c.f.x_metric)+" → "+mname(c.f.y_metric))}</button>`).join("")}</div>`:""}
+  <p>${esc(f.statement||"")}</p>
   <div class="verdict ${crosses?"inc":"ok"}">${crosses?"Inconclusive · interval crosses zero":"Interval excludes zero"}</div>
-  <dl class="kv"><dt>observed ρ</dt><dd>${fan.obs.toFixed(3)} (recomputed here; record says ${f?f.statistic.value:"?"})</dd>
+  <dl class="kv">${recRows}
   <dt>bootstrap 95%</dt><dd>${fan.ci[0].toFixed(2)} to ${fan.ci[1].toFixed(2)} (percentile)</dd>
-  <dt>record CI</dt><dd>${f?f.statistic.ci95_approx.join(" to "):""} (${f?esc(f.statistic.ci_method.replace(/_/g," ")):""})</dd>
   <dt>null |ρ| ≥ obs</dt><dd>${(fan.pNull*100).toFixed(1)}% of ${fan.B} permutations</dd>
-  <dt>excluded days</dt><dd>${fan.unknownDays.map(d=>"D"+String(d).padStart(2,"0")).join(", ")||"none"} (steps unknown, not zero)</dd></dl>
+  <dt>excluded days</dt><dd>${fan.unknownDays.length?fan.unknownDays.length+" (unknown, not zero): "+fan.unknownDays.slice(0,14).map(d=>"D"+String(d).padStart(2,"0")).join(", ")+(fan.unknownDays.length>14?" …":""):"none"}</dd></dl>
+  ${(f.alternatives||[]).length?`<h2>Alternative explanations</h2><ul class="note" style="margin:0;padding-left:16px">${f.alternatives.map(a=>`<li>${esc(a)}</li>`).join("")}</ul>`:""}
   <div class="seg"><button type="button" id="fanRe">Redraw fan</button><button type="button" id="fanNull" aria-pressed="${fan.showNull}">Null world</button></div>
-  <p class="note">Each green hairline is the trend line of one resample of the same 27 days. Grey lines come from shuffled days, where no relationship exists by construction. When the two fans overlap this much, the data cannot tell them apart.</p>
-  <p class="note">Bootstrap and permutation are seeded, so every reload draws the same fan. Neither method corrects for day-to-day autocorrelation.</p>`;
+  <p class="note">Each green hairline is the trend line of one resample of the same ${fan.pts.length} known days. Grey lines come from shuffled days, where no relationship exists by construction. When the two fans overlap, the data cannot tell them apart.</p>
+  <p class="note">Correlation, not causation. Bootstrap and permutation are seeded, so every reload draws the same fan. Neither method corrects for day-to-day autocorrelation.</p>`;
+  L.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{fan.sel=+b.dataset.c;computeFan();enterFan()});
   $("#fanRe").onclick=()=>fanResetLayer();
   $("#fanNull").onclick=()=>{fan.showNull=!fan.showNull;enterFan()};
 }
 
 /* ============ LENS: TRAIN (live model) ============ */
-const FEAT=["hour sin","hour cos","weekday","cal · work","walk min","cycle min","drive min","acct recs","app access"];
-const tr={H:6,seed:7,epoch:0,maxE:900,run:true,hist:[],wh:[],probe:0,probeT:0,ph:null,data:null};
 function overlapMin(a0,a1,b0,b1){return Math.max(0,Math.min(a1,b1)-Math.max(a0,b0))/60000}
-function buildTrainData(){
-  const src=byId["src-location"],miss=(src.missing_periods||[]).map(m=>[Date.parse(m.start),Date.parse(m.end)]);
-  const visits=R.filter(r=>r.type==="Visit").map(r=>({p:r.place_id,a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
-  const acts=R.filter(r=>r.type==="ActivityInterval").map(r=>({t:r.activity_type,a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
-  const cal=R.filter(r=>r.type==="CalendarEvent"&&(r.expected_place_id==="place-work"||r.calendar==="Work")).map(r=>({a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
-  const acct=R.filter(r=>r.type==="AccountActivity").map(r=>Date.parse(r.event_time));
-  const acc=R.filter(r=>r.type==="ResourceAccess").map(r=>Date.parse(r.event_start));
-  const rows=[];
-  for(let h=0;h<28*24;h++){
-    const a=T0+h*3600e3,b=a+3600e3,mid=a+1800e3,d=Math.floor(h/24),hr=h%24;
-    const unknown=miss.some(([x,y])=>mid>=x&&mid<y);
-    const y=visits.some(v=>v.p==="place-work"&&mid>=v.a&&mid<v.b)?1:0;
-    const m=t=>acts.filter(v=>v.t===t).reduce((s,v)=>s+overlapMin(a,b,v.a,v.b),0)/60;
-    const x=[Math.sin(2*Math.PI*hr/24),Math.cos(2*Math.PI*hr/24),d%7<5?1:0,cal.some(c=>c.a<b&&c.b>a)?1:0,m("walking"),m("cycling"),m("automotive"),
-      acct.filter(t=>t>=a&&t<b).length,acc.filter(t=>t>=a&&t<b).length];
-    rows.push({h,d,hr,x,y,unknown,test:d>=21});
+let FEAT=[];
+const TR_CAND=[["late_night_minutes","late-night min"],["sleep_duration","sleep min"],["steps","steps"],["screen_minutes","screen min"]];
+const tr={H:6,seed:7,epoch:0,maxE:900,run:true,hist:[],wh:[],probe:0,probeT:0,ph:null,data:null};
+const medianOf=a=>{const b=a.slice().sort((x,y)=>x-y),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):NaN};
+/* "Will tonight be a late night?": label = late_night_minutes above the person's own median over the training days.
+   Features come from the previous day only. Unknown days are excluded, never set to 0. */
+function trainPlan(){
+  if(!METRICS)return{why:"has no daily-metric series, because the /metrics endpoint is not reachable on this server"};
+  if(!METRICS.late_night_minutes)return{why:"has no late_night_minutes series"};
+  const N=NDAYS,ser={};
+  TR_CAND.forEach(([m])=>{ser[m]=[...Array(N)].map((_,d)=>mval(m,d))});
+  const known=m=>ser[m].filter(v=>v!=null).length,ln=ser.late_night_minutes;
+  if(known("late_night_minutes")<20)return{why:"has late_night_minutes on only "+known("late_night_minutes")+" of "+N+" days (at least 20 needed). Unknown days are not counted as zero, so there is nothing honest to predict"};
+  const feats=TR_CAND.filter(([m])=>m==="late_night_minutes"||known(m)>=.6*N);
+  const cut=Math.floor(.7*N),med=medianOf(ln.slice(0,cut).filter(v=>v!=null));
+  const rows=[];let excluded=0;
+  for(let d=1;d<N;d++){
+    const yv=ln[d];if(yv==null){excluded++;continue}
+    const prev=feats.map(([m])=>ser[m][d-1]);if(prev.some(v=>v==null)){excluded++;continue}
+    rows.push({d,x:prev.concat([wdIdx(d)>=5?1:0]),y:yv>med?1:0,pers:ln[d-1]>med?1:0,raw:yv,test:d>=cut});
   }
-  const trn=rows.filter(r=>!r.unknown&&!r.test),tst=rows.filter(r=>!r.unknown&&r.test);
+  const trn=rows.filter(r=>!r.test),tst=rows.filter(r=>r.test);
+  if(trn.length<15||tst.length<6)return{why:"has too few complete days after the split ("+trn.length+" train, "+tst.length+" test; at least 15 and 6 needed)"};
+  const pos=trn.filter(r=>r.y).length;
+  if(pos<3||trn.length-pos<3)return{why:"shows too little variation in late-night minutes around the person's own training median ("+pos+" of "+trn.length+" training days above it) to define a late-night class"};
+  return{feats,cut,med,rows,trn,tst,excluded,N};
+}
+let _tp;function trainCached(){return _tp||(_tp=trainPlan())}
+function trainReason(){const p=trainCached();return p.why?p.why:null}
+function buildTrainData(){
+  const p=trainCached();FEAT=p.feats.map(f=>f[1]).concat(["weekend"]);
+  const{rows,trn,tst}=p,F=FEAT.length;
   const mu=FEAT.map((_,j)=>trn.reduce((s,r)=>s+r.x[j],0)/trn.length),sd=FEAT.map((_,j)=>Math.sqrt(trn.reduce((s,r)=>s+(r.x[j]-mu[j])**2,0)/trn.length)||1);
   rows.forEach(r=>r.z=r.x.map((v,j)=>(v-mu[j])/sd[j]));
-  const rate={};trn.forEach(r=>{const k=r.hr+"|"+(r.d%7<5);rate[k]=rate[k]||[0,0];rate[k][0]+=r.y;rate[k][1]++});
-  const base=r=>{const v=rate[r.hr+"|"+(r.d%7<5)]||[0,0];return(v[0]+1)/(v[1]+2)};
-  const ll=(rs,f)=>-rs.reduce((s,r)=>{const p=clamp(f(r),1e-6,1-1e-6);return s+(r.y?Math.log(p):Math.log(1-p))},0)/rs.length;
+  const rate=(trn.filter(r=>r.y).length+1)/(trn.length+2),maj=rate>=.5?1:0;
+  const base=()=>rate;
+  const ll=(rs,f)=>-rs.reduce((s,r)=>{const q=clamp(f(r),1e-6,1-1e-6);return s+(r.y?Math.log(q):Math.log(1-q))},0)/rs.length;
   const acc_=(rs,f)=>rs.filter(r=>(f(r)>=.5)===(r.y===1)).length/rs.length;
-  tr.data={rows,trn,tst,base,baseLL:ll(tst,base),baseAcc:acc_(tst,base),ll,acc:acc_,unknownN:rows.filter(r=>r.unknown).length};
+  tr.data={rows,trn,tst,cut:p.cut,med:p.med,base,baseLL:ll(tst,base),baseAcc:acc_(tst,()=>maj),majAcc:acc_(tst,()=>maj),persAcc:acc_(tst,r=>r.pers),maj,
+    ll,acc:acc_,unknownN:p.excluded,N:p.N,feats:p.feats,trainPos:trn.filter(r=>r.y).length,testPos:tst.filter(r=>r.y).length};
 }
 function initNet(){
   const r=mulberry(tr.seed),F=FEAT.length,H=tr.H;tr.epoch=0;tr.hist=[];tr.wh=[];
@@ -802,18 +905,18 @@ function frameTrain(now,dt){
   const node=(x,y,act,lbl,right)=>{const a=clamp(Math.abs(act),0,1);X.fillStyle=`rgba(223,229,232,${.15+.85*a})`;X.beginPath();X.arc(x,y,5+4*a,0,7);X.fill();
     X.strokeStyle="#dfe5e8";X.lineWidth=1;X.beginPath();X.arc(x,y,9,0,7);X.stroke();
     if(lbl){X.font=mono(9.5);X.fillStyle="#9aa6ad";X.textBaseline="middle";if(right)X.fillText(lbl,x+16,y);else{X.textAlign="right";X.fillText(lbl,x-16,y);X.textAlign="left"}}};
-  FEAT.forEach((f,i)=>node(lx,iy(i),clamp(pr.z[i]/2,-1,1),f.toUpperCase()+" "+pr.x[i].toFixed(i<2?2:i>3&&i<7?2:0)));
+  FEAT.forEach((f,i)=>node(lx,iy(i),clamp(pr.z[i]/2,-1,1),f.toUpperCase()+" "+(Math.abs(pr.x[i])<10&&!Number.isInteger(pr.x[i])?pr.x[i].toFixed(2):Math.round(pr.x[i]))));
   if(H)o.h.forEach((v,j)=>node(hx,hy(j),v,null));
   node(ox,oy,o.p,null);
-  box(Math.min(ox-160,n.x+n.w-190),oy+22,"P(WORK) "+o.p.toFixed(2)+" · ACTUAL "+(pr.y?"WORK":"NOT WORK"),pr.y===(o.p>=.5?1:0)?"#86ffad":"#ff5d6c");
-  box(n.x+4,n.y+6,"PROBE · TEST D"+pr.d+" "+DOW[pr.d%7]+" "+String(pr.hr).padStart(2,"0")+":00","#dfe5e8");
+  box(Math.min(ox-170,n.x+n.w-200),oy+22,"P(LATE NIGHT) "+o.p.toFixed(2)+" · ACTUAL "+(pr.y?"LATE":"NOT LATE"),pr.y===(o.p>=.5?1:0)?"#86ffad":"#ff5d6c");
+  box(n.x+4,n.y+6,"PROBE · TEST D"+String(pr.d).padStart(2,"0")+" "+dowName(pr.d)+" · FROM D"+String(pr.d-1).padStart(2,"0"),"#dfe5e8");
   // loss
   const lb=G.loss,hs=tr.hist,mxL=Math.max(D_.baseLL*1.6,...hs.slice(0,5).map(h=>h.tr),.2);
   const px=e=>lb.x+e/tr.maxE*lb.w,py=v=>lb.y+lb.h-clamp(v/mxL,0,1)*lb.h;
   X.strokeStyle="rgba(150,172,184,.25)";X.strokeRect(lb.x+.5,lb.y+.5,lb.w,lb.h);
   X.setLineDash([4,4]);X.strokeStyle="#9aa6ad";X.beginPath();X.moveTo(lb.x,py(D_.baseLL));X.lineTo(lb.x+lb.w,py(D_.baseLL));X.stroke();X.setLineDash([]);
   [["tr","#ffb45e"],["te","#dfe5e8"]].forEach(([k,c])=>{X.strokeStyle=c;X.lineWidth=1.4;X.beginPath();hs.forEach((h,e)=>e?X.lineTo(px(e),py(h[k])):X.moveTo(px(e),py(h[k])));X.stroke()});
-  X.font=mono(9.5);X.fillStyle="#7d888e";X.textBaseline="bottom";X.fillText("LOG-LOSS · TRAIN D00–D20 (AMBER) · TEST D21–D27 (WHITE) · BASELINE (DASHED)",lb.x,lb.y-3);
+  X.font=mono(9.5);X.fillStyle="#7d888e";X.textBaseline="bottom";X.fillText("LOG-LOSS · TRAIN D00–D"+String(D_.cut-1).padStart(2,"0")+" (AMBER) · TEST D"+String(D_.cut).padStart(2,"0")+"–D"+String(D_.N-1).padStart(2,"0")+" (WHITE) · BASE RATE (DASHED)",lb.x,lb.y-3);
   // weight traces
   const wb=G.wts;X.strokeStyle="rgba(150,172,184,.25)";X.strokeRect(wb.x+.5,wb.y+.5,wb.w,wb.h);
   X.fillText("EVERY WEIGHT OVER TIME",wb.x,wb.y-3);
@@ -821,32 +924,35 @@ function frameTrain(now,dt){
     for(let w=0;w<nW;w++){const last=tr.wh[tr.wh.length-1][w];X.strokeStyle=last>=0?"rgba(255,180,94,.35)":"rgba(111,208,255,.35)";X.lineWidth=1;X.beginPath();
       tr.wh.forEach((s,k)=>{const x=wb.x+k/(Math.max(tr.wh.length,tr.maxE/3)-1)*wb.w,y=wb.y+wb.h/2-clamp(s[w]/mw,-1,1)*wb.h/2;k?X.lineTo(x,y):X.moveTo(x,y)});X.stroke()}
     X.globalCompositeOperation="source-over"}
-  // ribbon
-  const rb=G.rib,cw=rb.w/24,chh=rb.h/7;X.fillText("TEST WEEK · TOP: ACTUAL AT WORK · BOTTOM: P(WORK)",rb.x,rb.y-3);
-  for(let d=21;d<28;d++)for(let h=0;h<24;h++){const r=D_.rows[d*24+h],x=rb.x+h*cw,y=rb.y+(d-21)*chh;
-    if(r.unknown){X.strokeStyle="rgba(255,93,108,.6)";X.strokeRect(x+.5,y+.5,cw-1,chh-1);X.beginPath();X.moveTo(x,y+chh);X.lineTo(x+cw,y);X.stroke();continue}
-    X.fillStyle=r.y?"rgba(134,255,173,.85)":"rgba(255,255,255,.06)";X.fillRect(x+.5,y+.5,cw-1,chh*.38);
-    const p=fwd(r.z).p;X.fillStyle=`rgba(255,180,94,${.05+.9*p})`;X.fillRect(x+.5,y+chh*.42,cw-1,chh*.5);
-    if(r===pr){X.strokeStyle="#fff";X.strokeRect(x,y,cw,chh)}}
-  X.fillStyle="#7d888e";X.textBaseline="middle";for(let d=21;d<28;d++)X.fillText(DOW[d%7],rb.x-28,rb.y+(d-20.5)*chh);
+  // ribbon: one column per test day. Rows: actual late night / yesterday's label (persistence) / model P(late night)
+  const rb=G.rib,nT=D_.N-D_.cut,cw=rb.w/nT,chh=rb.h/3;X.fillText("TEST DAYS · ACTUAL / PERSISTENCE (YESTERDAY'S LABEL) / MODEL P(LATE)",rb.x,rb.y-3);
+  const byD={};D_.rows.forEach(r=>byD[r.d]=r);
+  for(let d=D_.cut;d<D_.N;d++){const r=byD[d],x=rb.x+(d-D_.cut)*cw;
+    if(!r){X.strokeStyle="rgba(255,93,108,.6)";X.strokeRect(x+.5,rb.y+.5,cw-1,rb.h-1);X.beginPath();X.moveTo(x,rb.y+rb.h);X.lineTo(x+cw,rb.y);X.stroke();continue}
+    X.fillStyle=r.y?"rgba(134,255,173,.85)":"rgba(255,255,255,.06)";X.fillRect(x+.5,rb.y+.5,cw-1,chh-1);
+    X.fillStyle=r.pers?"rgba(196,155,255,.8)":"rgba(255,255,255,.06)";X.fillRect(x+.5,rb.y+chh+.5,cw-1,chh-1);
+    const q=fwd(r.z).p;X.fillStyle=`rgba(255,180,94,${.05+.9*q})`;X.fillRect(x+.5,rb.y+2*chh+.5,cw-1,chh-1);
+    if(r===pr){X.strokeStyle="#fff";X.strokeRect(x,rb.y,cw,rb.h)}}
   const last=hs[hs.length-1]||{tr:NaN,te:NaN};
-  ST.innerHTML=`Train · ${tr.H?"MLP 9→"+tr.H+"→1 tanh":"logistic regression 9→1"} · epoch <em>${tr.epoch}/${tr.maxE}</em> · train <em>${last.tr.toFixed(3)}</em> · test <em>${last.te.toFixed(3)}</em> · baseline <em>${D_.baseLL.toFixed(3)}</em> · unknown hours excluded <em>${D_.unknownN}</em> · demo prediction · synthetic`;
+  ST.innerHTML=`Train · prediction · optional (D-025) · ${tr.H?"MLP "+FEAT.length+"→"+tr.H+"→1 tanh":"logistic regression "+FEAT.length+"→1"} · epoch <em>${tr.epoch}/${tr.maxE}</em> · train <em>${last.tr.toFixed(3)}</em> · test <em>${last.te.toFixed(3)}</em> · base rate <em>${D_.baseLL.toFixed(3)}</em> · unknown days excluded <em>${D_.unknownN}</em> · demo prediction · synthetic`;
   if((tr.epoch%30===0||tr.epoch===tr.maxE)&&tr._shown!==tr.epoch){tr._shown=tr.epoch;renderTrainPanel()}
 }
 function renderTrainPanel(){
-  const D_=tr.data,f=r=>fwd(r.z).p,te=tr.hist.length?tr.hist[tr.hist.length-1].te:NaN,acc=D_.acc(D_.tst,f),beats=te<D_.baseLL-.01;
+  const D_=tr.data,f=r=>fwd(r.z).p,te=tr.hist.length?tr.hist[tr.hist.length-1].te:NaN,acc=D_.acc(D_.tst,f),best=Math.max(D_.majAcc,D_.persAcc),beats=acc>best;
   const btn=(v,lbl)=>`<button type="button" data-h="${v}" aria-pressed="${tr.H===v}">${lbl}</button>`;
-  L.innerHTML=`<h2>Model <span>prediction · optional</span></h2>
-  <p>Is the subject at the fictional work place during a given hour? The model only sees time, calendar, motion and phone metadata, never the location itself.</p>
+  L.innerHTML=`<h2>Model <span>Prediction · optional (D-025)</span></h2>
+  <p>Will tonight be a late night, meaning late-night phone minutes above the person's own median (${D_.med.toFixed(0)} min over the training days)? The model sees only yesterday's ${esc(D_.feats.map(f=>f[1]).join(", "))} and whether the day is a weekend.</p>
   <div class="seg">${btn(0,"Logistic")}${btn(6,"MLP · 6")}${btn(12,"MLP · 12")}</div>
   <div class="seg"><button type="button" id="trRun" aria-pressed="${tr.run}">${tr.run?"Pause":"Run"}</button><button type="button" id="trReset">Reinitialise</button><button type="button" id="trSeed">New seed · ${tr.seed}</button></div>
-  <div class="verdict ${tr.epoch<tr.maxE?"inc":beats?"ok":"no"}">${tr.epoch<tr.maxE?"Training · epoch "+tr.epoch:beats?"Beats hour-of-week baseline":"Does not beat baseline"}</div>
-  <dl class="kv"><dt>test log-loss</dt><dd>${te.toFixed(3)}</dd><dt>baseline</dt><dd>${D_.baseLL.toFixed(3)} (hour × weekday rate)</dd>
-  <dt>test accuracy</dt><dd>${(acc*100).toFixed(1)}% · baseline ${(D_.baseAcc*100).toFixed(1)}%</dd>
-  <dt>train / test</dt><dd>${D_.trn.length} / ${D_.tst.length} hours, split by date</dd>
-  <dt>excluded</dt><dd>${D_.unknownN} hours where location is unknown. No label is invented.</dd></dl>
-  <p class="note">Amber edges push the prediction up and blue edges push it down. Thickness is the weight's size. Pulses run faster where the gradient is larger, so you can watch learning settle.</p>
-  <p class="note">This is one synthetic month with a temporal split. A good score here is a pipeline check, not a forecast about anyone.</p>`;
+  <div class="verdict ${tr.epoch<tr.maxE?"inc":beats?"ok":"no"}">${tr.epoch<tr.maxE?"Training · epoch "+tr.epoch:beats?"Beats both baselines on accuracy":"Does not beat the best baseline"}</div>
+  <dl class="kv"><dt>model accuracy</dt><dd>${(acc*100).toFixed(1)}% on ${D_.tst.length} test days</dd>
+  <dt>baseline · majority</dt><dd>${(D_.majAcc*100).toFixed(1)}% (always "${D_.maj?"late":"not late"}", the training majority)</dd>
+  <dt>baseline · persistence</dt><dd>${(D_.persAcc*100).toFixed(1)}% (tonight = last night's label)</dd>
+  <dt>test log-loss</dt><dd>${te.toFixed(3)} · base-rate ${D_.baseLL.toFixed(3)}</dd>
+  <dt>train / test</dt><dd>${D_.trn.length} / ${D_.tst.length} days, first 70% / last 30% by date (late nights: ${D_.trainPos} / ${D_.testPos})</dd>
+  <dt>excluded</dt><dd>${D_.unknownN} days with an unknown label or unknown inputs. No value is invented, and unknown is never counted as zero.</dd></dl>
+  <p class="note">Amber edges push the prediction up and blue edges push it down. Thickness is the weight's size. Pulses run faster where the gradient is larger.</p>
+  <p class="note">A shift in habits inside the window means train and test days can differ. With ${D_.tst.length} test days, one day moves accuracy by about ${(100/D_.tst.length).toFixed(0)} points. This is a pipeline check on synthetic data, not a forecast about anyone, and prediction is optional.</p>`;
   L.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{tr.H=+b.dataset.h;initNet();tr.run=true;renderTrainPanel()});
   $("#trRun").onclick=()=>{tr.run=!tr.run;renderTrainPanel()};
   $("#trReset").onclick=()=>{initNet();tr.run=true;renderTrainPanel()};
@@ -868,7 +974,9 @@ function chainsFor(f){
 }
 function loomSetup(){
   const f=FINDINGS[loom.f];let ch=chainsFor(f);loom.needs=null;
-  if(!ch.length){(f.motivated_by_ids||[]).forEach(id=>{if(byId[id])ch=ch.concat(chainsFor(byId[id]).map(c=>(c.nodes[4]=byId[id],c.nodes[5]=f,c.rel="motivates",c)))});loom.needs=f.needs_evidence||["more evidence"]}
+  if(!ch.length){[].concat(f.motivated_by_ids||[],f.rests_on||[]).forEach(id=>{if(byId[id])ch=ch.concat(chainsFor(byId[id]).map(c=>(c.nodes[4]=byId[id],c.nodes[5]=f,c.rel=f.rests_on?"rests on":"motivates",c)))});
+    loom.needs=f.needs_evidence||(f.finding_kind==="insufficient"?[(f.missing?"missing: "+f.missing:"")+(f.reason?(f.missing?" · ":"")+f.reason:"")||"not enough data"]:ch.length?null:["more evidence"])}
+  loom.f_=f;
   loom.chains=ch;loom.k=0;loom.t=0;
   loom.cols=COLS.map((_,c)=>{const ids=[];ch.forEach(x=>{const n=x.nodes[c];if(n&&!ids.includes(n.id))ids.push(n.id)});return ids});
 }
@@ -897,7 +1005,10 @@ function frameLoom(now,dt){
     for(let s=0;s+1<P.length;s++){const p0=[P[s].p[0],P[s].p[1]+j],p1=[P[s+1].p[0],P[s+1].p[1]+j];if(!s)X.moveTo(p0[0],p0[1]);X.bezierCurveTo((p0[0]+p1[0])/2,p0[1],(p0[0]+p1[0])/2,p1[1],p1[0],p1[1])}
     X.stroke()}});
   X.globalCompositeOperation="source-over";
-  if(!loom.chains.length){ST.innerHTML="Loom · no chains";return}
+  if(!loom.chains.length){const f=FINDINGS[loom.f],g2=g;X.font=mono(11);X.fillStyle="#9aa6ad";X.textBaseline="middle";
+    const msg=f.finding_kind==="insufficient"?"NOT ENOUGH DATA · "+String(f.missing||"unknown source").toUpperCase():"NO EVIDENCE CHAIN YET";
+    X.fillText(msg,g2.x+20,g2.y+g2.h*.45);X.font=mono(10,400);X.fillStyle="#5d676c";X.fillText("Unknown is not zero. Nothing is drawn where nothing was measured.",g2.x+20,g2.y+g2.h*.45+20);
+    ST.innerHTML=`Loom · ${esc(f.id)} · no chains · unknown is not zero · synthetic`;return}
   loom.t+=dt*(REDUCED?10:.55);if(loom.t>2.2){loom.t=0;loom.k=(loom.k+1)%loom.chains.length}
   const ch=loom.chains[loom.k],P=chainPts(ch,g),prog=clamp(loom.t/1.1,0,1)*(P.length-1);
   X.strokeStyle=ch.rel==="contradicts"?"#ff5d6c":"#ffffff";X.lineWidth=1.6;X.beginPath();X.moveTo(P[0].p[0],P[0].p[1]);
@@ -907,19 +1018,21 @@ function frameLoom(now,dt){
     const t=nodeText(q.n,q.c),up=s%2===0;box(clamp(q.p[0]-20,g.x,g.x+g.w-260),q.p[1]+(up?-18:18),t.length>44?t.slice(0,43)+"…":t,q.c===4?"#ffc860":q.c===5?"#ffffff":"#ff9f5a")});
   for(let c=2;c<=3;c++)if(!ch.nodes[c]){const x=colX(c,g);X.font=mono(9.5);X.fillStyle="#5d676c";X.fillText("— NOT LINKED —",x-8,g.y+g.h*.5+28)}
   if(loom.needs){const x=g.x+g.w-150,y=g.y+g.h*.82;X.setLineDash([3,4]);X.strokeStyle="#ff5d6c";X.beginPath();X.moveTo(P[P.length-1].p[0],P[P.length-1].p[1]);X.lineTo(x,y);X.stroke();X.setLineDash([]);
-    box(Math.min(x-60,g.x+g.w-260),y+14,"NEEDS EVIDENCE · NO SLEEP PRODUCER","#ff5d6c")}
-  ST.innerHTML=`Loom · ${esc(FINDINGS[loom.f].id)} · chain <em>${loom.k+1}/${loom.chains.length}</em> · ${ch.rel} · evidence class ladder D0→D5 · dashed = level skipped, not linked in this persona · synthetic`;
+    const nl=String(loom.needs[0]||"more evidence").toUpperCase();box(Math.min(x-60,g.x+g.w-300),y+14,"NEEDS EVIDENCE · "+(nl.length>34?nl.slice(0,33)+"…":nl),"#ff5d6c")}
+  ST.innerHTML=`Loom · ${esc(FINDINGS[loom.f].id)} · chain <em>${loom.k+1}/${loom.chains.length}</em> · ${ch.rel} · evidence class ladder D0→D5 · dashed = level skipped, not linked in this workspace · synthetic`;
 }
 function renderLoomPanel(){
   const f=FINDINGS[loom.f],st=f.statistic||{},cor=R.find(r=>r.type==="Correction"&&r.target_id===f.id);
   L.innerHTML=`<h2>Finding <span>${FINDINGS.length}</span></h2>
-  <div class="seg">${FINDINGS.map((x,i)=>`<button type="button" data-f="${i}" aria-pressed="${i===loom.f}">${esc(x.id.replace("finding-",""))} · ${esc(x.evidence_class.slice(0,3))}</button>`).join("")}</div>
+  <div class="seg">${FINDINGS.map((x,i)=>`<button type="button" data-f="${i}" aria-pressed="${i===loom.f}" title="${esc(x.finding_kind||"")}">${esc(x.id.replace("finding-","").replace("ins-","I"))} · ${esc((x.finding_kind||x.evidence_class).replace(/_/g," ").slice(0,5))}</button>`).join("")}</div>
   <p>${esc(f.statement)}</p>
   <dl class="kv"><dt>class</dt><dd>${esc(f.evidence_class)}</dd><dt>method</dt><dd>${esc(f.method)} v${esc(f.method_version)}</dd>
   ${st.name?`<dt>${esc(st.name.replace(/_/g," "))}</dt><dd>${esc(st.value)}</dd>`:""}
   <dt>confidence</dt><dd>${esc(typeof f.confidence==="object"?(f.confidence.level||JSON.stringify(f.confidence)):f.confidence||"—")}</dd>
   ${f.uncertainty?`<dt>uncertainty</dt><dd>${esc(f.uncertainty)}</dd>`:""}
-  <dt>chains</dt><dd>${loom.chains.length}</dd></dl>
+  <dt>chains</dt><dd>${loom.chains.length}</dd>
+  ${f.finding_kind?`<dt>kind</dt><dd>${esc(f.finding_kind.replace(/_/g," "))}</dd>`:""}
+  ${(f.rests_on||[]).length?`<dt>rests on</dt><dd>${f.rests_on.map(esc).join(", ")}</dd>`:""}</dl>
   ${cor?`<h2>Participant correction</h2><p class="note">“${esc(cor.participant_text)}” · ${esc(cor.effect.replace(/_/g," "))}</p>`:""}
   ${loom.needs?`<div class="verdict no">Needs evidence: ${esc(loom.needs.join("; "))}</div>`:""}
   <p class="note">Each thread follows one piece of evidence from its source, through the import batch, up the evidence ladder to the finding. The white thread replays them one after another.</p>`;
@@ -928,14 +1041,21 @@ function renderLoomPanel(){
 function enterLoom(){size2d();loomSetup();renderLoomPanel()}
 
 /* ============ LENS: CLUSTERS (live k-means over days) ============ */
-const CF=["home h","work h","gym h","cafe h","park h","grocery h","steps","walk min","drive min","cycle min","calendar","acct recs"];
-const PLACE_IDS=["place-home","place-work","place-gym","place-cafe","place-park","place-grocery"];
-const HOUR_COL={"place-home":"#6fd0ff","place-work":"#ffb45e","place-gym":"#86ffad","place-cafe":"#ff9fc8","place-park":"#c8ff6e","place-grocery":"#c49bff",trip:"#ffffff",unknown:"#ff5d6c",none:"#2c353a"};
+let PLACE_IDS=["place-home","place-work","place-gym","place-cafe","place-park","place-grocery"];
+let CF=["home h","work h","gym h","cafe h","park h","grocery h","steps","walk min","drive min","cycle min","calendar","acct recs"];
+function setupClusterFeatures(){
+  const ids=R.filter(r=>r.type==="Place").map(r=>r.id);if(ids.length){PLACE_IDS=ids.slice(0,6)}
+  CF=PLACE_IDS.map(id=>id.replace("place-","")+" h").concat(["steps","walk min","drive min","cycle min","calendar","acct recs"]);
+}
+const HOUR_COL_X=["#ff9fc8","#c8ff6e","#c49bff","#ffd36e","#6fd0ff","#86ffad"];
+let HOUR_COL={"place-home":"#6fd0ff","place-work":"#ffb45e","place-gym":"#86ffad","place-cafe":"#ff9fc8","place-park":"#c8ff6e","place-grocery":"#c49bff",trip:"#ffffff",unknown:"#ff5d6c",none:"#2c353a"};
 const CL_COL=["#9fe6ff","#ffb45e","#86ffad","#c49bff","#ff7a9a"];
 const CAND={"work h":"office-like days","home h":"home days","gym h":"active days","park h":"active days","steps":"active days","walk min":"active days","cycle min":"active days",
   "cafe h":"errand days","grocery h":"errand days","drive min":"driving days","calendar":"meeting days","acct recs":"screen-heavy days"};
 const cl={days:null,k:3,sil:{},res:null,it:0,t:0,pull:0,pos:null,hub:null,stab:null,seed:1,rings:true,done:false};
 function buildDays(){
+  setupClusterFeatures();
+  PLACE_IDS.forEach((id,k)=>{if(!(id in HOUR_COL))HOUR_COL[id]=HOUR_COL_X[k%HOUR_COL_X.length]});
   const loc=byId["src-location"],miss=(loc&&loc.missing_periods||[]).map(m=>[Date.parse(m.start),Date.parse(m.end)]);
   const visits=R.filter(r=>r.type==="Visit").map(r=>({p:r.place_id,a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
   const trips=R.filter(r=>r.type==="Trip").map(r=>({a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
@@ -943,7 +1063,7 @@ function buildDays(){
   const steps={};R.filter(r=>r.type==="DailyHealthAggregate").forEach(r=>{if(r.steps_status==="measured"&&typeof r.steps==="number")steps[dayIdx(r.event_start)]=r.steps});
   const cal=R.filter(r=>r.type==="CalendarEvent").map(r=>dayIdx(r.event_start)),acct=R.filter(r=>r.type==="AccountActivity").map(r=>dayIdx(r.event_time));
   const days=[];
-  for(let d=0;d<28;d++){
+  for(let d=0;d<NDAYS;d++){
     const a=T0+d*MS_DAY,b=a+MS_DAY,missH=miss.reduce((s,[x,y])=>s+overlapMin(a,b,x,y),0)/60,locUnknown=missH>=12;
     const mot=t=>acts.filter(v=>v.t===t).reduce((s,v)=>s+overlapMin(a,b,v.a,v.b),0);
     const x=PLACE_IDS.map(p=>locUnknown?null:visits.filter(v=>v.p===p).reduce((s,v)=>s+overlapMin(a,b,v.a,v.b),0)/60)
@@ -951,10 +1071,10 @@ function buildDays(){
     const hours=[];for(let h=0;h<24;h++){const m=a+h*3600e3+1800e3;
       if(miss.some(([p,q])=>m>=p&&m<q))hours.push("unknown");
       else{const v=visits.find(v=>m>=v.a&&m<v.b);hours.push(v?v.p:trips.some(t=>m>=t.a&&m<t.b)?"trip":"none")}}
-    days.push({d,x,hours,weekend:d%7>=5,locUnknown,missF:x.filter(v=>v==null).length});
+    days.push({d,x,hours,weekend:wdIdx(d)>=5,locUnknown,missF:x.filter(v=>v==null).length});
   }
   const F=CF.length,mu=[],sd=[];
-  for(let j=0;j<F;j++){const v=days.map(d=>d.x[j]).filter(v=>v!=null);mu[j]=v.reduce((s,q)=>s+q,0)/v.length;sd[j]=Math.sqrt(v.reduce((s,q)=>s+(q-mu[j])**2,0)/v.length)||1}
+  for(let j=0;j<F;j++){const v=days.map(d=>d.x[j]).filter(v=>v!=null);mu[j]=v.reduce((s,q)=>s+q,0)/(v.length||1);sd[j]=Math.sqrt(v.reduce((s,q)=>s+(q-mu[j])**2,0)/(v.length||1))||1}
   days.forEach(d=>d.z=d.x.map((v,j)=>v==null?null:(v-mu[j])/sd[j]));
   // PCA (missing -> mean, i.e. 0 in z space)
   const Z=days.map(d=>d.z.map(v=>v??0)),C=[...Array(F)].map((_,i)=>[...Array(F)].map((_,j)=>Z.reduce((s,r)=>s+r[i]*r[j],0)/Z.length));
@@ -989,15 +1109,15 @@ function silhouette(asg,k){const D_=cl.days,n=D_.length;let s=0;
     const a=by[asg[i]][1]?by[asg[i]][0]/by[asg[i]][1]:0,b=Math.min(...by.map((v,q)=>q===asg[i]||!v[1]?1e18:v[0]/v[1]));
     s+=by[asg[i]][1]&&b<1e18?(b-a)/Math.max(a,b):0}return s/n}
 function clusterRun(){
-  const idx=[...Array(28).keys()];
+  const idx=[...Array(NDAYS).keys()];
   if(!Object.keys(cl.sil).length)for(let k=2;k<=5;k++)cl.sil[k]=silhouette(kmeans(idx,k,cl.seed,6).asg,k);
   cl.res=kmeans(idx,cl.k,cl.seed,6);cl.it=0;cl.t=0;cl.pull=0;cl.done=false;
-  cl.stab={B:60,b:0,co:[...Array(28)].map(()=>new Array(28).fill(0)),both:[...Array(28)].map(()=>new Array(28).fill(0))};
+  cl.stab={B:60,b:0,co:[...Array(NDAYS)].map(()=>new Array(NDAYS).fill(0)),both:[...Array(NDAYS)].map(()=>new Array(NDAYS).fill(0))};
   renderClusterPanel();
 }
 function stabStep(){
   const S=cl.stab;if(S.b>=S.B)return;const r=mulberry(9000+S.b+cl.seed*1000);
-  const samp=[...Array(28)].map(()=>(r()*28)|0),res=kmeans(samp,cl.k,500+S.b,2),first={};
+  const samp=[...Array(NDAYS)].map(()=>(r()*NDAYS)|0),res=kmeans(samp,cl.k,500+S.b,2),first={};
   samp.forEach((d,i)=>{if(!(d in first))first[d]=res.asg[i]});
   const u=Object.keys(first).map(Number);
   for(const i of u)for(const j of u)if(i<j){S.both[i][j]++;if(first[i]===first[j])S.co[i][j]++}
@@ -1008,14 +1128,14 @@ function clusterSummary(){
   return[...Array(k)].map((_,q)=>{const mem=asg.map((a,i)=>a===q?i:-1).filter(i=>i>=0);
     let s=0,n=0;for(const i of mem)for(const j of mem)if(i<j&&S.both[i][j]){s+=S.co[i][j]/S.both[i][j];n++}
     const c=cl.res.cents[q],order=c.map((v,j)=>[j,v]).sort((a,b)=>b[1]-a[1]),top=order[0];
-    return{q,mem,n:mem.length,stab:n?s/n:null,cand:CAND[CF[top[0]]],why:CF[top[0]]+" "+(top[1]>=0?"+":"")+top[1].toFixed(1)+"σ",
+    return{q,mem,n:mem.length,stab:n?s/n:null,cand:CAND[CF[top[0]]]||"unnamed",why:CF[top[0]]+" "+(top[1]>=0?"+":"")+top[1].toFixed(1)+"σ",
       wk:mem.filter(i=>!cl.days[i].weekend).length,we:mem.filter(i=>cl.days[i].weekend).length}});
 }
 function renderClusterPanel(){
   if(lens!=="clusters")return;const S=cl.stab,done=S&&S.b>=S.B,best=+Object.entries(cl.sil).sort((a,b)=>b[1]-a[1])[0][0];
   const sum=done?clusterSummary():null;
   L.innerHTML=`<h2>Clusters <span>k-means · days</span></h2>
-  <p>Each point is one day of the month. The algorithm only sees twelve daily measures, never the weekday. The question is whether the days form groups.</p>
+  <p>Each point is one day of the window. The algorithm only sees ${CF.length} daily measures (${esc(CF.join(', '))}), never the weekday. The question is whether the days form groups.</p>
   <h2>Groups k</h2><div class="seg">${[2,3,4,5].map(k=>`<button type="button" data-k="${k}" aria-pressed="${k===cl.k}">${k}${k===best?" · best":""}</button>`).join("")}</div>
   <div class="bars">${[2,3,4,5].map(k=>`<div><span>k=${k}</span><b style="width:${Math.max(2,cl.sil[k]*100)}%;background:${k===cl.k?"var(--acc)":"var(--faint)"}"></b><span>${cl.sil[k].toFixed(2)}</span></div>`).join("")}</div>
   <p class="note">Bars show the silhouette score. Higher means better separated groups. Below about 0.25 the structure is weak.</p>
@@ -1024,7 +1144,7 @@ function renderClusterPanel(){
   <div class="verdict ${sum.every(c=>c.stab!=null&&c.stab>=.75)?"ok":"inc"}">${sum.every(c=>c.stab!=null&&c.stab>=.75)?"All groups stable at 75% or more":"Some groups are unstable; do not name them"}</div>`
   :`<div class="verdict inc">Measuring stability ${S?S.b:0}/${S?S.B:60}</div>`}
   <div class="legend">${Object.entries(HOUR_COL).map(([k,c])=>`<span><i class="cls" style="background:${c}"></i>${k.replace("place-","")}</span>`).join("")}</div>
-  <p class="note">Each ring shows the day's 24 hours, coloured by where the subject was. Red means the location is unknown. A day with unknown location keeps its other measures and is compared only on those. Names are generated from the group's strongest measure. They describe this month, not the person.</p>`;
+  <p class="note">Each ring shows the day's 24 hours, coloured by where the subject was. Red means the location is unknown. A day with unknown location keeps its other measures and is compared only on those. Names are generated from the group's strongest measure. They describe this window, not the person.</p>`;
   L.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{cl.k=+b.dataset.k;clusterRun()});
   $("#clRe").onclick=()=>{cl.seed=cl.seed%9+1;cl.sil={};clusterRun()};
   $("#clRing").onclick=()=>{cl.rings=!cl.rings;renderClusterPanel()};
@@ -1065,8 +1185,8 @@ function frameClusters(now,dt){
   // day nodes
   cl.days.forEach((d,i)=>{const p=cl.pos[i];X.fillStyle="#dfe5e8";X.beginPath();X.arc(p[0],p[1],3.2,0,7);X.fill();
     if(d.locUnknown){X.strokeStyle="#ff5d6c";X.setLineDash([2,2]);X.beginPath();X.arc(p[0],p[1],18,0,7);X.stroke();X.setLineDash([])}
-    X.font=mono(9);X.fillStyle=d.weekend?"#9aa6ad":"#6c767b";X.textBaseline="middle";X.fillText("D"+String(d.d).padStart(2,"0")+" "+DOW[d.d%7],p[0]+19,p[1]+1)});
-  ST.innerHTML=`Clusters · k-means k=<em>${cl.k}</em> · iteration <em>${cl.it+1}/${H.length}</em>${cl.done?" · converged":""} · silhouette <em>${cl.sil[cl.k].toFixed(2)}</em> · stability <em>${S?S.b:0}/${S?S.B:0}</em> resamples · days <em>28</em> · location unknown <em>${cl.days.filter(d=>d.locUnknown).length}</em> · weekday not used · synthetic`;
+    X.font=mono(9);X.fillStyle=d.weekend?"#9aa6ad":"#6c767b";X.textBaseline="middle";X.fillText("D"+String(d.d).padStart(2,"0")+(NDAYS<=32?" "+dowName(d.d):""),p[0]+19,p[1]+1)});
+  ST.innerHTML=`Clusters · k-means k=<em>${cl.k}</em> · iteration <em>${cl.it+1}/${H.length}</em>${cl.done?" · converged":""} · silhouette <em>${cl.sil[cl.k].toFixed(2)}</em> · stability <em>${S?S.b:0}/${S?S.B:0}</em> resamples · days <em>${NDAYS}</em> · location unknown <em>${cl.days.filter(d=>d.locUnknown).length}</em> · weekday not used · synthetic`;
 }
 function topLoad(c){const v=cl.comps[c].map((w,j)=>[j,w]).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,2);return v.map(([j,w])=>(w>=0?"+":"−")+CF[j].toUpperCase()).join(" ")}
 function hexA(h,a){const c=hex(h);return`rgba(${c[0]*255|0},${c[1]*255|0},${c[2]*255|0},${a})`}
@@ -1162,21 +1282,202 @@ function frameControl(){
   ST.innerHTML=`Control · simulation · records <em>${NODES.length-dead}/${NODES.length}</em> · deleted <em>${dead}</em> · paused sources <em>${paused}</em>${ctl.plan?" · preview <em>"+ctl.plan.size+"</em> records":""} · nothing real is changed · synthetic`;
 }
 
+/* ============ LENSES: SHIFTS and MIRROR (DOM, from engine Findings) ============ */
+const SHIFTS=()=>FINDINGS.filter(f=>f.finding_kind==="shift");
+const OBSERVERS=()=>FINDINGS.filter(f=>f.finding_kind==="observer_inference");
+const ins={fid:null,metric:null},sh={showAll:true};
+const CTR=$("#center");
+const fmtN=v=>typeof v!=="number"?esc(v):Math.abs(v)>=1000?Math.round(v).toLocaleString("en"):String(Math.round(v*1000)/1000);
+const kvr=(k,v)=>`<dt>${esc(k)}</dt><dd>${v}</dd>`;
+const listHtml=a=>(a&&a.length)?`<ul style="margin:0;padding-left:16px">${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
+function metaLine(){const m=D.meta.insights;return m?{scanned:m.metrics_scanned,alpha:m.alpha,engine:m.engine+" v"+m.version}:null}
+function findingBrief(f){
+  if(f.finding_kind==="shift")return mname(f.metric)+" shift near "+f.change_day;
+  if(f.finding_kind==="lagged_association")return mname(f.x_metric)+" → "+mname(f.y_metric)+" (lag "+(f.lag_days||0)+" d)";
+  if(f.finding_kind==="routine")return"routine · "+(f.pattern_key||f.pattern||"");
+  return(f.segment_label||f.finding_kind||f.id);
+}
+function findingInspector(f){
+  const R_=[kvr("id",esc(f.id)),kvr("kind",esc((f.finding_kind||"").replace(/_/g," "))),kvr("class",esc(f.evidence_class||""))];
+  if(f.finding_kind==="shift"){
+    const c=f.statistic_center||"median",e=f.effect||{},b=f.baseline||{},a=f.after||{};
+    R_.push(kvr("metric",esc(mname(f.metric))),kvr("change day",esc(f.change_day)),
+      kvr("before ("+c+")",`${fmtN(b[c])} · n ${b.n} · mean ${fmtN(b.mean)} · MAD ${fmtN(b.mad)}<br><span style="color:var(--dim)">${esc((b.window||{}).start)} → ${esc((b.window||{}).end)}</span>`),
+      kvr("after ("+c+")",`${fmtN(a[c])} · n ${a.n} · mean ${fmtN(a.mean)}<br><span style="color:var(--dim)">${esc((a.window||{}).start)} → ${esc((a.window||{}).end)}</span>`),
+      kvr("effect",`ratio ${fmtN(e.ratio)} · difference ${fmtN(e.difference)} ${esc(e.unit||"")} · ${esc(e.direction||"")}${e.scaled_by_pooled_mad!=null?" · "+fmtN(e.scaled_by_pooled_mad)+" pooled MADs":""}`),
+      kvr("p / q (BH)",`${fmtN(f.p_value)} / ${fmtN(f.q_value)} · ${f.metrics_scanned||"?"} metrics scanned`));
+  }else if(f.finding_kind==="lagged_association"){
+    R_.push(kvr("pair",esc(mname(f.x_metric))+" → "+esc(mname(f.y_metric))),kvr("lag",(f.lag_days||0)+" day(s)"),kvr("Spearman ρ",fmtN(f.rho)+" · n "+f.n),
+      kvr("p / q",`${fmtN(f.permutation_p)} / ${fmtN(f.q_value)} · ${f.pairs_tested||"?"} pairs tested`));
+  }else if(f.finding_kind==="routine"){
+    R_.push(kvr("pattern",esc(f.pattern||"")),kvr("support",fmtN(f.support)+" of "+f.eligible_days+" eligible days"));
+  }
+  R_.push(kvr("method",esc(f.method||"")+" v"+esc(f.method_version||"")),kvr("confidence",esc(typeof f.confidence==="object"&&f.confidence?(f.confidence.level+" · "+f.confidence.basis):f.confidence||"—")),
+    kvr("status",esc(f.status||"")+" · review "+esc(f.participant_review_status||"unreviewed")),kvr("causal claim","none (always false)"),
+    kvr("supporting records",(f.supporting_evidence_ids||[]).length+" (see Corpus or Loom)"));
+  return`<h2>Finding <span>${esc(f.id)}</span></h2><p>${esc(f.statement||"")}</p><dl class="kv">${R_.join("")}</dl>
+  ${f.uncertainty?`<h2>Uncertainty</h2><p class="note">${esc(f.uncertainty)}</p>`:""}
+  ${(f.alternatives||[]).length?`<h2>Alternative explanations</h2><div class="note">${listHtml(f.alternatives)}</div>`:""}
+  ${f.finding_kind==="shift"?'<p class="note">Descriptive change; cause not identified.</p>':f.finding_kind==="lagged_association"?'<p class="note">Correlation, not causation.</p>':""}`;
+}
+function openFinding(id,metric){
+  ins.fid=id||null;ins.metric=metric||null;renderInsightRight();
+  if(lens==="shifts")renderShifts();
+  if(innerWidth<=820){RP.classList.add("open");L.classList.remove("open")}
+}
+function renderInsightRight(){
+  if(lens!=="shifts"&&lens!=="mirror")return;
+  const f=ins.fid&&byId[ins.fid];
+  if(f){RP.innerHTML=findingInspector(f);return}
+  if(ins.metric){
+    const m=ins.metric,vals=[...Array(NDAYS)].map((_,d)=>mval(m,d)),kn=vals.filter(v=>v!=null).length,mi=metaLine();
+    RP.innerHTML=`<h2>Metric <span>${esc(mname(m))}</span></h2>
+    <dl class="kv">${kvr("known days",kn+" of "+NDAYS)}${kvr("unknown days",(NDAYS-kn)+" (not zero)")}${kn?kvr("range",fmtN(Math.min(...vals.filter(v=>v!=null)))+" to "+fmtN(Math.max(...vals.filter(v=>v!=null)))):""}</dl>
+    <p>${mi?`No shift was reported for this metric at q ≤ ${mi.alpha}.`:"No shift analysis was run on this workspace."}</p>
+    <p class="note">${kn<20?"With fewer than 20 known days a shift cannot be tested, so this says nothing about whether a change happened.":"Not finding a shift does not prove the habit stayed the same. It means the scan did not find a change that survived correction across all scanned metrics."}</p>`;
+    return;
+  }
+  RP.innerHTML=lens==="shifts"?`<h2>Shifts <span>inspector</span></h2><p>Choose a panel to see the Finding behind it: baseline and after levels, effect, p and q, alternatives and uncertainty.</p>
+    <p class="note">Every shift is descriptive. The page never says what caused it.</p>`
+    :`<h2>Mirror <span>inspector</span></h2><p>Choose a "rests on" finding in a card to see the evidence it stands on.</p><p class="note">A Mirror card is a hypothesis built on other findings. It inherits all of their limits.</p>`;
+}
+RP.addEventListener("click",e=>{const b=e.target.closest(".idl");if(!b)return;
+  if(lens==="shifts"||lens==="mirror"){if(byId[b.dataset.id])openFinding(b.dataset.id,null);return}
+});
+CTR.addEventListener("click",e=>{
+  const b=e.target.closest(".idl");if(b){openFinding(b.dataset.id,null);return}
+  const p=e.target.closest(".sm");if(p)openFinding(p.dataset.f||null,p.dataset.m||null);
+});
+
+/* --- Shifts --- */
+function shiftSvg(m,f){
+  const W=300,H=116,pl=8,pr=8,pt=8,pb=16,bw=(W-pl-pr)/NDAYS,xd=d=>pl+(d+.5)*bw,vals=[...Array(NDAYS)].map((_,d)=>mval(m,d)),known=vals.filter(v=>v!=null);
+  const c=f?(f.statistic_center||"median"):null;
+  const lv=f?[f.baseline&&f.baseline[c],f.after&&f.after[c]].filter(v=>typeof v==="number"):[];
+  let lo=Math.min(...known,...lv),hi=Math.max(...known,...lv);if(!known.length){lo=0;hi=1}const span=(hi-lo)||1;lo-=span*.1;hi+=span*.1;
+  const yv=v=>pt+(1-(v-lo)/(hi-lo))*(H-pt-pb);
+  let g=`<line class="ax" x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}"/>`;
+for(let d=0;d<NDAYS;d++)if(vals[d]==null)g+=`<rect class="gap" fill="url(#hatch)" x="${(xd(d)-bw/2).toFixed(1)}" y="${pt}" width="${bw.toFixed(1)}" height="${H-pt-pb}"/>`;
+  if(f){
+    const seg=(w,v,cls)=>{if(!w||typeof v!=="number")return"";const x0=xd(clamp(dayIdx(w.start),0,NDAYS-1))-bw/2,x1=xd(clamp(dayIdx(w.end),0,NDAYS-1))+bw/2;
+      return`<line class="${cls}" x1="${x0.toFixed(1)}" x2="${x1.toFixed(1)}" y1="${yv(v).toFixed(1)}" y2="${yv(v).toFixed(1)}"/>`};
+    g+=seg((f.baseline||{}).window,(f.baseline||{})[c],"lb")+seg((f.after||{}).window,(f.after||{})[c],"la");
+    const cx=xd(clamp(dayIdx(f.change_day),0,NDAYS-1))-bw/2;
+    g+=`<line class="cd" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${pt-2}" y2="${H-pb}"/><text x="${Math.min(cx+3,W-70).toFixed(1)}" y="${pt+4}">change ${esc(f.change_day.slice(5))}</text>`;
+  }
+  for(let d=0;d<NDAYS;d++)if(vals[d]!=null)g+=`<circle class="dot" cx="${xd(d).toFixed(1)}" cy="${yv(vals[d]).toFixed(1)}" r="1.9"/>`;
+  g+=`<text x="${pl}" y="${H-3}">D00</text><text x="${W-pr}" y="${H-3}" text-anchor="end">D${String(NDAYS-1).padStart(2,"0")}</text>`;
+  return g;
+}
+function renderShifts(){
+  if(lens!=="shifts")return;
+  const mi=metaLine(),S=SHIFTS(),byM={};S.forEach(f=>byM[f.metric]=f);
+  const hat='<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#ff5d6c" stroke-opacity=".5" stroke-width="1"/></pattern></defs></svg>';
+  const head=`<div class="hdr">${mi?`Scanned <em>${mi.scanned}</em> metrics for one change day each · false-discovery control (Benjamini-Hochberg) across all of them · alpha <em>${mi.alpha}</em> · shifts reported <em>${S.length}</em> · ${esc(mi.engine)}`
+    :`No insight scan was run on this workspace (${esc(D.meta.contract_version||"")}), so these are plain daily series. No shift is claimed and none is ruled out.`} · window <em>${NDAYS}</em> days</div>`;
+  let body="";
+  if(METRICS){
+    const names=Object.keys(METRICS),withF=names.filter(m=>byM[m]).sort((a,b)=>byM[a].q_value-byM[b].q_value),without=names.filter(m=>!byM[m]);
+    const panel=(m)=>{
+      const f=byM[m],vals=[...Array(NDAYS)].map((_,d)=>mval(m,d)),kn=vals.filter(v=>v!=null).length,e=f&&f.effect||{};
+      const eff=f?`×${fmtN(e.ratio)} · q ${fmtN(f.q_value)}`:"";
+      const sum=f?`${mname(m)}: ${e.direction||"changed"} by ratio ${e.ratio}, q ${f.q_value}, near ${f.change_day}. ${kn} known days, ${NDAYS-kn} unknown.`:`${mname(m)}: no shift reported. ${kn} known days, ${NDAYS-kn} unknown.`;
+      return`<button type="button" class="sm${f?"":" dim"}" data-m="${esc(m)}" ${f?`data-f="${esc(f.id)}"`:""} aria-pressed="${ins.metric===m||(f&&ins.fid===f.id)}">
+      <div class="nm"><span>${esc(mname(m))}</span><span class="eff">${esc(eff)}</span></div>
+      <svg viewBox="0 0 300 116" role="img" aria-label="${esc(sum)}">${shiftSvg(m,f)}</svg>
+      <div class="mut">${f?`${e.direction==="up"?"up":"down"} ${e.difference!=null?fmtN(e.difference)+" "+esc(e.unit||""):""} · descriptive change; cause not identified`:kn?`no shift reported · ${kn} known days`:"all days unknown, not zero"}${kn&&kn<NDAYS?` · ${NDAYS-kn} unknown (hatched)`:""}</div></button>`};
+    body=`<h3>Shifts reported · ${withF.length}</h3>${withF.length?`<div class="smgrid">${withF.map(panel).join("")}</div>`:`<p class="note">No metric changed enough to pass the correction at this level. That is a result: the scan ran and found nothing${mi?"":", but only if an insight scan was run, and none was here"}.</p>`}
+      <h3>${mi?"Scanned, no shift reported":"Daily series"} · ${without.length}</h3>${sh.showAll?`<div class="smgrid">${without.map(panel).join("")}</div>`:`<p class="note">${without.length} metrics hidden. Hidden does not mean unscanned.</p>`}`;
+  }else{
+    body=S.length?`<h3>Shift findings · ${S.length}</h3><p class="note">The daily-metric series are not available from this server, so only the findings are listed.</p><div class="smgrid">${S.map(f=>`<button type="button" class="sm" data-f="${esc(f.id)}" aria-pressed="${ins.fid===f.id}"><div class="nm"><span>${esc(mname(f.metric))}</span><span class="eff">×${fmtN((f.effect||{}).ratio)} · q ${fmtN(f.q_value)}</span></div><p style="margin:4px 0">${esc(f.statement)}</p></button>`).join("")}</div>`:"";
+  }
+  CTR.innerHTML=hat+head+body;
+}
+function enterShifts(){
+  size2d();X.clearRect(0,0,innerWidth,innerHeight);ins.fid=null;ins.metric=null;
+  const mi=metaLine();
+  L.innerHTML=`<h2>Shifts <span>${SHIFTS().length} reported</span></h2>
+  <p>When did a habit change, by how much, and how sure are we? One small panel per daily metric.</p>
+  <div class="legend"><span><i class="cls" style="background:var(--ink);border-radius:50%"></i>dot · one known day</span>
+  <span><i class="cls" style="background:repeating-linear-gradient(45deg,#ff5d6c 0 1px,transparent 1px 4px);border:1px solid #ff5d6c55"></i>hatched · unknown day (never zero)</span>
+  <span><i class="cls" style="background:var(--amber)"></i>level before</span><span><i class="cls" style="background:var(--acc)"></i>level after</span>
+  <span><i class="cls" style="background:var(--violet)"></i>dashed · change day</span></div>
+  ${METRICS?`<div class="seg"><button type="button" id="shAll" aria-pressed="${sh.showAll}">Metrics with no shift: ${sh.showAll?"shown, dimmed":"hidden"}</button></div>`:""}
+  <p class="note">Method: a median (or mean, for zero-heavy metrics) difference over the best change day, with weekday effects removed, tested by shuffling day order and corrected across ${mi?mi.scanned:"all"} scanned metrics. P-values are optimistic because neighbouring days are not independent.</p>
+  <p class="note">A shift describes what changed. It does not say why.</p>`;
+  const b=$("#shAll");if(b)b.onclick=()=>{sh.showAll=!sh.showAll;enterShiftsKeep()};
+  renderShifts();renderInsightRight();
+  ST.innerHTML=`Shifts · ${mi?`scanned <em>${mi.scanned}</em> metrics · alpha <em>${mi.alpha}</em> · reported <em>${SHIFTS().length}</em>`:"<em>no insight scan</em> on this workspace"} · window <em>${NDAYS} d</em> · unknown days hatched, never zero · descriptive change, cause not identified · synthetic`;
+}
+function enterShiftsKeep(){const f=ins.fid,m=ins.metric;enterShifts();ins.fid=f;ins.metric=m;renderShifts();renderInsightRight()}
+
+/* --- Mirror --- */
+function srcHtml(id){
+  const s=byId[id];if(!s)return`<li>${esc(id)} <span class="mut">(source record not in this workspace)</span></li>`;
+  const st=s.real_world_status||"unspecified";
+  return`<li><span class="badge ${esc(st)}">${esc(st.replace(/_/g," "))}</span><b style="font-weight:500">${esc(s.name)}</b>${s.availability?`<br><span style="color:var(--dim);font-size:11px">${esc(s.availability)}</span>`:""}</li>`;
+}
+function restsHtml(f){return(f.rests_on||[]).map(id=>{const g=byId[id];return`<button class="idl" type="button" data-id="${esc(id)}">${esc(id)}${g?" · "+esc(findingBrief(g)):""}</button>`}).join("<br>")}
+function obsCard(f){
+  const sens=!!f.sensitive;
+  return`<article class="card${sens?" sens":""}" aria-label="${esc(f.segment_label||f.id)}">
+  <div class="lbl2">An observer could infer · hypothesis ${sens?'<span class="badge sens">Sensitive</span>':""}</div>
+  <div class="t">${esc(f.segment_label||f.id)}</div>
+  <p>${esc(f.statement)}</p>
+  ${sens?'<p class="note">Sensitive category. It is worded as a pattern or topic interest, never as a diagnosis or a label of the person, and it is visible only inside the participant\'s own workspace.</p>':""}
+  <div class="lbl2">Sources required</div><ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px">${(f.sources_required||[]).map(srcHtml).join("")||"<li>none listed</li>"}</ul>
+  <div class="lbl2">Who could see these sources</div><ul>${(f.holders||[]).map(h=>`<li>${esc(h.holder)} could see ${esc(h.sees)}</li>`).join("")||"<li>not stated</li>"}</ul>
+  <div class="lbl2">Typical uses</div>${listHtml(f.typical_uses)||'<p class="note">not stated</p>'}
+  <div class="lbl2">Rests on</div><div>${restsHtml(f)||'<span class="note">no upstream finding</span>'}</div>
+  <div class="lbl2">Alternative explanations</div>${listHtml(f.alternatives)||'<p class="note">none listed</p>'}
+  <p class="note">${esc(f.uncertainty||"")} Confidence: ${esc(f.confidence&&f.confidence.level||"—")}. This describes what the sources could support, not what any company holds or has concluded.</p></article>`;
+}
+function renderMirror(){
+  if(lens!=="mirror")return;
+  const O=OBSERVERS(),Sg=FINDINGS.filter(f=>f.finding_kind==="suggestion"),In=FINDINGS.filter(f=>f.finding_kind==="insufficient"),mi=metaLine();
+  let h="";
+  if(O.length)h+=`<h3>What an observer could infer · ${O.length}</h3><div class="cands">${O.map(obsCard).join("")}</div>`;
+  else h+=`<div class="card"><div class="t">Nothing an observer could infer at the declared evidence level</div>
+    <p class="note">${mi?`The insight scan ran (alpha ${mi.alpha}, ${mi.scanned} metrics) and no combination of its findings met a Mirror rule. That is a result about this window, not a guarantee about the person.`
+      :`No insight findings exist in this workspace (${esc(D.meta.contract_version||"")}), so the Mirror was not run. This is not the same as nothing being inferable.`}</p></div>`;
+  if(Sg.length)h+=`<h3>Optional suggestions · ${Sg.length}</h3><div class="cands">${Sg.map(f=>`<article class="card"><div class="lbl2"><span class="badge opt">Optional</span><span class="badge">Hypothesis</span></div>
+    <p>${esc(f.text||f.statement)}</p><div class="lbl2">Rests on</div><div>${restsHtml(f)}</div>${(f.alternatives||[]).length?`<div class="lbl2">Alternative explanations</div>${listHtml(f.alternatives)}`:""}
+    <p class="note">You can ignore this. It is not advice, and it is not a clinical, financial or legal recommendation.</p></article>`).join("")}</div>`;
+  if(In.length)h+=`<h3>Not enough data · ${In.length}</h3><div class="cands">${In.map(f=>`<article class="card"><div class="lbl2">Not enough data</div>
+    <p><b style="font-weight:500">Not enough data:</b> ${esc(f.wanted||"an analysis")} cannot be run${f.missing?`; missing ${esc(f.missing)}`:""}.</p><p class="note">${esc(f.reason||"")} Unknown is not zero: nothing was filled in and no value was assumed.</p></article>`).join("")}</div>`;
+  CTR.innerHTML=h;
+}
+function enterMirror(){
+  size2d();X.clearRect(0,0,innerWidth,innerHeight);ins.fid=null;ins.metric=null;
+  const srcs=NODES.filter(r=>r.type==="Source"&&r.id!=="src-workspace");
+  L.innerHTML=`<h2>Mirror <span>what an observer could infer</span></h2>
+  <p>If someone held these sources, what could they conclude about the participant? The participant sees it first.</p>
+  <p class="note">Each card says <b style="font-weight:500">could</b>. It never claims a company holds the sources, drew the conclusion, or acted on it. Every card is a hypothesis built on shift or association findings, with alternative explanations.</p>
+  <h2>Sources here</h2>
+  <div class="legend">${srcs.map(s=>`<span><span class="badge ${esc(s.real_world_status||"")}">${esc((s.real_world_status||"?").replace(/_/g," "))}</span>${esc(s.name)}</span>`).join("")}</div>
+  <p class="note">Gated or unproven sources are synthetic here. Their presence is not a capability claim.</p>`;
+  renderMirror();renderInsightRight();
+  ST.innerHTML=`Mirror · observer inferences <em>${OBSERVERS().length}</em> · suggestions <em>${FINDINGS.filter(f=>f.finding_kind==="suggestion").length}</em> · not enough data <em>${FINDINGS.filter(f=>f.finding_kind==="insufficient").length}</em> · could infer, not did infer · sensitive findings stay in this workspace · synthetic`;
+}
+
 /* ============ guided tour ============ */
 const TOUR=[
-  {lens:"corpus",form:"anatomy",replay:true,t:10,eye:"Corpus · anatomy",cap:"One fictional month. Each record lights up when it happens, and links form once both ends exist."},
+  {lens:"corpus",form:"anatomy",replay:true,t:10,eye:"Corpus · anatomy",cap:"One fictional window. Each record lights up when it happens, and links form once both ends exist."},
   {lens:"corpus",form:"chrono",t:7,eye:"Corpus · chrono",cap:"One lane per source. Red boxes are declared gaps. No signal is never shown as zero."},
   {lens:"corpus",form:"strata",t:7,eye:"Corpus · strata",cap:"The evidence ladder. Raw observations at the bottom, inferences at the top."},
   {lens:"corpus",form:"map",t:7,eye:"Corpus · map",cap:"Only records with a position reach the city plane. Everything else waits in the unlocated ring."},
-  {lens:"fan",t:8,run:()=>fanResetLayer(),eye:"Fan · finding-0002",cap:"1,500 resamples against a world with no relationship. They overlap, so the honest answer is inconclusive."},
-  {lens:"train",t:9,run:()=>{initNet();tr.run=true;renderTrainPanel()},eye:"Train · live model",cap:"A small model learns while you watch. Amber pushes up, blue pushes down, pulses follow the gradient."},
+  {lens:"shifts",t:9,eye:"Shifts · what changed",cap:"One panel per daily metric. Hatched days are unknown, never zero. Lines mark the level before and after a change day. It says when, not why."},
+  {lens:"mirror",t:10,eye:"Mirror · what an observer could infer",cap:"If someone held these sources, what could they conclude? Each card says could, names its sources and holders, and lists other explanations."},
+  {lens:"fan",t:8,run:()=>fanResetLayer(),eye:"Fan · one association",cap:"1,500 resamples against a world with no relationship. When the two fans overlap, the honest answer is inconclusive."},
+  {lens:"train",t:9,run:()=>{initNet();tr.run=true;renderTrainPanel()},eye:"Train · optional prediction",cap:"Will tonight be a late night? A small model learns while you watch, scored against simple baselines. Prediction is optional."},
   {lens:"clusters",t:11,eye:"Clusters · days",cap:"Days pull into groups on their own. Each group's stability is measured before anyone names it."},
   {lens:"loom",t:8,eye:"Loom · provenance",cap:"Every finding hangs on threads that lead back to their sources."},
   {lens:"control",t:10,run:()=>{const h=NIDX["src-healthkit"]??NIDX[HUBS[0]];if(h==null)return;ctlPreview([h]);setTimeout(()=>{if(tour&&lens==="control")ctlExecute()},2600)},eye:"Control · deletion",cap:"The participant deletes a source. Everything built on it goes dark with it."},
 ];
 let tour=null;
 function tourStep(){
-  tour.i++;tour.t=0;if(tour.i>=TOUR.length){stopTour();return}
+  tour.i++;tour.t=0;while(tour.i<TOUR.length&&unavail(TOUR[tour.i].lens)&&TOUR[tour.i].lens!=="corpus")tour.i++;
+  if(tour.i>=TOUR.length){stopTour();return}
   const s=TOUR[tour.i];setLens(s.lens);if(location.hash.slice(1)!==s.lens)location.hash=s.lens;
   if(s.form&&corpus.ok){setForm(s.form);corpus.turning=true}
   if(s.lens==="corpus"&&corpus.ok){if(s.replay){corpus.uT=0;corpus.speed=3.2;setPlaying(true)}else if(!corpus.playing)corpus.uT=UEND}
@@ -1193,6 +1494,8 @@ addEventListener("keydown",e=>{if(tour&&e.key!=="Tab")stopTour()},true);
 /* ============ lens table, loop, boot ============ */
 const LENSES={
   corpus:{enter(){renderLeftCorpus();renderInspector();if(corpus.ok){drawStrip();resizeGL()}},frame:frameCorpus},
+  shifts:{enter(){size2d();CTR.innerHTML="";this.off=blocked("shifts");if(!this.off)enterShifts()},frame(){}},
+  mirror:{enter(){size2d();CTR.innerHTML="";this.off=false;enterMirror()},frame(){}},
   fan:{enter(){size2d();this.off=blocked("fan");if(!this.off)enterFan()},frame(n,d){if(!this.off)frameFan(n,d)}},
   train:{enter(){size2d();this.off=blocked("train");if(!this.off)enterTrain()},frame(n,d){if(!this.off)frameTrain(n,d)}},
   clusters:{enter(){size2d();this.off=blocked("clusters");if(!this.off)enterClusters()},frame(n,d){if(!this.off)frameClusters(n,d)}},
@@ -1204,11 +1507,11 @@ function loop(now){
   if(tour)tourTick(dt);
   requestAnimationFrame(loop);
 }
-addEventListener("resize",()=>{size2d();if(LENSES[lens].off)return;if(lens==="corpus"&&corpus.ok){resizeGL();drawStrip()}if(lens==="fan")fanResetLayer()});
+addEventListener("resize",()=>{size2d();if(lens==="shifts"||lens==="mirror")return;if(LENSES[lens].off)return;if(lens==="corpus"&&corpus.ok){resizeGL();drawStrip()}if(lens==="fan")fanResetLayer()});
 addEventListener("hashchange",()=>setLens(location.hash.slice(1)));
 addEventListener("keydown",e=>{
   if(e.target.closest&&e.target.closest("input,select,textarea"))return;
-  const m={"1":"corpus","2":"fan","3":"train","4":"clusters","5":"loom","6":"control"};
+  const m={"1":"corpus","2":"shifts","3":"mirror","4":"fan","5":"train","6":"clusters","7":"loom","8":"control"};
   if(m[e.key]){location.hash=m[e.key];return}
   if(e.key===" "&&lens==="corpus"){e.preventDefault();$("#play").click()}
   if(e.key==="Escape"&&(lens==="corpus"||lens==="control"))select(-1);
@@ -1218,12 +1521,15 @@ function dismissIntro(){const i=$("#intro");if(i.classList.contains("gone"))retu
 $("#intro").addEventListener("click",dismissIntro);
 $("#intro").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")dismissIntro()});
 (async()=>{
+  await loadList();
   try{D=await loadData()}catch(e){ST.textContent=e.message;$("#intro").remove();return}
+  await loadMetrics();
   buildModel();size2d();
+  const sel=$("#ds");sel.innerHTML=WSLIST.map(w=>`<option value="${esc(w.key)}">${esc(w.label||w.key)}${w.workspace_id?" · "+esc(w.workspace_id):""}</option>`).join("");
   $("#ds").value=DS;$("#ds").onchange=e=>{try{sessionStorage.setItem("panoptes-ds",e.target.value);location.reload()}catch(err){ST.textContent="This browser blocks session storage, so the workspace cannot be switched here."}};
-  $("#chip").textContent="Synthetic · "+(D.meta.workspace_id==="ws-demo-01"?"EX-01":D.meta.workspace_id);
+  $("#chip").textContent="Synthetic · "+(D.meta.workspace_id==="ws-demo-01"?"EX-01":D.meta.workspace_id)+(ORIGIN==="api"?" · server":" · static file");
   $("#inWs").textContent="WORKSPACE "+D.meta.workspace_id.toUpperCase();$("#inWin").textContent="WINDOW "+Math.round(WD)+" D";
-  $("#inSub").textContent=DS==="fixtures"?"FIXTURE EXPORT":"SUBJECT EX-01";
+  $("#inSub").textContent=String(D.meta.subject||(WSLIST.find(w=>w.key===DS)||{}).label||DS).toUpperCase().slice(0,48);
   $("#scrub").max=UEND;
   initCorpus();
   if(REDUCED&&corpus.ok)corpus.uT=UEND;
