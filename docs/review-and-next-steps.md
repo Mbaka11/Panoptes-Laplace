@@ -36,7 +36,7 @@ The product must distinguish what available traces **could reveal** from what a 
 | Device location | Canada |
 | Apple Account country/region | Not separately established; Canadian device location already prevents assuming EU customer eligibility |
 | Development Mac | Available with Xcode, reported by the owner |
-| Exact macOS and Xcode versions | macOS 15.7.9 (build 24G830), owner-pasted 2026-11-04. `xcodebuild -version` failed: the active developer directory is Command Line Tools, so Xcode is either not installed or not selected. Xcode version unknown; deployment target still unselected (D-027) |
+| Exact macOS and Xcode versions | **Update 2026-11-11:** macOS 27.2 (build 26B123), MacBook Air M4, 16 GB; Xcode 27.2 (build 27B52), Swift 6.4.2, active developer directory `/Applications/Xcode.app/Contents/Developer`, license accepted, iOS SDK 27.2. This Mac was previously reported as macOS 15.7.9 (2026-11-04) and has since been updated (owner-confirmed). iPhone not yet detected by `xctrace`/`devicectl` (not connected or not trusted), so device compatibility with iOS 26.6.1 is **unverified**; the iOS Simulator runtime is not installed (`simctl` fails). Deployment target still unselected (D-027) |
 | Apple Developer Program membership | Not yet established |
 | Apple Watch / other Health data producers | Not yet established |
 | Current agent environment | Windows; `xcodebuild` is unavailable here |

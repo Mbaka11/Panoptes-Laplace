@@ -278,10 +278,18 @@ class ValidationTests(unittest.TestCase):
         self.assertNotIn(snapshot.sha256, output)
         self.assertIn(secret, snapshot.records[0].raw_line)
 
-    def test_deep_json_is_reported_as_invalid_not_uncaught(self):
+    def test_recursion_error_is_reported_as_invalid_not_uncaught(self):
+        # Python versions differ in how deep a JSON value may nest before the
+        # decoder raises RecursionError (3.14 accepts 1200 levels), so simulate it.
+        with patch.object(apr.json, "loads", side_effect=RecursionError):
+            snapshot = apr.inspect_snapshot(b'{"type":"future"}')
+        self.assertEqual(snapshot.records[0].status, "invalid")
+        self.assertEqual(snapshot.issues[0].code, "invalid_json")
+
+    def test_very_deep_json_never_raises_uncaught(self):
         raw = ('{"type":"future","x":' + '[' * 1200 + '0' + ']' * 1200 + '}').encode()
         snapshot = apr.inspect_snapshot(raw)
-        self.assertEqual(snapshot.records[0].status, "invalid")
+        self.assertIn(snapshot.records[0].status, ("invalid", "unsupported"))
 
     def test_empty_inputs_do_not_fabricate_records(self):
         self.assertEqual(apr.inspect_snapshot(b"").physical_lines, 0)

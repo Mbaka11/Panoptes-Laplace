@@ -107,3 +107,5 @@ When changing a material decision:
 2. Mark the superseded decision and link the replacement.
 3. Record the evidence or constraint that caused the change.
 4. Update affected architecture, MVP, trust, and ontology documents.
+
+**Mac preflight, 2026-11-11:** Xcode 27.2 (27B52) installed and selected on macOS 27.2 (the Mac was updated from 15.7.9). iOS SDK 27.2 present. iPhone not yet detected, so device compatibility with iOS 26.6.1 and the deployment-target choice remain open; D-027 stays open until the phone is connected and checked. Simulator runtime not installed.
