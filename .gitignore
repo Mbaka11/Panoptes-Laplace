@@ -21,3 +21,6 @@ __pycache__/
 *.p12
 *.p8
 *.mobileprovision
+
+# Local scratch space (research files, inspiration media); never committed
+/temp/
