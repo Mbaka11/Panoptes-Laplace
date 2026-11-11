@@ -30,3 +30,24 @@ Environment: macOS 27.2, Python 3.14.7. Command: `python3 -m unittest tests.test
 - **Small changes are not detected.** A −7% change in time away from home is not detected. That is expected at this sample size.
 - **False positives.** Benjamini-Hochberg controls the false-discovery *rate*, not the chance of any false positive. One unplanted shift appeared in 1 of 30 profile-runs. Autocorrelation is ignored, so p-values are optimistic. Findings are labelled exploratory.
 - **Built-in effects.** The planted effects are generator choices, so a successful detection checks the pipeline. It does not discover anything.
+
+## Day types (engine 0.2, 2026-11-11)
+
+Command: `enrich(profile)` for each profile, permutation seeds 0 to 4, defaults (999 permutations, 60 bootstrap resamples). Whole `enrich` per profile: 0.07 to 0.45 s. Same caveats: planted effects are generator choices, so this checks the pipeline.
+
+| Profile | Features | k (silhouette) | Types (days, stability) | Trends | `state_timing` |
+|---|---|---|---|---|---|
+| steady | 11 | none (best 0.18 to 0.21, below 0.25) | none | none | no |
+| doomscroll | 11 | 3 (0.27 to 0.28), all seeds | T1 28 d, J 0.84 to 0.90: late-night use 56 vs usual 9 min, short-video 68 vs 40, steps 4218 vs 6487, sleep 391 vs 436 min. T2 21 d, J 0.76 to 0.80: sleep 463 vs 436 min, earlier sleep onset, steps 7912 vs 6487. T3 7 d, J 0.56 to 0.62 (stable in 2 of 5 seeds): at home, minutes away 0 vs 490, 1 place, 31 messages vs 25 | T1 more frequent from day 28 (29 in 1 seed), 0% to 100%; T2 less frequent from day 26 | yes, all seeds |
+| social_drop | 11 | none (0.17 to 0.18) | none | none | no |
+| search_drift | 11 | none (0.12 to 0.15) | none | none | no |
+| commuter | 11 | none (0.20 to 0.23) | none | none | no |
+| sparse | 4 (steps, minutes away, places, messages; no sleep or screen) | 2 (0.49) | T1 30 d, J 0.93: no feature departs clearly. T2 6 d, J 0.73 to 0.84: minutes away 43 vs 488 (days at home) | none (k = 2 tests one type; membership is steady) | no |
+
+Observations and limits:
+
+- The planted multi-metric change appears as one late-night, low-activity type whose share goes from 0% to 100% at day 28 (a step in the generator), plus a complementary earlier-and-longer-sleep type becoming rarer. That is two views of one change, and they are not independent findings.
+- The silhouette threshold held on all five null or near-null profiles, but steady and commuter come within 0.02 to 0.05 of it. With 11 features and 56 days, noise silhouettes of about 0.2 occur; 0.25 is a heuristic, not a calibrated test.
+- sparse yields a home-days type that is real in the generated data (location off on many days), found from only four features. It shows the engine does not invent sleep or screen features: none are listed in `meta.insights.day_types.features`.
+- T3 in doomscroll sits near the stability threshold (J 0.56 to 0.62) and flips between stable and unstable across seeds; it is a small cluster of 7 days.
+- Unit tests on small documents: a planted two-state document gives a stable type and a trend within 5 days of the change; across 12 pure-noise seeds the total number of trends is at most 1 (observed 0).

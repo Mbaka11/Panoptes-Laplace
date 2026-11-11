@@ -208,7 +208,7 @@ class RoutineAndMirror(unittest.TestCase):
             self.assertEqual(f["supporting_evidence_ids"], [])
             self.assertTrue(set(f["sources_required"]) <= {"src-a", "src-b", "src-c", "src-d"})
             for rid in f["rests_on"]:
-                self.assertIn(ids[rid]["finding_kind"], ("shift", "routine", "lagged_association"))
+                self.assertIn(ids[rid]["finding_kind"], ("shift", "routine", "lagged_association", "day_type", "day_type_trend"))
             for h in f["holders"]:
                 self.assertNotIn(" has ", h["holder"])
         self.assertTrue(mirror["possible_relationship_change"]["sensitive"])
@@ -239,7 +239,7 @@ class Guardrails(unittest.TestCase):
                 self.assertTrue(f["provenance"]["method"] and f["provenance"]["method_version"])
                 for eid in f["supporting_evidence_ids"]:
                     self.assertIn(classes[eid], ("observation", "normalized_event"))
-                if f["finding_kind"] != "observer_inference":
+                if f["finding_kind"] not in ("observer_inference", "day_type_trend"):
                     self.assertNotIn("rests_on", f if f["finding_kind"] != "suggestion" else {})
             for f in kinds(out, "observer_inference"):
                 self.assertNotIn(" did ", f["statement"])
@@ -271,6 +271,106 @@ class Guardrails(unittest.TestCase):
             insights.check_guardrails([bad2], {"p1": "inference"})
 
 
+class DayTypeTests(unittest.TestCase):
+    def test_planted_two_state_days_give_stable_type_and_trend_near_the_change(self):
+        out = insights.analyze(make_doc(change=28), permutations=199)
+        types = kinds(out, "day_type")
+        stable = [t for t in types if t["stable"]]
+        self.assertTrue(stable)
+        late = [t for t in stable if any(i["metric"] == "late_night_minutes" and i["direction"] == "up" for i in t["portrait"])]
+        self.assertTrue(late)
+        trends = kinds(out, "day_type_trend")
+        self.assertTrue(trends)
+        ids = {t["id"]: t for t in types}
+        up = [t for t in trends if t["direction"] == "more_frequent"]
+        self.assertTrue(up)
+        for t in up:
+            self.assertIn(t["rests_on"][0], ids)
+            self.assertLessEqual(abs((datetime.fromisoformat(t["change_day"]) - (START + timedelta(days=28))).days), 5)
+            self.assertLessEqual(t["q_value"], 0.05)
+            self.assertIn("more frequent", t["statement"])
+        t0 = late[0]
+        self.assertEqual({"metric", "median", "usual", "z", "unit"} <= set(t0["portrait"][0]), True)
+        self.assertEqual(t0["k"], len(types))
+        self.assertEqual(sum(t["n_days"] for t in types), 56 - len(insights.enrich(make_doc(change=28), permutations=99)["meta"]["insights"]["day_types"]["unclassified_days"]))
+
+    def test_type_keys_are_ordered_by_size_then_first_day(self):
+        types = kinds(insights.analyze(make_doc(change=28), permutations=99), "day_type")
+        self.assertEqual([t["type_key"] for t in types], [f"T{i}" for i in range(1, len(types) + 1)])
+        keys = [(-t["n_days"], t["days"][0]) for t in types]
+        self.assertEqual(keys, sorted(keys))
+
+    def test_pure_noise_gives_null_or_at_most_one_trend(self):
+        trends = 0
+        for seed in range(12):
+            out = insights.analyze(make_doc(seed=200 + seed), permutations=99, seed=seed)
+            trends += len(kinds(out, "day_type_trend"))
+            self.assertTrue(kinds(out, "day_types_none") or kinds(out, "day_type"))
+        self.assertLessEqual(trends, 1)
+
+    def test_null_result_is_reported_as_such(self):
+        out = insights.analyze(make_doc(seed=200), permutations=99)
+        nulls = kinds(out, "day_types_none")
+        if nulls:
+            self.assertLess(nulls[0]["best_silhouette"], 0.25)
+            self.assertIn("best_k", nulls[0])
+            self.assertEqual(kinds(out, "day_type"), [])
+
+    def test_unclassified_days_are_not_assigned(self):
+        doc = make_doc(change=28)
+        gone = set(range(5, 10))  # no screen time and no sleep: 1 of 7 features known
+        doc["records"] = [r for r in doc["records"]
+                          if not (r["type"] in ("ScreenTimeDaily", "SleepInterval")
+                                  and any(r["id"].split("-")[1] == str(d) for d in gone))]
+        out = insights.enrich(doc, permutations=99)
+        unclassified = set(out["meta"]["insights"]["day_types"]["unclassified_days"])
+        gone_dates = {(START + timedelta(days=d)).date().isoformat() for d in gone}
+        self.assertTrue(gone_dates <= unclassified)
+        for t in kinds(out["records"], "day_type"):
+            self.assertFalse(gone_dates & set(t["days"]))
+
+    def test_deterministic(self):
+        doc = make_doc(change=28)
+        a = insights.enrich(doc, permutations=99, seed=5)["meta"]["insights"]["day_types"]
+        b = insights.enrich(doc, permutations=99, seed=5)["meta"]["insights"]["day_types"]
+        self.assertEqual(a, b)
+        self.assertEqual(a["k"], len(kinds(insights.analyze(doc, permutations=99, seed=5), "day_type")))
+
+    def test_too_few_features_is_insufficient_not_a_cluster(self):
+        out = insights.analyze(make_doc(sleep=False, screen=False), permutations=99)
+        self.assertEqual(kinds(out, "day_type"), [])
+        self.assertTrue(any(f["missing"] == "day_types" for f in kinds(out, "insufficient")))
+
+    def test_features_exclude_absent_sources(self):
+        meta = insights.enrich(make_doc(sleep=False), permutations=99)["meta"]["insights"]["day_types"]
+        self.assertNotIn("sleep_duration", meta["features"])
+        self.assertIn("steps", meta["features"])
+
+    def test_guardrail_wording_and_state_timing_mirror(self):
+        out = insights.analyze(make_doc(change=28), permutations=199)
+        by_id = {f["id"]: f for f in out if f["type"] == "Finding"}
+        for f in kinds(out, "day_type") + kinds(out, "day_type_trend") + kinds(out, "day_types_none"):
+            text = (f["statement"] + f["uncertainty"]).lower()
+            for bad in BANNED:
+                self.assertNotIn(bad, text)
+            self.assertIs(f["causal_claim"], False)
+        for t in kinds(out, "day_type_trend"):
+            self.assertIn("cause is not identified", t["statement"])
+        mirror = [f for f in kinds(out, "observer_inference") if f["rule"] == "state_timing"]
+        self.assertEqual(len(mirror), 1)
+        m = mirror[0]
+        self.assertTrue(m["sensitive"])
+        self.assertIn("could infer", m["statement"])
+        self.assertTrue(m["alternatives"] and m["holders"])
+        self.assertEqual(m["evidence_class"], "hypothesis")
+        self.assertEqual(m["supporting_evidence_ids"], [])
+        self.assertTrue({by_id[i]["finding_kind"] for i in m["rests_on"]} == {"day_type", "day_type_trend"})
+
+    def test_no_state_timing_without_a_trend(self):
+        out = insights.analyze(make_doc(seed=3), permutations=99)
+        self.assertFalse([f for f in kinds(out, "observer_inference") if f["rule"] == "state_timing"])
+
+
 class ContractAndDeterminism(unittest.TestCase):
     def test_enriched_document_validates(self):
         doc = make_doc(change=28, messaging=True, searches=True, office=True)
@@ -280,7 +380,8 @@ class ContractAndDeterminism(unittest.TestCase):
         self.assertEqual(out["meta"]["insights"]["alpha"], 0.05)
         self.assertGreater(out["meta"]["insights"]["metrics_scanned"], 5)
         self.assertEqual(out["meta"]["type_counts"]["Finding"], len(kinds(out["records"], "shift")) + sum(
-            len(kinds(out["records"], k)) for k in ("lagged_association", "routine", "observer_inference", "suggestion", "insufficient")))
+            len(kinds(out["records"], k)) for k in ("lagged_association", "routine", "observer_inference", "suggestion", "insufficient", "day_type",
+                  "day_type_trend", "day_types_none")))
         self.assertTrue(any(r["id"] == "src-workspace" for r in out["records"]))
         self.assertTrue(any(r["type"] == "Link" and r["link_type"] == "SUPPORTED_BY" for r in out["records"]))
 

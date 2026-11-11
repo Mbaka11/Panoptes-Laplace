@@ -26,7 +26,7 @@ import re
 from typing import Any
 
 ENGINE = "spikes.insights"
-VERSION = "0.1"
+VERSION = "0.2"
 UNKNOWN = "unknown"
 WORKSPACE_SOURCE = "src-workspace"
 PROVENANCE_SOURCE = "laplace-insights"
@@ -539,6 +539,115 @@ def _metric_types(metric: str, m: Metrics) -> tuple[str, ...]:
     return m.source_types.get(metric, ())
 
 
+# --- day types: k-means with partial distance (module-level helpers) ---------------
+
+DAY_TYPE_FEATURES = ("screen_minutes", "short_video_minutes", "late_night_minutes", "pickups", "notifications",
+                     "sleep_onset", "sleep_duration", "steps", "minutes_away", "distinct_places", "total_messages")
+DAY_TYPE_UNITS = {"total_messages": ("daily messages (all contacts)", "messages/day")}
+MIN_FEATURES = 3            # fewer eligible features: no day-type scan
+MIN_CLASSIFIED = 20         # classified days needed
+MIN_CLUSTER = 4             # smaller clusters are not accepted as a day type
+KNOWN_SHARE_FOR_DAY = 0.7   # share of eligible features a day needs to be classified
+NULL_SILHOUETTE = 0.25
+STABLE_JACCARD = 0.6
+BOOTSTRAPS = 60
+PORTRAIT_SIZE = 6          # stored in the finding; the statement quotes the first PORTRAIT_TEXT
+PORTRAIT_TEXT = 4
+PORTRAIT_MIN_Z = 0.5
+Z_CLIP = 5.0
+
+
+def _pdist2(a: list[float | None], b: list[float | None]) -> float | None:
+    """Mean squared difference over features known in both vectors (partial distance); None if none shared."""
+    s, n = 0.0, 0
+    for x, y in zip(a, b):
+        if x is not None and y is not None:
+            s += (x - y) ** 2
+            n += 1
+    return s / n if n else None
+
+
+def _assign(p: list[float | None], centers: list[list[float]]) -> int:
+    best, bi = math.inf, 0
+    for c, ctr in enumerate(centers):
+        d = _pdist2(p, ctr)  # type: ignore[arg-type]
+        d = 1e9 if d is None else d
+        if d < best - 1e-12:
+            best, bi = d, c
+    return bi
+
+
+def _kmeans(points: list[list[float | None]], k: int, rng: random.Random, restarts: int, iters: int = 40
+            ) -> tuple[list[int], float]:
+    """Deterministic (given rng) k-means with partial distance over known features. Returns the best restart."""
+    n, f = len(points), len(points[0])
+    best: tuple[list[int], float] | None = None
+    for _ in range(restarts):
+        seeds = [rng.randrange(n)]
+        while len(seeds) < k:  # k-means++ seeding on partial distance
+            d = [min((_pdist2(p, points[s]) or 0.0) for s in seeds) for p in points]
+            tot = sum(d)
+            if tot <= 0:
+                seeds.append(rng.randrange(n))
+                continue
+            r, acc, pick = rng.random() * tot, 0.0, n - 1
+            for i, w in enumerate(d):
+                acc += w
+                if acc >= r:
+                    pick = i
+                    break
+            seeds.append(pick)
+        centers = [[0.0 if v is None else v for v in points[s]] for s in seeds]
+        labels = [-1] * n
+        for _it in range(iters):
+            new = [_assign(p, centers) for p in points]
+            if new == labels:
+                break
+            labels = new
+            for c in range(k):
+                mem = [points[i] for i in range(n) if labels[i] == c]
+                for j in range(f):
+                    vs = [p[j] for p in mem if p[j] is not None]
+                    if vs:  # a feature unknown for every member keeps its previous center
+                        centers[c][j] = sum(vs) / len(vs)  # type: ignore[arg-type]
+        inertia = sum(_pdist2(points[i], centers[labels[i]]) or 0.0 for i in range(n))  # type: ignore[arg-type]
+        if best is None or inertia < best[1] - 1e-12:
+            best = (labels, inertia)
+    assert best is not None
+    return best
+
+
+def _silhouette(points: list[list[float | None]], labels: list[int], k: int) -> float:
+    n = len(points)
+    dist = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = _pdist2(points[i], points[j])
+            dist[i][j] = dist[j][i] = math.sqrt(d) if d is not None else 0.0
+    groups = [[i for i in range(n) if labels[i] == c] for c in range(k)]
+    total = 0.0
+    for i in range(n):
+        own = groups[labels[i]]
+        if len(own) < 2:
+            continue  # singleton: s = 0
+        a = sum(dist[i][j] for j in own if j != i) / (len(own) - 1)
+        others = [sum(dist[i][j] for j in g) / len(g) for c, g in enumerate(groups) if c != labels[i] and g]
+        if not others:
+            continue
+        b = min(others)
+        total += (b - a) / max(a, b) if max(a, b) > 0 else 0.0
+    return total / n
+
+
+def _robust_scale(des: list[float]) -> float:
+    """1.4826 * MAD; falls back to the mean absolute deviation about the median when MAD is 0; 0 = degenerate."""
+    mad = _mad(des)
+    if mad > 0:
+        return 1.4826 * mad
+    c = _med(des)
+    return 1.2533 * sum(abs(v - c) for v in des) / len(des)
+
+
 # --- the engine -------------------------------------------------------------------
 
 class _Run:
@@ -555,6 +664,8 @@ class _Run:
         self.findings: list[dict[str, Any]] = []
         self.scanned = 0
         self._n = 0
+        self.dt_meta: dict[str, Any] = {"features": [], "silhouette_by_k": {}, "k": None, "unclassified_days": []}
+        self.dt_types: dict[str, dict[str, Any]] = {}
 
     def _created_at(self) -> str:
         best = ""
@@ -771,6 +882,187 @@ class _Run:
                              confidence={"level": "medium" if total >= 12 else "low", "basis": f"n={total}"},
                              status="descriptive")
 
+    # -- day types
+    def _dt_label(self, metric: str) -> tuple[str, str]:
+        return DAY_TYPE_UNITS.get(metric) or _metric_label(metric)
+
+    def _dt_phrase(self, item: dict[str, Any]) -> str:
+        label, unit = self._dt_label(item["metric"])
+        if item["metric"] == "sleep_onset":
+            return f"{label} median {_clock(item['median'])} vs usual {_clock(item['usual'])}"
+        return f"{label} median {_fmt(item['median'])} vs usual {_fmt(item['usual'])} {unit}"
+
+    def day_types(self) -> None:
+        m, n_days = self.m, len(self.m.dates)
+        series: dict[str, list[float | None]] = {k: m.series[k] for k in DAY_TYPE_FEATURES if k in m.series}
+        msgs = sorted(k for k in m.series if k.startswith("messages_"))
+        if msgs:
+            series["total_messages"] = [None if any(m.series[k][i] is None for k in msgs) else sum(m.series[k][i] for k in msgs)  # type: ignore[misc]
+                                        for i in range(n_days)]
+        need = math.ceil(MIN_KNOWN_FRACTION * n_days)
+        feats: list[str] = []
+        zs: dict[str, dict[int, float]] = {}
+        for name in DAY_TYPE_FEATURES:
+            vals = series.get(name)
+            if vals is None:
+                continue
+            known = [i for i, v in enumerate(vals) if v is not None]
+            if len(known) < max(need, 1):
+                continue
+            raw = [vals[i] for i in known]
+            des = _deseasonalize([m.weekdays[i] for i in known], raw)  # type: ignore[arg-type]
+            scale = _robust_scale(des)
+            if scale <= 0:
+                continue  # constant feature: no information
+            c = _med(des)
+            zs[name] = {i: max(-Z_CLIP, min(Z_CLIP, (d - c) / scale)) for i, d in zip(known, des)}
+            feats.append(name)
+        self.dt_meta["features"] = list(feats)
+        if len(feats) < MIN_FEATURES:
+            self.insufficient("day-type clustering", "day_types",
+                              f"only {len(feats)} measured feature(s) have at least {need} known days; need at least {MIN_FEATURES} "
+                              "(unmeasured days are never imputed)")
+            return
+        need_known = math.ceil(KNOWN_SHARE_FOR_DAY * len(feats))
+        cls_days = [i for i in range(n_days) if sum(1 for f in feats if i in zs[f]) >= need_known]
+        cls_set = set(cls_days)
+        self.dt_meta["unclassified_days"] = [m.dates[i] for i in range(n_days) if i not in cls_set]
+        if len(cls_days) < MIN_CLASSIFIED:
+            self.insufficient("day-type clustering", "day_types",
+                              f"only {len(cls_days)} days have at least {need_known} of {len(feats)} features measured; "
+                              f"need at least {MIN_CLASSIFIED}")
+            return
+        points: list[list[float | None]] = [[zs[f].get(i) for f in feats] for i in cls_days]
+        nc = len(points)
+
+        results: dict[int, tuple[list[int], float]] = {}
+        for k in range(2, min(5, nc // MIN_CLUSTER) + 1):
+            labels, _ = _kmeans(points, k, random.Random(f"daytype:{self.seed}:k{k}"), 10)
+            results[k] = (labels, _silhouette(points, labels, k))
+        self.dt_meta["silhouette_by_k"] = {str(k): round(s, 3) for k, (_, s) in results.items()}
+        valid = {k: v for k, v in results.items() if min(v[0].count(c) for c in range(k)) >= MIN_CLUSTER}
+        if not results:
+            self.insufficient("day-type clustering", "day_types", "too few classified days for any clustering")
+            return
+        pool = valid or results
+        best_k = max(sorted(pool), key=lambda k: pool[k][1])  # ties favour the smaller k
+        best_s = pool[best_k][1]
+        if not valid or best_s < NULL_SILHOUETTE:
+            self.new("day_types_none", "inference",
+                     f"No distinct day types were found: the best clustering of {nc} classified days (k = {best_k}) had a mean "
+                     f"silhouette of {best_s:.2f}, below the {NULL_SILHOUETTE} threshold. Days varied without separating into "
+                     "clearly different kinds.",
+                     "kmeans_partial_distance_silhouette", [], best_k=best_k, best_silhouette=round(best_s, 3),
+                     reason=("best silhouette below threshold" if valid else "every clustering had a cluster smaller than "
+                                                                              f"{MIN_CLUSTER} days"),
+                     n_classified_days=nc,
+                     uncertainty="A null result at this sample size and feature set; it does not show that no structure exists.",
+                     confidence={"level": "low", "basis": f"silhouette={best_s:.2f}_n={nc}"}, status="exploratory",
+                     alternatives=["too few days", "features that do not capture the differences between days"])
+            return
+        k = best_k
+        labels, sil = valid[k]
+
+        # Bootstrap stability: best-match Jaccard of each cluster over resamples.
+        orig = [{i for i in range(nc) if labels[i] == c} for c in range(k)]
+        brng = random.Random(f"daytype-boot:{self.seed}")
+        sums, cnts = [0.0] * k, [0] * k
+        for _b in range(BOOTSTRAPS):
+            idx = [brng.randrange(nc) for _ in range(nc)]
+            sample = set(idx)
+            lb, _ = _kmeans([points[i] for i in idx], k, brng, 3)
+            bclusters = [{i for i, l in zip(idx, lb) if l == c} for c in range(k)]
+            for c in range(k):
+                cs = orig[c] & sample
+                if not cs:
+                    continue
+                sums[c] += max(len(cs & bc) / len(cs | bc) for bc in bclusters if bc) if any(bclusters) else 0.0
+                cnts[c] += 1
+        jac = [sums[c] / cnts[c] if cnts[c] else 0.0 for c in range(k)]
+
+        order = sorted(range(k), key=lambda c: (-len(orig[c]), min(orig[c])))
+        usual = {f: _med([v for v in series[f] if v is not None]) for f in feats}  # type: ignore[arg-type]
+        made: list[tuple[str, dict[str, Any], set[int]]] = []
+        for rank, c in enumerate(order, 1):
+            key = f"T{rank}"
+            members = sorted(orig[c])
+            day_idx = [cls_days[i] for i in members]
+            portrait = []
+            for f in feats:
+                zv = [zs[f][i] for i in day_idx if i in zs[f]]
+                rv = [series[f][i] for i in day_idx if series[f][i] is not None]
+                if len(zv) >= 3 and rv:
+                    portrait.append((abs(_med(zv)), f, _med(zv), _med(rv)))  # type: ignore[arg-type]
+            portrait.sort(key=lambda t: (-t[0], t[1]))
+            items = [{"metric": f, "median": round(rv, 3), "usual": round(usual[f], 3), "z": round(z, 2),
+                      "unit": self._dt_label(f)[1], "direction": "up" if z > 0 else "down"}
+                     for a, f, z, rv in portrait[:PORTRAIT_SIZE] if a >= PORTRAIT_MIN_Z]
+            stable = jac[c] >= STABLE_JACCARD
+            share = len(members) / nc
+            phr = "; ".join(self._dt_phrase(it) for it in items[:PORTRAIT_TEXT]) or "no feature departs clearly from the usual level"
+            ev_metrics = [("messages_*" if it["metric"] == "total_messages" else it["metric"]) for it in items]
+            ev: list[str] = []
+            for em in ev_metrics:
+                for sm in ([x for x in m.series if x.startswith("messages_")] if em == "messages_*" else [em]):
+                    ev += [e for i in day_idx for e in m.evidence[sm][i]]
+            stmt = (f"Day type {key}: {len(members)} of {nc} classified days ({share:.0%}) resemble each other and differ from this "
+                    f"person's usual weekday: {phr}. A measured portrait of similar days, not a label for the person; "
+                    f"stability {jac[c]:.2f} ({'stable' if stable else 'unstable, treat with caution'}).")
+            f_ = self.new("day_type", "inference", stmt, "kmeans_partial_distance_silhouette_bootstrap", ev,
+                          type_key=key, k=k, days=[m.dates[i] for i in day_idx], n_days=len(members), share=round(share, 3),
+                          portrait=items, silhouette=round(sil, 3), stability_jaccard=round(jac[c], 3), stable=stable,
+                          uncertainty=("k-means assumes compact groups of similar spread; partial distance uses only the features "
+                                       "measured on both days (never imputed); neighbouring days are autocorrelated, so the "
+                                       f"bootstrap stability is optimistic; small n ({nc} classified days). Weekday medians "
+                                       "were removed before scaling."),
+                          confidence={"level": "medium" if stable and sil >= 0.4 else "low",
+                                      "basis": f"silhouette={sil:.2f}_jaccard={jac[c]:.2f}_n={nc}"},
+                          status="exploratory",
+                          alternatives=["a change in how the source records these measures", "travel, illness, or a schedule change",
+                                        "a weekday pattern the weekday-median removal did not fully absorb"])
+            self.dt_types[key] = f_
+            made.append((key, f_, set(day_idx)))
+        self.dt_meta["k"] = k
+
+        # Trend per stable type: permutation max-scan on the 0/1 membership of classified days, BH across types.
+        cset = set(cls_days)
+        known = [i for i in range(n_days) if i in cset]
+        if len(known) < 2 * MIN_SEGMENT:
+            return
+        cands = []
+        for key, f_, days in made:
+            if not f_["stable"]:
+                continue
+            vals = [1.0 if i in days else 0.0 for i in known]
+            kk, d = _best_split(vals, MIN_SEGMENT, True)
+            cands.append((key, f_, vals, kk, d))
+        if k == 2 and len(cands) == 2:  # the two types are complements: test only the one that became more frequent
+            cands = [max(cands, key=lambda t: (t[4], -ord(t[0][1])))]
+        ps = []
+        for key, f_, vals, kk, d in cands:
+            rng = random.Random(f"daytrend:{self.seed}:{key}")
+            ps.append(_perm_p(_max_stat(vals, MIN_SEGMENT, True), self.B, self.alpha,
+                              lambda v: _max_stat(v, MIN_SEGMENT, True), rng, vals))
+        for (key, f_, vals, kk, d), p, q in zip(cands, ps, benjamini_hochberg(ps)):
+            if p is None or q > self.alpha:
+                continue
+            before, after = vals[:kk], vals[kk:]
+            sb, sa = sum(before) / len(before), sum(after) / len(after)
+            change = m.dates[known[kk]]
+            word = "more" if d > 0 else "less"
+            top = "; ".join(self._dt_phrase(it) for it in f_["portrait"][:2]) or "see the day type"
+            stmt = (f"Days of type {key} ({top}) became {word} frequent around {change}: {sb:.0%} of classified days before "
+                    f"({len(before)} days), {sa:.0%} after ({len(after)} days). Descriptive change in how often days look like "
+                    "this; the cause is not identified.")
+            self.new("day_type_trend", "inference", stmt, "membership_shift_scan_permutation_bh", [],
+                     type_key=key, rests_on=[f_["id"]], change_day=change, share_before=round(sb, 3), share_after=round(sa, 3),
+                     direction=f"{word}_frequent", p_value=round(p, 4), q_value=round(q, 4), types_tested=len(cands),
+                     uncertainty=("Permutation p shuffles day order and repeats the change-day scan, but day-to-day autocorrelation "
+                                  "makes p optimistic; the types themselves were fitted on the same days; BH over stable types only."),
+                     confidence={"level": "low", "basis": "permutation_scan_bh_autocorrelation_ignored"}, status="exploratory",
+                     alternatives=["a change in how the source records these measures", "travel, illness, or a schedule change",
+                                   "a gradual drift rather than a step"])
+
     # -- insufficient
     def insufficient(self, wanted: str, missing: str, reason: str) -> None:
         key = (wanted, missing)
@@ -811,6 +1103,18 @@ class _Run:
             if c[0] == "routine":
                 hits = [f for f in routines if fnmatch.fnmatchcase(f["pattern_key"], c[1])]
                 return hits or None
+            if c[0] == "day_trend":
+                out: list[dict[str, Any]] = []
+                for t in self.findings:
+                    if t["finding_kind"] != "day_type_trend" or t["direction"] != "more_frequent":
+                        continue
+                    typ = next((f for f in self.findings if f["id"] == t["rests_on"][0]), None)
+                    if typ is None:
+                        continue
+                    seen = {(it["metric"], it["direction"]) for it in typ["portrait"]}
+                    if all(any(pair in seen for pair in grp) for grp in c[1]):
+                        out += [t, typ]
+                return out or None
             if c[0] == "level":
                 return [] if level(c[1], c[2], c[3], c[4]) else None
             if c[0] == "any":
@@ -822,7 +1126,9 @@ class _Run:
 
         for rule in RULES:
             types = rule["source_types"]
-            if not all(any(_rec_day(r) or r.get("event_end") for r in self.by_type.get(t, [])) for t in types):
+            if rule.get("derive_source_types"):
+                types = []  # filled from the metrics the matched findings actually rest on
+            elif not all(any(_rec_day(r) or r.get("event_end") for r in self.by_type.get(t, [])) for t in types):
                 continue
             matched: list[list[dict[str, Any]]] = []
             for c in rule["requires"]:
@@ -838,7 +1144,15 @@ class _Run:
             if rule.get("per_match"):
                 instances = self.expand(rule, flat)
             for rests, subject in instances:
-                self.add_mirror(rule, rests, subject, types)
+                use = types
+                if rule.get("derive_source_types"):
+                    wanted = {m for grp in rule["requires"][0][1] for m, _ in grp}
+                    metrics = {it["metric"] for f in rests if f.get("finding_kind") == "day_type"
+                               for it in f.get("portrait", []) if it["metric"] in wanted}
+                    use = sorted({t for m in metrics for t in self.m.source_types.get(m, ())})
+                    if not use:
+                        continue
+                self.add_mirror(rule, rests, subject, use)
         self.suggestions()
 
     def expand(self, rule: dict[str, Any], flat: list[dict[str, Any]]) -> list[tuple[list[dict[str, Any]], str]]:
@@ -944,6 +1258,18 @@ RULES: list[dict[str, Any]] = [
      "sensitive": True,
      "alternatives": ["research for someone else or for work", "a news event or a one-off curiosity",
                       "changes in how topics are labelled by the keyword lexicon"]},
+    {"name": "state_timing",
+     "segment_label": "days of late-night use and low activity becoming more frequent",
+     "statement": ("a recurring kind of day (late-night phone use together with little movement or short sleep) that has become "
+                   "more frequent, so that messages could be timed to those days (a hypothesis about the participant only)"),
+     "requires": [("day_trend", [[("late_night_minutes", "up"), ("sleep_onset", "up")],
+                                 [("steps", "down"), ("sleep_duration", "down")]])],
+     "source_types": [], "derive_source_types": True,
+     "typical_uses": ["timing of notifications, promotions, or content to the hours and days when such days occur",
+                      "engagement-based re-targeting aimed at late-night sessions"],
+     "sensitive": True,
+     "alternatives": ["a schedule change such as shift work, travel, or exams", "a short-term event or illness (not assessed)",
+                      "a change in how the devices record use or activity (data gap)"]},
     {"name": "commuter_paid_parking",
      "segment_label": "commuter with a paid-parking routine",
      "statement": "a commuter who regularly pays for parking on office days",
@@ -956,6 +1282,11 @@ RULES: list[dict[str, Any]] = [
 
 
 def _run(doc: dict[str, Any], alpha: float, seed: Any, permutations: int) -> tuple[list[dict[str, Any]], int]:
+    out, run = _run_full(doc, alpha, seed, permutations)
+    return out, run.scanned
+
+
+def _run_full(doc: dict[str, Any], alpha: float, seed: Any, permutations: int) -> tuple[list[dict[str, Any]], _Run]:
     if not isinstance(doc, dict) or not isinstance(doc.get("meta"), dict) or not isinstance(doc.get("records"), list):
         raise ValueError("document must be {meta, records[]}")
     if not isinstance(doc["meta"].get("workspace_id"), str):
@@ -968,13 +1299,14 @@ def _run(doc: dict[str, Any], alpha: float, seed: Any, permutations: int) -> tup
     run.associations()
     run.routines()
     run.missing_sources()
+    run.day_types()
     run.mirror()
     check_guardrails(run.findings, run.cls)
     out: list[dict[str, Any]] = []
     if not any(isinstance(r, dict) and r.get("id") == WORKSPACE_SOURCE for r in doc["records"]):
         out.append(_workspace_source(run))
     out += run.findings + run.links()
-    return out, run.scanned
+    return out, run
 
 
 def _workspace_source(run: _Run) -> dict[str, Any]:
@@ -1025,7 +1357,7 @@ def enrich(doc: dict[str, Any], *, alpha: float = 0.05, seed: Any = 0,
            permutations: int = DEFAULT_PERMUTATIONS) -> dict[str, Any]:
     """A NEW document: input records (minus any earlier insight output) plus new findings and links."""
     base = _without_previous(doc)
-    new, scanned = _run(base, alpha, seed, permutations)
+    new, run = _run_full(base, alpha, seed, permutations)
     out = copy.deepcopy({"meta": base["meta"], "records": base["records"]})
     out["records"] += copy.deepcopy(new)
     counts: dict[str, int] = {}
@@ -1033,7 +1365,8 @@ def enrich(doc: dict[str, Any], *, alpha: float = 0.05, seed: Any = 0,
         if isinstance(r, dict) and isinstance(r.get("type"), str):
             counts[r["type"]] = counts.get(r["type"], 0) + 1
     out["meta"]["type_counts"] = counts
-    out["meta"]["insights"] = {"engine": ENGINE, "version": VERSION, "alpha": alpha, "metrics_scanned": scanned}
+    out["meta"]["insights"] = {"engine": ENGINE, "version": VERSION, "alpha": alpha, "metrics_scanned": run.scanned,
+                             "day_types": copy.deepcopy(run.dt_meta)}
     return out
 
 

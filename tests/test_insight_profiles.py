@@ -85,6 +85,36 @@ class ProfileScoring(unittest.TestCase):
         self.assertIn("SleepInterval", missing)
         self.assertIn("ScreenTimeDaily", missing)
 
+    def test_doomscroll_day_type_and_trend_near_the_change_day(self):
+        doc, fs = self.out["doomscroll"]
+        late = [t for t in _kind(fs, "day_type") if t["stable"] and any(
+            i["metric"] == "late_night_minutes" and i["direction"] == "up" for i in t["portrait"])]
+        self.assertTrue(late)
+        self.assertTrue(any(i["metric"] in ("steps", "sleep_duration") and i["direction"] == "down"
+                            for t in late for i in t["portrait"]))
+        trends = [t for t in _kind(fs, "day_type_trend") if t["direction"] == "more_frequent"
+                  and t["rests_on"][0] in {x["id"] for x in late}]
+        self.assertTrue(trends)
+        for t in trends:
+            self.assertLessEqual(abs(_day(doc, t["change_day"]) - 28), 5)
+        self.assertTrue(any(f["rule"] == "state_timing" for f in _kind(fs, "observer_inference")))
+
+    def test_steady_has_no_day_type_trend(self):
+        self.assertEqual(_kind(self.out["steady"][1], "day_type_trend"), [])
+
+    def test_sparse_day_types_use_no_sleep_or_screen_features(self):
+        doc, fs = self.out["sparse"]
+        feats = doc["meta"]["insights"]["day_types"]["features"]
+        for f in ("sleep_onset", "sleep_duration", "screen_minutes", "short_video_minutes", "late_night_minutes", "pickups"):
+            self.assertNotIn(f, feats)
+        for t in _kind(fs, "day_type"):
+            self.assertFalse({i["metric"] for i in t["portrait"]} & set(("sleep_onset", "sleep_duration", "screen_minutes")))
+
+    def test_day_type_meta_present_on_every_profile(self):
+        for key, (doc, _) in self.out.items():
+            dtm = doc["meta"]["insights"]["day_types"]
+            self.assertEqual(set(dtm), {"features", "silhouette_by_k", "k", "unclassified_days"}, key)
+
     def test_known_power_limit_search_drift_never_wrong_direction(self):
         # Near the detection boundary (about 4 searches/day, 10% -> 40% sensitive share, 16 metrics
         # under BH): detection depends on the permutation seed. When found, it must point up.

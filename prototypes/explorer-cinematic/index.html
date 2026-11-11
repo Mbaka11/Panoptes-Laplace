@@ -121,6 +121,30 @@ pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;
 .badge{display:inline-block;font:500 9.5px var(--f-data);letter-spacing:.1em;text-transform:uppercase;border:1px solid currentColor;padding:1px 5px;margin-right:4px}
 .badge.sens{color:var(--violet)} .badge.gated,.badge.unproven,.badge.partly_unproven{color:var(--amber)} .badge.ok{color:var(--ok)} .badge.opt{color:var(--acc)}
 .cands{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.dtgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr))}
+.dtcv{display:block;width:100%;height:320px;border:1px solid var(--rule);background:rgba(255,255,255,.015);cursor:pointer}
+.dtwrap{position:relative;padding-top:2px;overflow:hidden;flex-shrink:0}
+.dtmk{position:relative;height:17px;font:400 10px/17px var(--f-data);color:var(--ink);white-space:nowrap}
+.dtmk i{position:absolute;top:2px;width:0;height:0;margin-left:-4px;border:4px solid transparent;border-top:7px solid var(--violet);border-bottom:0}
+.dtmk span{position:absolute;top:0}
+.dtcal{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1px;height:34px}
+.dtcal button{padding:0;margin:0;min-width:0;height:100%;border:0;border-radius:0;background:#2a3338;cursor:pointer}
+.dtcal button.un{background:repeating-linear-gradient(45deg,rgba(255,93,108,.6) 0 1px,transparent 1px 4px),#161c1f}
+.dtcal button[aria-pressed="true"]{outline:2px solid #fff;outline-offset:-2px}
+.dtcal button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.dtwrap b{position:absolute;bottom:0;height:calc(100% - 2px);width:0;border-left:1px dashed var(--violet);pointer-events:none}
+.dtax{display:flex;justify-content:space-between;font:400 10px var(--f-data);color:var(--dim)}
+.dtcard.muted{opacity:.62} .dtcard.sel{background:rgba(159,230,255,.07);outline:1px solid var(--acc)}
+.dtsel{display:block;width:100%;text-align:left;text-transform:none;letter-spacing:0;border:0;background:none;padding:0;color:var(--ink);font:400 12px var(--f-data)}
+.dtsel .t{font:500 18px var(--f-display)} .mut{color:var(--dim)}
+.dtpl{list-style:none;margin:0;padding:0;display:grid;gap:3px;font:400 11.5px/1.4 var(--f-data)}
+.dtar{display:inline-block;width:14px;font-size:9px} .dtar.up{color:var(--amber)} .dtar.dn{color:var(--acc)}
+.dtsr{position:absolute;left:-9999px}
+.dtmir{display:block;width:100%;text-align:left;text-transform:none;letter-spacing:0;white-space:normal;padding:6px 8px;border:1px solid var(--violet);background:rgba(196,155,255,.06);color:var(--ink);font:400 11px/1.4 var(--f-data);margin-top:4px}
+.dtcall{white-space:normal}
+.dtsil{width:100%;height:auto;display:block} .dtsil rect{fill:var(--faint)} .dtsil rect.on{fill:var(--acc)} .dtsil text{font:400 8.5px var(--f-data);fill:var(--dim)} .dtsil .v{fill:var(--ink)}
+.dtsil .ax{stroke:var(--rule)} .dtsil .thr{stroke:var(--amber);stroke-dasharray:3 3}
+@media (max-width:560px){.dtcv{height:300px}}
 @media (max-width:820px){
   #center{grid-column:1}
   #cap{bottom:110px}
@@ -153,7 +177,7 @@ pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;
         <a href="#mirror" data-lens="mirror"><kbd>3</kbd>Mirror</a>
         <a href="#fan" data-lens="fan"><kbd>4</kbd>Fan</a>
         <a href="#train" data-lens="train"><kbd>5</kbd>Train</a>
-        <a href="#clusters" data-lens="clusters"><kbd>6</kbd>Clusters</a>
+        <a href="#clusters" data-lens="clusters"><kbd>6</kbd>Day types</a>
         <a href="#loom" data-lens="loom"><kbd>7</kbd>Loom</a>
         <a href="#control" data-lens="control"><kbd>8</kbd>Control</a>
       </nav>
@@ -319,7 +343,7 @@ function setLens(name){
   document.querySelectorAll("#tabs a").forEach(a=>{if(a.dataset.lens===name)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
   const g3=name==="corpus"||name==="control";
   $("#gl").hidden=!g3;$("#c2").hidden=g3;
-  const dom=name==="shifts"||name==="mirror";
+  const dom=name==="shifts"||name==="mirror"||(name==="clusters"&&dtMode());
   $("#foot").hidden=!g3;$("#labels").innerHTML="";labelPool.length=0;$("#tip").hidden=true;
   RP.hidden=!(g3||dom);$("#center").hidden=!dom;$("#center").scrollTop=0;
   L.classList.remove("open");RP.classList.remove("open");
@@ -674,6 +698,7 @@ function resizeGL(){if(!renderer)return;renderer.setSize(innerWidth,innerHeight,
 /* ============ lens availability ============ */
 const NEEDS={clusters:["Visit","DailyHealthAggregate"],loom:["Finding"]};
 function unavail(l){
+  if(l==="clusters"&&dtMode())return null;
   const have=new Set(R.map(r=>r.type));
   const m=(NEEDS[l]||[]).filter(t=>!have.has(t));
   if(m.length)return"has no "+m.join(", ")+" records";
@@ -1134,8 +1159,8 @@ function clusterSummary(){
 function renderClusterPanel(){
   if(lens!=="clusters")return;const S=cl.stab,done=S&&S.b>=S.B,best=+Object.entries(cl.sil).sort((a,b)=>b[1]-a[1])[0][0];
   const sum=done?clusterSummary():null;
-  L.innerHTML=`<h2>Clusters <span>k-means · days</span></h2>
-  <p>Each point is one day of the window. The algorithm only sees ${CF.length} daily measures (${esc(CF.join(', '))}), never the weekday. The question is whether the days form groups.</p>
+  L.innerHTML=`<h2>Raw grouping (legacy) <span>k-means · days</span></h2>
+  <p><b style="font-weight:500">Raw grouping (legacy):</b> groups days by raw measures; on this persona it mostly rediscovers the weekly rhythm. No engine day-type findings exist in this workspace. Each point is one day of the window. The algorithm only sees ${CF.length} daily measures (${esc(CF.join(', '))}), never the weekday. The question is whether the days form groups.</p>
   <h2>Groups k</h2><div class="seg">${[2,3,4,5].map(k=>`<button type="button" data-k="${k}" aria-pressed="${k===cl.k}">${k}${k===best?" · best":""}</button>`).join("")}</div>
   <div class="bars">${[2,3,4,5].map(k=>`<div><span>k=${k}</span><b style="width:${Math.max(2,cl.sil[k]*100)}%;background:${k===cl.k?"var(--acc)":"var(--faint)"}"></b><span>${cl.sil[k].toFixed(2)}</span></div>`).join("")}</div>
   <p class="note">Bars show the silhouette score. Higher means better separated groups. Below about 0.25 the structure is weak.</p>
@@ -1174,8 +1199,7 @@ function frameClusters(now,dt){
   // spokes to hubs
   cl.days.forEach((d,i)=>{X.strokeStyle=hexA(CL_COL[asg[i]],.06+.22*cl.pull);X.lineWidth=1;X.beginPath();X.moveTo(cl.pos[i][0],cl.pos[i][1]);X.lineTo(cl.hub[asg[i]][0],cl.hub[asg[i]][1]);X.stroke()});
   // hour rings
-  if(cl.rings)cl.days.forEach((d,i)=>{d.hours.forEach((h,hr)=>{const ang=hr/24*Math.PI*2-Math.PI/2+(REDUCED?0:now/1000*.12),rr=13;
-    X.fillStyle=hexA(HOUR_COL[h],h==="none"?.35:.9);X.beginPath();X.arc(cl.pos[i][0]+Math.cos(ang)*rr,cl.pos[i][1]+Math.sin(ang)*rr,h==="none"?1:1.8,0,7);X.fill()})});
+  if(cl.rings)cl.days.forEach((d,i)=>drawRing(X,cl.pos[i][0],cl.pos[i][1],d.hours,13,now,1));
   X.globalCompositeOperation="source-over";
   // hubs
   const S=cl.stab,sum=S&&S.b>=S.B?clusterSummary():null;
@@ -1186,8 +1210,11 @@ function frameClusters(now,dt){
   cl.days.forEach((d,i)=>{const p=cl.pos[i];X.fillStyle="#dfe5e8";X.beginPath();X.arc(p[0],p[1],3.2,0,7);X.fill();
     if(d.locUnknown){X.strokeStyle="#ff5d6c";X.setLineDash([2,2]);X.beginPath();X.arc(p[0],p[1],18,0,7);X.stroke();X.setLineDash([])}
     X.font=mono(9);X.fillStyle=d.weekend?"#9aa6ad":"#6c767b";X.textBaseline="middle";X.fillText("D"+String(d.d).padStart(2,"0")+(NDAYS<=32?" "+dowName(d.d):""),p[0]+19,p[1]+1)});
-  ST.innerHTML=`Clusters · k-means k=<em>${cl.k}</em> · iteration <em>${cl.it+1}/${H.length}</em>${cl.done?" · converged":""} · silhouette <em>${cl.sil[cl.k].toFixed(2)}</em> · stability <em>${S?S.b:0}/${S?S.B:0}</em> resamples · days <em>${NDAYS}</em> · location unknown <em>${cl.days.filter(d=>d.locUnknown).length}</em> · weekday not used · synthetic`;
+  ST.innerHTML=`Raw grouping (legacy) · k-means k=<em>${cl.k}</em> · iteration <em>${cl.it+1}/${H.length}</em>${cl.done?" · converged":""} · silhouette <em>${cl.sil[cl.k].toFixed(2)}</em> · stability <em>${S?S.b:0}/${S?S.B:0}</em> resamples · days <em>${NDAYS}</em> · location unknown <em>${cl.days.filter(d=>d.locUnknown).length}</em> · weekday not used · synthetic`;
 }
+function drawRing(c,x,y,hours,rr,now,a){const k=Math.max(.6,rr/13);
+  hours.forEach((h,hr)=>{const ang=hr/24*Math.PI*2-Math.PI/2+(REDUCED?0:now/1000*.12);
+    c.fillStyle=hexA(HOUR_COL[h]||"#9aa6ad",(h==="none"?.35:.9)*a);c.beginPath();c.arc(x+Math.cos(ang)*rr,y+Math.sin(ang)*rr,(h==="none"?1:1.8)*k,0,7);c.fill()})}
 function topLoad(c){const v=cl.comps[c].map((w,j)=>[j,w]).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,2);return v.map(([j,w])=>(w>=0?"+":"−")+CF[j].toUpperCase()).join(" ")}
 function hexA(h,a){const c=hex(h);return`rgba(${c[0]*255|0},${c[1]*255|0},${c[2]*255|0},${a})`}
 
@@ -1309,6 +1336,19 @@ function findingInspector(f){
   }else if(f.finding_kind==="lagged_association"){
     R_.push(kvr("pair",esc(mname(f.x_metric))+" → "+esc(mname(f.y_metric))),kvr("lag",(f.lag_days||0)+" day(s)"),kvr("Spearman ρ",fmtN(f.rho)+" · n "+f.n),
       kvr("p / q",`${fmtN(f.permutation_p)} / ${fmtN(f.q_value)} · ${f.pairs_tested||"?"} pairs tested`));
+  }else if(f.finding_kind==="day_type"){
+    R_.push(kvr("type",esc(f.type_key)+" of k = "+esc(f.k)),kvr("days",esc(f.n_days)+" · "+dtPct(f.share)+" of classified days"),
+      kvr("silhouette",f.silhouette!=null?fmtN(f.silhouette):"—"),kvr("stability (Jaccard)",f.stability_jaccard!=null?fmtN(f.stability_jaccard):"—"),
+      kvr("stable",f.stable!==false?"yes (at or above 0.6)":"no, below 0.6: unconfirmed"),
+      kvr("portrait",dtPortrait(f,true)||"no feature departs clearly from the usual level"),kvr("day list",`<span style="color:var(--dim)">${esc((f.days||[]).join(", "))}</span>`));
+  }else if(f.finding_kind==="day_type_trend"){
+    R_.push(kvr("type",esc(f.type_key)),kvr("direction",esc((f.direction||"").replace(/_/g," "))),kvr("change day",esc(f.change_day)),
+      kvr("share of classified days",dtPct(f.share_before)+" before → "+dtPct(f.share_after)+" after"),
+      kvr("p / q (BH)",(f.p_value!=null?fmtN(f.p_value):"—")+" / "+(f.q_value!=null?fmtN(f.q_value):"—")),kvr("rests on",restsHtml(f)||"—"));
+  }else if(f.finding_kind==="day_types_none"){
+    R_.push(kvr("best k",esc(f.best_k)),kvr("best silhouette",f.best_silhouette!=null?fmtN(f.best_silhouette)+" (threshold "+DT_THR+")":"—"),kvr("classified days",esc(f.n_classified_days)),kvr("reason",esc(f.reason||"")));
+  }else if(f.finding_kind==="insufficient"){
+    R_.push(kvr("missing",esc(f.missing||"")),kvr("reason",esc(f.reason||"")));
   }else if(f.finding_kind==="routine"){
     R_.push(kvr("pattern",esc(f.pattern||"")),kvr("support",fmtN(f.support)+" of "+f.eligible_days+" eligible days"));
   }
@@ -1318,7 +1358,7 @@ function findingInspector(f){
   return`<h2>Finding <span>${esc(f.id)}</span></h2><p>${esc(f.statement||"")}</p><dl class="kv">${R_.join("")}</dl>
   ${f.uncertainty?`<h2>Uncertainty</h2><p class="note">${esc(f.uncertainty)}</p>`:""}
   ${(f.alternatives||[]).length?`<h2>Alternative explanations</h2><div class="note">${listHtml(f.alternatives)}</div>`:""}
-  ${f.finding_kind==="shift"?'<p class="note">Descriptive change; cause not identified.</p>':f.finding_kind==="lagged_association"?'<p class="note">Correlation, not causation.</p>':""}`;
+  ${f.finding_kind==="day_type"?dtMirrorHtml(f)+'<p class="note">A measured portrait of similar days, not a label for the person.</p>':f.finding_kind==="day_type_trend"?'<p class="note">Descriptive change in how often days look like this; cause not identified. The p-value is optimistic because the types were fitted on the same days.</p>':f.finding_kind==="shift"?'<p class="note">Descriptive change; cause not identified.</p>':f.finding_kind==="lagged_association"?'<p class="note">Correlation, not causation.</p>':""}`;
 }
 function openFinding(id,metric){
   ins.fid=id||null;ins.metric=metric||null;renderInsightRight();
@@ -1326,6 +1366,7 @@ function openFinding(id,metric){
   if(innerWidth<=820){RP.classList.add("open");L.classList.remove("open")}
 }
 function renderInsightRight(){
+  if(lens==="clusters"){renderDtRight();return}
   if(lens!=="shifts"&&lens!=="mirror")return;
   const f=ins.fid&&byId[ins.fid];
   if(f){RP.innerHTML=findingInspector(f);return}
@@ -1341,10 +1382,13 @@ function renderInsightRight(){
     <p class="note">Every shift is descriptive. The page never says what caused it.</p>`
     :`<h2>Mirror <span>inspector</span></h2><p>Choose a "rests on" finding in a card to see the evidence it stands on.</p><p class="note">A Mirror card is a hypothesis built on other findings. It inherits all of their limits.</p>`;
 }
-RP.addEventListener("click",e=>{const b=e.target.closest(".idl");if(!b)return;
+RP.addEventListener("click",e=>{
+  if(lens==="clusters"&&dtMode()){const mr=e.target.closest(".dtmir");if(mr){goMirror(mr.dataset.id);return}const q=e.target.closest(".idl");if(q&&byId[q.dataset.id])selDt(q.dataset.id);return}
+  const b=e.target.closest(".idl");if(!b)return;
   if(lens==="shifts"||lens==="mirror"){if(byId[b.dataset.id])openFinding(b.dataset.id,null);return}
 });
 CTR.addEventListener("click",e=>{
+  if(lens==="clusters"){dtClick(e);return}
   const b=e.target.closest(".idl");if(b){openFinding(b.dataset.id,null);return}
   const p=e.target.closest(".sm");if(p)openFinding(p.dataset.f||null,p.dataset.m||null);
 });
@@ -1460,6 +1504,207 @@ function enterMirror(){
   ST.innerHTML=`Mirror · observer inferences <em>${OBSERVERS().length}</em> · suggestions <em>${FINDINGS.filter(f=>f.finding_kind==="suggestion").length}</em> · not enough data <em>${FINDINGS.filter(f=>f.finding_kind==="insufficient").length}</em> · could infer, not did infer · sensitive findings stay in this workspace · synthetic`;
 }
 
+/* ============ LENS: DAY TYPES (engine findings; the browser does not re-cluster) ============ */
+const DTK=()=>FINDINGS.filter(f=>f.finding_kind==="day_type");
+const DTT=()=>FINDINGS.filter(f=>f.finding_kind==="day_type_trend");
+const DTN=()=>FINDINGS.find(f=>f.finding_kind==="day_types_none")||null;
+const DTI=()=>FINDINGS.find(f=>f.finding_kind==="insufficient"&&f.missing==="day_types")||null;
+function dtMode(){return FINDINGS.some(f=>f.finding_kind==="day_type"||f.finding_kind==="day_types_none"||(f.finding_kind==="insufficient"&&f.missing==="day_types"))}
+const DTS={m:null,sel:null,day:null,pull:0,key:"",pts:[],hubs:[]};
+const DT_UN="#7d878c",DT_THR=.25;
+function dtHours(){
+  if(!R.some(r=>r.type==="Visit"))return null;
+  R.filter(r=>r.type==="Place").forEach((p,k)=>{if(!(p.id in HOUR_COL))HOUR_COL[p.id]=HOUR_COL_X[k%HOUR_COL_X.length]});
+  const loc=byId["src-location"],miss=(loc&&loc.missing_periods||[]).map(x=>[Date.parse(x.start),Date.parse(x.end)]);
+  const visits=R.filter(r=>r.type==="Visit").map(r=>({p:r.place_id,a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
+  const trips=R.filter(r=>r.type==="Trip").map(r=>({a:Date.parse(r.event_start),b:Date.parse(r.event_end)}));
+  return[...Array(NDAYS)].map((_,d)=>{const a=T0+d*MS_DAY,o=[];
+    for(let h=0;h<24;h++){const t=a+h*3600e3+1800e3;
+      if(miss.some(([p,q])=>t>=p&&t<q))o.push("unknown");
+      else{const v=visits.find(v=>t>=v.a&&t<v.b);o.push(v?v.p:trips.some(x=>t>=x.a&&t<x.b)?"trip":"none")}}
+    return o});
+}
+function dtModel(){
+  const types=DTK().slice().sort((a,b)=>String(a.type_key).localeCompare(String(b.type_key),undefined,{numeric:true})),none=DTN(),ins=DTI();
+  const mi=((D.meta.insights||{}).day_types)||null,uncl=new Set((mi&&mi.unclassified_days)||[]),hours=dtHours();
+  const groups=[],typeOf={};
+  types.forEach((f,q)=>{groups.push({kind:"type",f,key:f.type_key,color:CL_COL[q%CL_COL.length],stable:f.stable!==false});(f.days||[]).forEach(s=>typeOf[s]=q)});
+  if(!types.length&&none)groups.push({kind:"none",key:"all",color:"#6f8f99",stable:true});
+  const days=[...Array(NDAYS)].map((_,d)=>{const s=dateOf(d);let q=-1;
+    if(types.length){if(s in typeOf)q=typeOf[s]}else if(none&&!uncl.has(s))q=0;
+    return{d,date:s,q,hours:hours?hours[d]:null}});
+  groups.forEach((g,q)=>g.n=days.filter(x=>x.q===q).length);
+  const nu=days.filter(x=>x.q<0).length;
+  if(nu&&groups.length)groups.push({kind:"un",key:"unclassified",color:DT_UN,n:nu,stable:true});
+  return{types,none,ins,mi,groups,days,nu,hours};
+}
+const dtPct=v=>Math.round((v||0)*100)+"%";
+function dtVal(p,v){const m=/^min after (\d\d):(\d\d)$/.exec(p.unit||"");
+  if(m){const t=(((+m[1])*60+(+m[2])+Math.round(v))%1440+1440)%1440;return String(t/60|0).padStart(2,"0")+":"+String(t%60).padStart(2,"0")}
+  return fmtN(Math.round(v*10)/10)}
+const dtUnit=p=>/^min after/.test(p.unit||"")?"":(p.unit||"");
+function dtPortrait(f,z){
+  const P=f.portrait||[];if(!P.length)return"";
+  return`<ul class="dtpl">${P.map(p=>{const up=(p.direction||(p.z>=0?"up":"down"))==="up";
+    return`<li><span class="dtar ${up?"up":"dn"}" aria-hidden="true">${up?"▲":"▼"}</span><span class="dtsr">${up?"higher":"lower"}: </span>${esc(mname(p.metric))} ${esc(dtVal(p,p.median))} vs usual ${esc(dtVal(p,p.usual))} ${esc(dtUnit(p))}${z&&p.z!=null?` <span class="mut">(z ${fmtN(p.z)})</span>`:""}</li>`}).join("")}</ul>`;
+}
+function dtTypeIdOf(id){const f=id&&byId[id];if(!f)return null;if(f.finding_kind==="day_type")return f.id;if(f.finding_kind==="day_type_trend")return(f.rests_on||[])[0]||null;return null}
+function dtMirrorFor(f){const ids=[f.id].concat(DTT().filter(t=>(t.rests_on||[]).includes(f.id)).map(t=>t.id));
+  return OBSERVERS().filter(o=>(o.rests_on||[]).some(id=>ids.includes(id)))}
+function dtMirrorHtml(f){const O=dtMirrorFor(f);if(!O.length)return"";
+  return`<div class="lbl2">Mirror cards resting on this type</div>${O.map(o=>`<button type="button" class="dtmir" data-id="${esc(o.id)}">An observer could infer: ${esc(o.segment_label||o.id)}</button>`).join("")}<p class="note">Open the Mirror lens card. It is a hypothesis built on this finding and inherits its limits.</p>`}
+function goMirror(id){setLens("mirror");if(location.hash.slice(1)!=="mirror")location.hash="mirror";openFinding(id,null)}
+
+function dtSilSvg(m){
+  const S=(m.mi&&m.mi.silhouette_by_k)||{},ks=Object.keys(S).sort((a,b)=>a-b);if(!ks.length)return"";
+  const W=220,H=104,pl=22,pb=18,pt=8,mx=Math.max(.4,...ks.map(k=>S[k]))+.05,y=v=>pt+(1-clamp(v,0,mx)/mx)*(H-pt-pb),bw=(W-pl-6)/ks.length;
+  const chosen=m.mi&&m.mi.k!=null?String(m.mi.k):null;
+  let g=`<line class="ax" x1="${pl}" x2="${W-6}" y1="${H-pb}" y2="${H-pb}"/>`;
+  ks.forEach((k,i)=>{const v=S[k],x=pl+i*bw+bw*.18,w=bw*.64,yy=y(v);
+    g+=`<rect class="${k===chosen?"on":""}" x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0,H-pb-yy).toFixed(1)}"/><text x="${(x+w/2).toFixed(1)}" y="${H-5}" text-anchor="middle">k=${esc(k)}</text><text x="${(x+w/2).toFixed(1)}" y="${(yy-2).toFixed(1)}" text-anchor="middle" class="v">${esc(v.toFixed(2))}</text>`});
+  g+=`<line class="thr" x1="${pl}" x2="${W-6}" y1="${y(DT_THR).toFixed(1)}" y2="${y(DT_THR).toFixed(1)}"/><text x="2" y="${(y(DT_THR)+3).toFixed(1)}" class="v">.25</text>`;
+  return`<svg class="dtsil" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mean silhouette by number of groups: ${ks.map(k=>"k="+k+" "+S[k].toFixed(2)).join(", ")}. Threshold ${DT_THR}.">${g}</svg>`;
+}
+function renderDtLeft(){
+  const m=DTS.m,mi=metaLine(),F=(m.mi&&m.mi.features)||[];
+  L.innerHTML=`<h2>Day types <span>engine findings</span></h2>
+  <p>Which kinds of days does this person have, compared with their own usual weekday, and is one kind becoming more frequent? ${mi?esc(mi.engine)+" computed this":"The engine computed this"}. The page does not re-cluster.</p>
+  ${m.groups.length?`<h2>Silhouette by k <span>threshold ${DT_THR}</span></h2>${dtSilSvg(m)}
+  <p class="note">Silhouette scores how well separated the groups are. A best score below ${DT_THR} means no distinct day types, which is a valid result.</p>`:""}
+  ${F.length?`<h2>Measures used <span>${F.length}</span></h2><p class="note">${esc(F.map(mname).join(", "))}. Each is compared with the person's own median for that weekday. A day with too few measured features is left unclassified, never filled in.</p>`:""}
+  <div class="legend">${m.groups.map(g=>`<span><i class="cls" style="background:${g.kind==="un"?"repeating-linear-gradient(45deg,#ff5d6c 0 1px,transparent 1px 4px)":g.color}"></i>${esc(g.kind==="type"?g.key:g.kind==="un"?"unclassified":"all classified days")}</span>`).join("")}</div>
+  <p class="note">T1, T2 are plain keys for measured portraits. They are not names, and they do not describe the person's character. A type that is not stable under resampling is shown muted.</p>`;
+}
+function dtCalendar(m){
+  const N=NDAYS,tr=DTT().filter(t=>t.change_day);
+  const rows=tr.map(t=>{const i=clamp(dayIdx(t.change_day),0,N-1),left=i/N*100,more=t.direction==="more_frequent",txt=`${t.type_key} ${more?"▲ more":"▼ less"} from ${t.change_day.slice(5)}`;
+    return`<div class="dtmk"><i style="left:${left.toFixed(2)}%"></i><span style="${left>45?`right:${(100-left).toFixed(2)}%;padding-right:5px`:`left:${left.toFixed(2)}%;padding-left:5px`}">${esc(txt)}</span></div>`}).join("");
+  const lines=tr.map(t=>`<b style="left:${(clamp(dayIdx(t.change_day),0,N-1)/N*100).toFixed(2)}%"></b>`).join("");
+  const cells=m.days.map(d=>{const g=d.q>=0?m.groups[d.q]:null,nm=g?(g.kind==="type"?g.key:"day in the one group"):"unclassified (not enough measured features)";
+    return`<button type="button" class="${g?"":"un"}" data-day="${d.d}" style="${g?`background:${g.color}`:""}" title="${esc(d.date+" · "+nm)}" aria-label="${esc(d.date+" "+dowName(d.d)+": "+nm)}" aria-pressed="${DTS.day===d.d}"></button>`}).join("");
+  return`<div class="dtwrap">${rows}<div class="dtcal" role="group" aria-label="Calendar of ${N} days coloured by day type">${cells}</div>${lines}</div>
+  <div class="dtax"><span>${esc(dateOf(0))}</span><span>${esc(dateOf(N-1))}</span></div>`;
+}
+function dtCard(f,q,m){
+  const g=m.groups[q],st=f.stable!==false,mir=dtMirrorFor(f);
+  return`<article class="card dtcard${st?"":" muted"}" data-f="${esc(f.id)}" style="border-left:3px solid ${g.color}">
+  <button type="button" class="dtsel" data-f="${esc(f.id)}" aria-pressed="${dtTypeIdOf(DTS.sel)===f.id}"><span class="t" style="color:${g.color}">${esc(f.type_key)}</span> <span class="mut">${f.n_days} days · ${dtPct(f.share)} of classified days</span></button>
+  <div class="lbl2">${st?'<span class="badge ok">Stable</span>':'<span class="badge">Unstable</span>'}${f.stability_jaccard!=null?"stability (Jaccard) "+f.stability_jaccard.toFixed(2):"stability not reported"}${f.silhouette!=null?" · silhouette "+f.silhouette.toFixed(2):""}</div>
+  ${(f.portrait||[]).length?dtPortrait(f,false):'<p class="note">No measured feature departs clearly from this person\'s usual weekday level.</p>'}
+  ${st?"":'<p class="note">Unstable: this grouping changes when the days are resampled, so it is unconfirmed and no trend was tested for it.</p>'}
+  <p class="note">A measured portrait of similar days, not a label for the person.</p>
+  ${mir.length?mir.map(o=>`<button type="button" class="dtmir" data-id="${esc(o.id)}">Mirror: an observer could infer ${esc(o.segment_label||o.id)}</button>`).join(""):""}</article>`;
+}
+function renderDtCenter(){
+  const m=DTS.m,mi=metaLine(),N=NDAYS,best=m.none&&m.none.best_silhouette;
+  let h=`<div class="hdr">${mi?esc(mi.engine)+" · ":""}classified <em>${N-m.nu}</em> of <em>${N}</em> days · unclassified <em>${m.nu}</em> · window <em>${N}</em> days${m.mi&&m.mi.k!=null?` · k <em>${m.mi.k}</em>`:""}</div>`;
+  if(m.ins&&!m.types.length&&!m.none){
+    CTR.innerHTML=h+`<div class="card"><div class="t">Day types unavailable</div><p>The engine could not form day types here: ${esc(m.ins.reason||m.ins.statement||"not enough measured data")}.</p>
+    <p class="note">Unknown is not zero. No day was assigned to a type and nothing was filled in. This says nothing about whether the person has different kinds of days.</p></div>`;return;
+  }
+  if(m.none&&!m.types.length)h+=`<div class="card"><div class="t">No distinct day types at the declared threshold (best silhouette ${best!=null?esc(Number(best).toFixed(2)):"?"} &lt; ${DT_THR})</div>
+    <p>The engine scanned ${m.none.n_classified_days!=null?esc(m.none.n_classified_days):N-m.nu} classified days (best k = ${esc(m.none.best_k)}) and found that days vary without separating into clearly different kinds.</p>
+    <p class="note">${esc(m.none.reason||"")}. This is a result about this window, not a statement that every day is the same.${m.nu?" "+m.nu+" days had too few measured features and are hatched in the calendar.":""} All classified days share one colour below.</p></div>`;
+  h+=`<h3>Days · one point per day</h3><canvas id="dtc" class="dtcv" role="img" tabindex="-1" aria-label="Each day as a point grouped by its type. The calendar below lists the same days as buttons."></canvas>
+  <p class="note">The engine gives group membership, not coordinates: position inside a group means nothing.${m.hours?" The ring around each day shows its 24 hours by place; red means location unknown.":""} Unclassified days stay apart, never assigned.</p>`;
+  h+=`<h3>Calendar · ${N} days</h3>${dtCalendar(m)}
+  <div class="legend">${m.groups.map(g=>`<span><i class="cls" style="background:${g.kind==="un"?"repeating-linear-gradient(45deg,#ff5d6c 0 1px,transparent 1px 4px)":g.color}"></i>${esc(g.kind==="type"?g.key:g.kind==="un"?"unclassified (not enough measured features)":"classified day")}</span>`).join("")}</div>`;
+  const tr=DTT();
+  if(tr.length){h+=`<h3>Trends · ${tr.length}</h3><div class="dtgrid">${tr.map(t=>{const more=t.direction==="more_frequent";
+    return`<button type="button" class="sm dtcall" data-f="${esc(t.id)}" aria-pressed="${DTS.sel===t.id}"><b>${esc(t.type_key)} became ${more?"more":"less"} frequent from ${esc(t.change_day)}</b>: ${esc(dtPct(t.share_before))} → ${esc(dtPct(t.share_after))} of classified days (q=${esc(t.q_value!=null?fmtN(t.q_value):"?")}). <span class="mut">Descriptive; cause not identified.</span></button>`}).join("")}</div>
+    <p class="note">These p-values are optimistic: the types were fitted on the same days that are then tested for a trend.${tr.length>1?" Complementary trends, one type more frequent and another less, are two views of one change, not two separate findings.":""}</p>`}
+  else if(m.types.length)h+=`<h3>Trends · 0</h3><p class="note">No type became significantly more or less frequent after correction. That is a result, not a guarantee the pattern stayed constant.</p>`;
+  if(m.types.length)h+=`<h3>Types · ${m.types.length}</h3><div class="dtgrid">${m.types.map((f,q)=>dtCard(f,q,m)).join("")}</div>`;
+  CTR.innerHTML=h;DTS.key="";
+}
+function dtDayHtml(d){
+  const m=DTS.m,day=m.days[d],g=day.q>=0?m.groups[day.q]:null,F=(m.mi&&m.mi.features)||[];
+  const rows=F.map(k=>{const v=mval(k,d);return kvr(mname(k),v==null?"unknown (not zero)":fmtN(v))}).join("");
+  return`<h2>Day <span>${esc(day.date)} · ${esc(dowName(d))}</span></h2>
+  <p>${g?(g.kind==="type"?`This day belongs to type ${esc(g.key)}.`:"This day is in the one group of classified days."):"Unclassified: too few of its features were measured. It was not imputed and not assigned."}</p>
+  ${g&&g.kind==="type"?`<button type="button" class="idl" data-id="${esc(g.f.id)}">${esc(g.f.id)} · open type ${esc(g.key)}</button>`:""}
+  ${rows?`<h2>Measures that day</h2><dl class="kv">${rows}</dl><p class="note">Raw values from the metric series. Unknown means not measured, and it is never drawn as zero.</p>`:'<p class="note">Daily values are not available from this server.</p>'}`;
+}
+function renderDtRight(){
+  const f=DTS.sel&&byId[DTS.sel];
+  if(DTS.day!=null)RP.innerHTML=dtDayHtml(DTS.day);
+  else if(f)RP.innerHTML=findingInspector(f);
+  else RP.innerHTML=`<h2>Day types <span>inspector</span></h2><p>Choose a type, a trend, a calendar cell or a point to see the Finding behind it: its days, portrait, stability and what it rests on.</p><p class="note">Every portrait is descriptive. The page never says what caused it.</p>`;
+}
+function dtOpenRight(){if(innerWidth<=820){RP.classList.add("open");L.classList.remove("open")}}
+function dtMark(){
+  const tid=dtTypeIdOf(DTS.sel);
+  CTR.querySelectorAll("[data-day]").forEach(b=>b.setAttribute("aria-pressed",String(DTS.day===+b.dataset.day)));
+  CTR.querySelectorAll(".dtsel").forEach(b=>b.setAttribute("aria-pressed",String(tid===b.dataset.f)));
+  CTR.querySelectorAll(".dtcall").forEach(b=>b.setAttribute("aria-pressed",String(DTS.sel===b.dataset.f)));
+  CTR.querySelectorAll(".dtcard").forEach(b=>b.classList.toggle("sel",tid===b.dataset.f));
+  DTS.key="";
+}
+function selDt(id){DTS.sel=id||null;DTS.day=null;dtMark();renderDtRight();dtOpenRight()}
+function selDay(d){DTS.day=d;DTS.sel=null;dtMark();renderDtRight();dtOpenRight()}
+function dtClick(e){
+  const mir=e.target.closest(".dtmir");if(mir){goMirror(mir.dataset.id);return}
+  const cell=e.target.closest("[data-day]");if(cell){selDay(+cell.dataset.day);return}
+  if(e.target.id==="dtc"){
+    const r=e.target.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,bd=14*14;
+    DTS.pts.forEach(p=>{const q=(p.x-x)**2+(p.y-y)**2;if(q<bd){bd=q;best=p}});
+    if(best){selDay(best.d);return}
+    const hub=DTS.hubs.map((hb,i)=>({hb,i})).find(o=>(o.hb.x-x)**2+(o.hb.y-y)**2<o.hb.R*o.hb.R);
+    const g=hub&&DTS.m.groups[hub.i];if(g&&g.kind==="type")selDt(g.f.id);return}
+  const f=e.target.closest("[data-f]");if(f)selDt(f.dataset.f);
+}
+function enterDayTypes(){
+  size2d();X.clearRect(0,0,innerWidth,innerHeight);
+  if(!DTS.m)DTS.m=dtModel();
+  DTS.sel=null;DTS.day=null;DTS.pull=REDUCED?1:0;DTS.key="";
+  const m=DTS.m;
+  renderDtLeft();renderDtCenter();renderDtRight();
+  ST.innerHTML=m.types.length?`Day types · engine findings · types <em>${m.types.length}</em> · classified <em>${NDAYS-m.nu}</em> of <em>${NDAYS}</em> days · trends <em>${DTT().length}</em> · unclassified days stay unassigned · descriptive portraits, not labels · synthetic`
+    :m.none?`Day types · engine ran · <em>no distinct types</em> (best silhouette ${m.none.best_silhouette!=null?Number(m.none.best_silhouette).toFixed(2):"?"} &lt; ${DT_THR}) · classified <em>${NDAYS-m.nu}</em> of <em>${NDAYS}</em> days · a valid null result · synthetic`
+    :`Day types · <em>unavailable</em> for <em>${esc(D.meta.workspace_id)}</em> · unknown is not zero · synthetic`;
+}
+function frameDayTypes(now,dtm){
+  const m=DTS.m;if(!m||!m.groups.length)return;
+  const c=document.getElementById("dtc");if(!c)return;
+  const W=c.clientWidth,H=c.clientHeight;if(W<40||H<40)return;
+  if(REDUCED)DTS.pull=1;else DTS.pull=Math.min(1,DTS.pull+dtm/1.4);
+  const key=W+"x"+H+"|"+DTS.sel+"|"+DTS.day;
+  if(REDUCED&&key===DTS.key)return;DTS.key=key;
+  const dpr=Math.min(devicePixelRatio||1,2);
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
+  const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const nH=m.groups.length,slot=W/nH,Rh=Math.max(14,Math.min(slot,H-110)/2*.9),maxN=Math.max(1,...m.groups.map(q=>q.n));
+  const s=clamp(Rh/Math.sqrt(maxN+1),5,16),rr=m.hours?clamp(s*.42,3,8):0,cy=H/2+4,e=1-Math.pow(1-DTS.pull,3),cnt=new Array(nH).fill(0);
+  const selQ=(()=>{const id=dtTypeIdOf(DTS.sel);return id?m.groups.findIndex(q=>q.f&&q.f.id===id):-1})();
+  const selDayObj=DTS.day!=null?m.days[DTS.day]:null;
+  const pts=m.days.map(day=>{const hi=day.q>=0?day.q:nH-1,j=cnt[hi]++,hx=slot*(hi+.5),ang=j*2.39996,rad=s*Math.sqrt(j+.5);
+    const tx=hx+Math.cos(ang)*rad,ty=cy+Math.sin(ang)*rad,sx=12+(day.d+.5)/NDAYS*(W-24),sy=H*.5+Math.sin(day.d*1.9)*H*.3;
+    return{x:lerp(sx,tx,e),y:lerp(sy,ty,e),hi,d:day.d,day}});
+  DTS.pts=pts;DTS.hubs=m.groups.map((_,i)=>({x:slot*(i+.5),y:cy,R:Rh+rr}));
+  const am=hi=>{const gr=m.groups[hi];let a=gr.stable?1:.45;if(selQ>=0&&hi!==selQ)a*=.45;return a};
+  g.globalCompositeOperation="lighter";
+  pts.forEach(p=>{const hb=DTS.hubs[p.hi],gr=m.groups[p.hi];g.strokeStyle=hexA(gr.color,(.05+.2*e)*am(p.hi));g.lineWidth=1;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(hb.x,hb.y);g.stroke()});
+  if(m.hours)pts.forEach(p=>{if(p.day.hours)drawRing(g,p.x,p.y,p.day.hours,rr,now,am(p.hi)*(p.day.q<0?.6:1))});
+  g.globalCompositeOperation="source-over";
+  m.groups.forEach((gr,i)=>{const hb=DTS.hubs[i],a=am(i),gl=g.createRadialGradient(hb.x,hb.y,0,hb.x,hb.y,Rh);gl.addColorStop(0,hexA(gr.color,.18*a));gl.addColorStop(1,hexA(gr.color,0));
+    g.fillStyle=gl;g.beginPath();g.arc(hb.x,hb.y,Rh,0,7);g.fill();
+    if(gr.kind!=="un"){g.strokeStyle=hexA(gr.color,.8*a);g.beginPath();g.arc(hb.x,hb.y,4,0,7);g.stroke()}});
+  pts.forEach(p=>{const gr=m.groups[p.hi],a=am(p.hi);
+    if(p.day.q<0){g.strokeStyle=hexA(DT_UN,.9*a);g.lineWidth=1;g.beginPath();g.arc(p.x,p.y,2.4,0,7);g.stroke()}
+    else{g.fillStyle=hexA(gr.kind==="none"?"#cfe3ea":"#dfe5e8",a);g.beginPath();g.arc(p.x,p.y,2.4,0,7);g.fill()}});
+  if(selDayObj){const p=pts[selDayObj.d];g.strokeStyle="#fff";g.lineWidth=1.5;g.beginPath();g.arc(p.x,p.y,Math.max(6,rr+3),0,7);g.stroke()}
+  g.font=mono(10,500);g.textAlign="center";g.textBaseline="top";
+  m.groups.forEach((gr,i)=>{const hb=DTS.hubs[i],a=am(i);g.fillStyle=hexA(gr.color==="#7d878c"?"#a9b4ba":gr.color,Math.max(.6,a));
+    if(gr.kind==="type"){g.fillText(gr.key+" · "+dtPct(gr.f.share),hb.x,8);g.font=mono(9,400);g.fillStyle=hexA("#9aa6ad",1);
+      g.fillText("N "+gr.n+(gr.stable?" · stable":" · UNSTABLE"),hb.x,21);g.font=mono(10,500)}
+    else if(gr.kind==="none"){g.fillText("no distinct day types",hb.x,8);g.font=mono(9,400);g.fillStyle="#9aa6ad";g.fillText("N "+gr.n,hb.x,21);g.font=mono(10,500)}
+    else{g.font=mono(9,400);g.fillStyle="#a9b4ba";const lines=dtWrap(g,"unclassified (not enough measured features), N "+gr.n,slot-8);
+      lines.forEach((t,k)=>g.fillText(t,hb.x,H-6-(lines.length-k)*12));g.font=mono(10,500)}});
+  g.textAlign="left";
+}
+function dtWrap(g,text,maxW){const w=text.split(" "),out=[];let cur="";
+  w.forEach(t=>{const n=cur?cur+" "+t:t;if(cur&&g.measureText(n).width>maxW){out.push(cur);cur=t}else cur=n});if(cur)out.push(cur);return out}
+
 /* ============ guided tour ============ */
 const TOUR=[
   {lens:"corpus",form:"anatomy",replay:true,t:10,eye:"Corpus · anatomy",cap:"One fictional window. Each record lights up when it happens, and links form once both ends exist."},
@@ -1470,7 +1715,7 @@ const TOUR=[
   {lens:"mirror",t:10,eye:"Mirror · what an observer could infer",cap:"If someone held these sources, what could they conclude? Each card says could, names its sources and holders, and lists other explanations."},
   {lens:"fan",t:8,run:()=>fanResetLayer(),eye:"Fan · one association",cap:"1,500 resamples against a world with no relationship. When the two fans overlap, the honest answer is inconclusive."},
   {lens:"train",t:9,run:()=>{initNet();tr.run=true;renderTrainPanel()},eye:"Train · optional prediction",cap:"Will tonight be a late night? A small model learns while you watch, scored against simple baselines. Prediction is optional."},
-  {lens:"clusters",t:11,eye:"Clusters · days",cap:"Days pull into groups on their own. Each group's stability is measured before anyone names it."},
+  {lens:"clusters",t:11,eye:"Day types · kinds of days",cap:"The engine groups days by how they differ from the person's own weekday. A calendar strip shows whether a type becomes more frequent. Where it finds none, it says so."},
   {lens:"loom",t:8,eye:"Loom · provenance",cap:"Every finding hangs on threads that lead back to their sources."},
   {lens:"control",t:10,run:()=>{const h=NIDX["src-healthkit"]??NIDX[HUBS[0]];if(h==null)return;ctlPreview([h]);setTimeout(()=>{if(tour&&lens==="control")ctlExecute()},2600)},eye:"Control · deletion",cap:"The participant deletes a source. Everything built on it goes dark with it."},
 ];
@@ -1498,7 +1743,7 @@ const LENSES={
   mirror:{enter(){size2d();CTR.innerHTML="";this.off=false;enterMirror()},frame(){}},
   fan:{enter(){size2d();this.off=blocked("fan");if(!this.off)enterFan()},frame(n,d){if(!this.off)frameFan(n,d)}},
   train:{enter(){size2d();this.off=blocked("train");if(!this.off)enterTrain()},frame(n,d){if(!this.off)frameTrain(n,d)}},
-  clusters:{enter(){size2d();this.off=blocked("clusters");if(!this.off)enterClusters()},frame(n,d){if(!this.off)frameClusters(n,d)}},
+  clusters:{enter(){size2d();this.off=blocked("clusters");if(!this.off){if(dtMode())enterDayTypes();else enterClusters()}},frame(n,d){if(!this.off){if(dtMode())frameDayTypes(n,d);else frameClusters(n,d)}}},
   loom:{enter(){size2d();this.off=blocked("loom");if(!this.off)enterLoom()},frame(n,d){if(!this.off)frameLoom(n,d)}},
   control:{enter:enterControl,frame:(n,d)=>{frameCorpus(n,d);frameControl(n)},leave:leaveControl}};
 function loop(now){

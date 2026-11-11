@@ -77,3 +77,28 @@ Eight weeks (56 days) each, seeded and deterministic, fictional city and identif
 2. **Insight engine** (`spikes/insights.py`): compute daily metrics, then shifts with BH correction, lagged associations with permutation tests, routines, Mirror rules, suggestions, and `insufficient` findings. Append Finding and Link records to a workspace document. Everything uses the standard library and is deterministic.
 3. **Integration**: the server registers each profile as generator plus engine, and the validator accepts 0.2. Tests score the engine against scenario truth on every profile, including false positives on `steady`.
 4. **UI**: replace the Train question with a life-relevant one. Add a Shifts lens (timeline of metric baselines and change points) and a Mirror lens (what could be inferred, from which sources, held by whom). Add a profile selector fed by `/api/workspaces`.
+
+## Day types (Clusters lens rework, 2026-11-11)
+
+The old Clusters lens grouped days by raw measures and rediscovered the weekend. The reworked lens answers a different question: **which kinds of days does this person have, relative to their own usual weekday, and is one kind becoming more frequent?** This is how a platform could segment *states* (for example "late night, little movement, heavy video") and time its targeting. It is shown as a measured portrait, never as a psychological label.
+
+Method (engine side, `spikes.insights`, deterministic, standard library):
+
+1. **Features:** daily metrics with at least 60% known days: screen minutes, short-video minutes, late-night minutes, pickups, notifications, sleep onset, sleep duration, steps, minutes away, distinct places, and total messages. Each feature has its per-weekday median removed, then is scaled by median and MAD (robust z). A day whose known features are below 70% of the eligible set is **unclassified**, not imputed.
+2. **Clustering:** k-means with partial distance over known features, k = 2 to 5, seeded restarts. k is chosen by mean silhouette. If the best silhouette is below 0.25, the result is **no distinct day types**, a valid null.
+3. **Stability:** 60 bootstrap resamples. Each cluster reports its best-match Jaccard. A cluster below 0.6 is shown as unstable.
+4. **Portrait:** for each type, the features whose median z is largest in absolute value, reported in original units against the person's usual level, for example "late-night minutes median 92 vs usual 8".
+5. **Trend:** for each stable type, its daily membership (1, 0, or unknown for unclassified days) is scanned with the existing shift method (permutation and BH across types). A significant result is a `day_type_trend` finding.
+6. **Mirror rule `state_timing`:** when a day type combining later sleep or more late-night use with fewer steps or a shorter sleep becomes more frequent, an observer *could* time messaging to those days. Hypothesis, `sensitive: true`, with alternatives.
+
+New Finding kinds:
+
+| `finding_kind` | Class | Extra fields |
+|---|---|---|
+| `day_type` | inference | `type_key` (`T1`…), `k`, `days` [dates], `n_days`, `share`, `portrait` [{`metric`, `median`, `usual`, `z`, `unit`}], `silhouette`, `stability_jaccard`, `stable` |
+| `day_type_trend` | inference | `type_key`, `rests_on` [day_type id], `change_day`, `share_before`, `share_after`, `p_value`, `q_value` |
+| `day_types_none` | inference | `best_k`, `best_silhouette`, `reason` (a null result, shown as such) |
+
+`meta.insights.day_types` = {`features`, `silhouette_by_k`, `k`, `unclassified_days`}.
+
+Expected on the profiles: doomscroll shows a stable late-night, low-step type whose share rises near day 28. steady shows no trend: either no distinct types, or types without a trend. sparse never fabricates sleep or screen features.
