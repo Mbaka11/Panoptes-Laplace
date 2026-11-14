@@ -242,11 +242,16 @@ function dowName(d){return DOW[wdIdx(d)]}
 function dayIdx(s){return Math.round((Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))-BASE_UTC)/MS_DAY)}
 
 const CLASS_COL={observation:"#b9c6cf",normalized_event:"#6fd0ff",hypothesis:"#c49bff",inference:"#ffc860",prediction:"#ff7a5a"};
-const HUB_COL={"src-location":"#6fd0ff","src-motion":"#86ffad","src-healthkit":"#ff7a9a","src-eventkit":"#ffd36e","src-apr":"#b48cff","src-account-export":"#ff9f5a","src-workspace":"#ffffff","src-screentime":"#7be0c3","src-messaging-export":"#ff8ad8","src-weather":"#a8b8c8"};
+const HUB_COL={"src-location":"#6fd0ff","src-motion":"#86ffad","src-healthkit":"#ff7a9a","src-eventkit":"#ffd36e","src-apr":"#b48cff","src-account-export":"#ff9f5a","src-workspace":"#ffffff","src-screentime":"#7be0c3","src-messaging-export":"#ff8ad8","src-weather":"#a8b8c8","src-transactions":"#d6e35a"};
+/* A source without a fixed colour gets a stable one from its id, so a new record type never falls back to anonymous grey. */
+function ensureHubCols(){HUBS.forEach(h=>{if(HUB_COL[h])return;let v=0;for(const ch of h)v=(v*31+ch.charCodeAt(0))>>>0;
+  const hu=v%360,S=.6,Lg=.68,a=S*Math.min(Lg,1-Lg),f=n=>{const k=(n+hu/30)%12;return Math.round(255*(Lg-a*Math.max(-1,Math.min(k-3,9-k,1))))};
+  HUB_COL[h]="#"+[f(0),f(8),f(4)].map(x=>x.toString(16).padStart(2,"0")).join("")})}
 const EDGE_COL={VISITED:"#6fd0ff",AT_PLACE:"#6fd0ff",CORROBORATED_BY:"#86ffad",ACCESSED_BY:"#b48cff",CONTACTED:"#b48cff",USES:"#b48cff",
   CONFIRMS:"#ffd36e",SUPPORTED_BY:"#ffc860",EVIDENCE:"#ffc860",CONTRADICTED_BY:"#ff5d6c",DUPLICATE_OF:"#ff9f5a",CORRECTS:"#ffffff",MOTIVATED_BY:"#c49bff"};
 const DUST={Source:600,Place:350,App:220,Domain:160,ImportBatch:120,Finding:700,Correction:300,LocationSample:25,Visit:70,Trip:80,
   ActivityInterval:55,DailyHealthAggregate:90,CalendarEvent:60,ResourceAccess:50,NetworkAggregate:90,AccountActivity:45,SleepInterval:40,ScreenTimeDaily:10,NotificationDaily:8,MessagingDaily:10,WeatherDaily:25,Transaction:40};
+const EVLINK=new Set(["EVIDENCE","CONTRADICTED_BY","MOTIVATED_BY"]);
 const ENTITY=new Set(["Source","Place","App","Domain","ImportBatch"]);
 
 /* ============ data ============ */
@@ -276,6 +281,9 @@ const MON=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DE
 function tday(s){if(!s||s==="unknown")return null;const v=Date.parse(s);return isNaN(v)?null:(v-T0)/MS_DAY}
 function startOf(r){return r.event_time||r.event_start||null}
 function placeLbl(id){return (byId[id]&&byId[id].label||id||"?").replace(" (fictional)","")}
+/* Sensitive categories never become a label about the person: the text, topic and category of such a record are withheld everywhere in Corpus. */
+function isSens(r){return r.sensitive===true||(typeof r.sensitive_category==="string"&&r.sensitive_category!=="none"&&r.sensitive_category!=="")}
+const SENS_KEYS=new Set(["title","topic","topic_method","sensitive_category","query","statement"]);
 function title(r){
   switch(r.type){
     case"Source":return r.name+" source";
@@ -291,7 +299,7 @@ function title(r){
     case"CalendarEvent":return"Calendar · "+r.title;
     case"ResourceAccess":return"Access · "+r.category+" · "+((byId[r.app_id]||{}).display_name||r.app_id);
     case"NetworkAggregate":return"Network · "+r.hits+" hits (snapshot)";
-    case"AccountActivity":return r.title;
+    case"AccountActivity":return isSens(r)?"Account activity · sensitive text withheld":r.title;
     case"SleepInterval":return"Sleep · "+(r.stage||"interval");
     case"ScreenTimeDaily":return"Screen Time · "+((byId[r.app_id]||{}).display_name||r.app_id)+" · "+r.minutes+" min";
     case"NotificationDaily":return"Notifications · "+((byId[r.app_id]||{}).display_name||r.app_id);
@@ -309,7 +317,7 @@ function buildModel(){
   const w0=D.meta.window.start;BASE_UTC=Date.UTC(+w0.slice(0,4),+w0.slice(5,7)-1,+w0.slice(8,10));
   const mz=/([+-])(\d\d):(\d\d)$/.exec(D.meta.window.start);TZOFF=mz?(mz[1]==="-"?-1:1)*(+mz[2]*60+ +mz[3])*60000:0;
   NODES=R.filter(r=>r.type!=="Link");NODES.forEach((r,i)=>NIDX[r.id]=i);
-  HUBS=[...new Set(NODES.map(r=>r.source_id))].sort((a,b)=>(a==="src-workspace")-(b==="src-workspace"));
+  HUBS=[...new Set(NODES.map(r=>r.source_id))].sort((a,b)=>(a==="src-workspace")-(b==="src-workspace"));ensureHubCols();
   FINDINGS=NODES.filter(r=>r.type==="Finding");UEND=WD+Math.max(1.4,.6+.15*FINDINGS.length);
   NODES.forEach(r=>{
     r._t=tday(startOf(r))??tday(r.event_end);r._te=tday(r.event_end)??r._t;
@@ -341,6 +349,10 @@ function buildModel(){
   });
   ADJ=NODES.map(()=>[]);
   EDGES.forEach((e,k)=>{ADJ[e.i].push(k);ADJ[e.j].push(k)});
+  /* Evidence links of a finding can number in the hundreds. They keep their full wiring, but unless the finding (or one of its records)
+     is selected they are drawn faint, scaled by how many links the finding has, so the lens stays readable. */
+  const evDeg=new Map();EDGES.forEach(e=>{if(EVLINK.has(e.type)){e.ev=true;evDeg.set(e.i,(evDeg.get(e.i)||0)+1)}});
+  EDGES.forEach(e=>{if(e.ev)e.w=clamp(14/(evDeg.get(e.i)||1),.05,1)});
 }
 
 /* ============ HUD plumbing ============ */
@@ -401,9 +413,9 @@ const FORM_INFO={
   sphere:"Every record on one shell, ordered by time from pole to pole. Untimed entities sit at the top cap.",
   strata:"The evidence ladder: observation, normalized event, hypothesis, inference. X is time. Depth is the source.",
   chrono:"One lane per source. Intervals are stretched over their real duration. Red boxes are declared missing periods, not zeros.",
-  map:"Fictional city plane. Only records with a position are placed. Everything else stays in the unlocated ring; no position is invented."};
-const CAM_PRESET={anatomy:[0.7,1.2,230],sphere:[0.4,1.25,230],strata:[0.5,1.3,270],chrono:[0,1.5708,235],map:[0.3,0.62,250]};
-const corpus={form:"anatomy",color:"class",uT:0,playing:false,speed:1.4,turning:!REDUCED,density:innerWidth<820?.6:1,sel:-1,hover:-1,ok:false};
+  map:"Fictional city plane. Only records with a position are placed; visits fan out around their place only to stay countable, the spread is layout, not geography. Everything else stays in the unlocated ring; no position is invented."};
+const CAM_PRESET={anatomy:[0.7,1.2,230],sphere:[0.4,1.25,230],strata:[0.5,1.3,270],chrono:[0,1.5708,235],map:[0.3,0.62,285]};
+const corpus={form:"anatomy",color:"class",uT:0,playing:false,speed:1.4,turning:!REDUCED,evl:"focus",density:innerWidth<820?.6:1,sel:-1,hover:-1,ok:false};
 let renderer,scene,camera,pts,geo,lineGeo,lines,pulseGeo,pulses,decor={};
 let N=0,P_node,P_cur,P_tgt,P_off,P_u,P_k,nodeStart=[],nodeCount=[],A_sel,A_col;
 const cam={th:.7,ph:1.2,d:230,tth:.7,tph:1.2,td:230};
@@ -473,14 +485,14 @@ function lineObj(pairs,col){
   const o=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:1,depthWrite:false,blending:THREE.AdditiveBlending}));
   o.visible=false;scene.add(o);return o;
 }
-const XT=f=>f*190-95, LANE=h=>42-h*14;
+const XT=f=>f*190-95,LSTEP=()=>Math.min(14,84/Math.max(1,HUBS.length-1)),LANE=h=>42-h*LSTEP(),LHALF=()=>Math.min(5,LSTEP()*.36),ZSTEP=()=>Math.min(15,100/Math.max(1,HUBS.length-1));
 function rect(a,x0,y0,x1,y1,z){a.push(x0,y0,z,x1,y0,z,x1,y0,z,x1,y1,z,x1,y1,z,x0,y1,z,x0,y1,z,x0,y0,z)}
 function buildDecor(){
   const grid=[];for(let d=0;d<=Math.ceil(WD);d++){const x=XT(d/WD);grid.push(x,50,0,x,-50,0)}
   decor.chronoGrid=lineObj(grid,0x1b2328);
   const miss=[];D.records.filter(r=>r.type==="Source").forEach(s=>{const h=HUBS.indexOf(s.id);(s.missing_periods||[]).forEach(m=>{
-    const a=XT(tday(m.start)/WD),b=XT(tday(m.end)/WD),y=LANE(h);rect(miss,a,y-5,b,y+5,0);
-    for(let x=a;x<b;x+=1.6)miss.push(x,y-5,0,Math.min(b,x+3),y+5,0);})});
+    const a=XT(tday(m.start)/WD),b=XT(tday(m.end)/WD),y=LANE(h),hh=LHALF();rect(miss,a,y-hh,b,y+hh,0);
+    for(let x=a;x<b;x+=1.6)miss.push(x,y-hh,0,Math.min(b,x+3),y+hh,0);})});
   decor.missing=lineObj(miss,0x5a1820);
   const planes=[];[-48,-16,16,48].forEach(y=>{planes.push(-118,y,-55,100,y,-55,100,y,-55,100,y,55,100,y,55,-118,y,55,-118,y,55,-118,y,-55)});
   decor.strata=lineObj(planes,0x1d262b);
@@ -512,13 +524,13 @@ function nodeTargets(form){
       set(i,[Math.cos(t)*rr*74,y*74,Math.sin(t)*rr*74],null,ENTITY.has(NODES[i].type)?4:2.2)});
   }else if(form==="strata"){
     const LV={observation:-48,normalized_event:-16,hypothesis:16,inference:48,prediction:72};
-    NODES.forEach((r,i)=>{const y=LV[r.evidence_class]??0,z=(r._hub-(HUBS.length-1)/2)*15+g()*2.5;
+    NODES.forEach((r,i)=>{const y=LV[r.evidence_class]??0,z=(r._hub-(HUBS.length-1)/2)*ZSTEP()+g()*2.5;
       if(r._t==null){set(i,[-112+g()*2,y,z],null,1.6);return}
       set(i,[XT(clamp(r._t/WD,0,1.05)),y,z],[XT(clamp(r._te/WD,0,1.05)),y,z],1.3)});
   }else if(form==="chrono"){
     let fi=0;
     NODES.forEach((r,i)=>{const y=LANE(r._hub),z=g()*1.6;
-      if(r.type==="Finding"){set(i,[100+fi*3,y,0],null,1.5);fi++;return}
+      if(r.type==="Finding"){set(i,[102+(fi%5)*3.4,y+((fi/5|0)-1.5)*2.4,0],null,1.2);fi++;return}
       if(r.type==="Correction"){set(i,[112,y,0],null,1.2);return}
       if(r._t==null){set(i,[-108+g()*2.5,y+g()*2,z],null,1.2);return}
       set(i,[XT(r._t/WD),y+g()*1.4,z],[XT(r._te/WD),y+g()*1.4,z],.7)});
@@ -528,7 +540,7 @@ function nodeTargets(form){
     NODES.forEach((r,i)=>{
       if(r.type==="Place"){set(i,P(r.lat,r.lon),null,3.5);return}
       if(r.type==="LocationSample"){const p=P(r.lat,r.lon);p[1]=.6;set(i,p,null,.9);return}
-      if(r.type==="Visit"&&byId[r.place_id]){const pl=byId[r.place_id],p=P(pl.lat,pl.lon);stack[r.place_id]=(stack[r.place_id]||0)+1;p[1]=2+stack[r.place_id]*1.1;set(i,p,null,1);return}
+      if(r.type==="Visit"&&byId[r.place_id]){const pl=byId[r.place_id],p=P(pl.lat,pl.lon);const n=stack[r.place_id]=(stack[r.place_id]||0)+1,rr=2.5+1.5*Math.sqrt(n),an=n*2.39996;p[0]+=Math.cos(an)*rr;p[2]+=Math.sin(an)*rr;p[1]=1.2;set(i,p,null,.9);return}
       if(r.type==="Trip"&&byId[r.from_place_id]&&byId[r.to_place_id]){const a=byId[r.from_place_id],b=byId[r.to_place_id];set(i,P(a.lat,a.lon),P(b.lat,b.lon),.5,8+g());return}
       const a=(r._hub/HUBS.length)*Math.PI*2+r2()*.7;set(i,[Math.cos(a)*112,34+g()*2,Math.sin(a)*112],null,1.4);
     });
@@ -579,7 +591,7 @@ function anchorsFor(f){
   const hubName=h=>{const s=byId[HUBS[h]];return s?s.name:HUBS[h]};
   if(f==="anatomy"||f==="sphere"){
     if(f==="anatomy"){HUBS.forEach((h,k)=>{if(h==="src-workspace")return;const ids=NODES.map((r,i)=>i).filter(i=>NODES[i]._hub===k&&NODES[i].type!=="ImportBatch");
-      const s=byId[h];grp(hubName(k)+" · "+ids.length+" · "+(s&&s.coverage_status||"").replace(/_/g," "),ids)});
+      const s=byId[h],cs=s&&s.coverage_status||"";grp(hubName(k)+" · "+ids.length+(cs&&cs!=="complete_in_window"?" · "+cs.replace(/_/g," "):""),ids)});
       grp("Import stem · "+NODES.filter(r=>r.type==="ImportBatch").length+" batches",NODES.map((r,i)=>r.type==="ImportBatch"?i:-1).filter(i=>i>=0));
       grp("Findings core · "+FINDINGS.length,FINDINGS.map(r=>NIDX[r.id]),"solid");}
     else{const ord=NODES.map((r,i)=>i).filter(i=>NODES[i]._t!=null).sort((a,b)=>NODES[a]._t-NODES[b]._t);
@@ -590,8 +602,8 @@ function anchorsFor(f){
   }else if(f==="chrono"){
     HUBS.forEach((h,k)=>out.push({text:hubName(k),pos:[-122,LANE(k),0],cls:"fixed"}));
     const step=WD>10?7:1;for(let w=0;w*step<WD;w++){const d=new Date(T0+TZOFF+w*step*MS_DAY);out.push({text:(step===7?"W"+(w+1):"D"+w)+" · "+d.getUTCDate()+" "+MON[d.getUTCMonth()],pos:[XT(w*step/WD),52,0],cls:"fixed"})}
-    const ms=D.records.find(x=>x.type==="Source"&&(x.missing_periods||[]).length);
-    if(ms){const m=ms.missing_periods[0];out.push({text:"No signal ≠ zero",pos:[XT((tday(m.start)+tday(m.end))/2/WD),LANE(HUBS.indexOf(ms.id))+9,0],cls:"warn"})}
+    const ms=D.records.filter(x=>x.type==="Source"&&(x.missing_periods||[]).length).sort((p,q)=>q.missing_periods.length-p.missing_periods.length)[0];
+    if(ms){const m=ms.missing_periods[0];out.push({text:"No signal ≠ zero",pos:[XT((tday(m.start)+tday(m.end))/2/WD),LANE(HUBS.indexOf(ms.id))-LHALF()-4,0],cls:"warn"})}
   }else{
     NODES.forEach((r,i)=>{if(r.type==="Place")grp(placeLbl(r.id)+" · "+NODES.filter(v=>v.place_id===r.id).length+" visits",[i])});
     out.push({text:"Unlocated ring · no position claimed",pos:[0,40,-112],cls:"warn"});
@@ -601,11 +613,18 @@ function anchorsFor(f){
 let anchorsCache=null,anchorsForm=null;
 function drawLabels(){
   if(anchorsForm!==corpus.form){anchorsCache=anchorsFor(corpus.form);anchorsForm=corpus.form}
-  let k=0;
+  const top=$("#status").getBoundingClientRect().bottom+4,bot=$("#foot").hidden?innerHeight:$("#foot").getBoundingClientRect().top-2;
+  const cand=[];
+  if(corpus.sel>=0){const p=nodeStart[corpus.sel]*3,s=toScreen(P_cur[p],P_cur[p+1],P_cur[p+2]);if(s)cand.push({text:title(NODES[corpus.sel]),x:s[0],y:s[1],cls:"solid",pr:0})}
   anchorsCache.forEach(a=>{let x,y,z;
     if(a.pos){[x,y,z]=a.pos}else{x=y=z=0;a.ids.forEach(i=>{const p=nodeStart[i]*3;x+=P_cur[p];y+=P_cur[p+1];z+=P_cur[p+2]});x/=a.ids.length;y/=a.ids.length;z/=a.ids.length}
-    const s=toScreen(x,y,z);if(s&&s[0]>-50&&s[0]<innerWidth+50)labelAt(k++,a.text,s[0],s[1],a.cls)});
-  if(corpus.sel>=0){const p=nodeStart[corpus.sel]*3,s=toScreen(P_cur[p],P_cur[p+1],P_cur[p+2]);if(s)labelAt(k++,title(NODES[corpus.sel]),s[0],s[1],"solid")}
+    const s=toScreen(x,y,z);if(s)cand.push({text:a.text,x:s[0],y:s[1],cls:a.cls,pr:a.cls==="fixed"||a.cls==="warn"?1:2})});
+  /* Labels are placed by priority and skipped when they would cover one already placed, so crowded forms stay legible. */
+  cand.sort((a,b)=>a.pr-b.pr);const used=[];let k=0;
+  cand.forEach(c=>{const w=c.text.length*6.9+14,fx=c.cls==="fixed",x0=fx?c.x:c.x-w/2,y0=fx?c.y-9:c.y-23;
+    if(c.y<top||c.y>bot||x0+w<0||x0>innerWidth)return;
+    if(used.some(u=>x0<u[0]+u[2]&&x0+w>u[0]&&y0<u[1]+u[3]&&y0+17>u[1]))return;
+    used.push([x0,y0,w,17]);labelAt(k++,c.text,c.x,c.y,c.cls)});
   hideLabelsFrom(k);
 }
 function fmtT(d){const t=new Date(T0+d*MS_DAY+TZOFF);
@@ -621,16 +640,21 @@ function drawStrip(){
 function renderLeftCorpus(){
   if(lens!=="corpus")return;
   const btn=(v,cur,lbl)=>`<button type="button" data-v="${v}" aria-pressed="${v===cur}">${lbl||v}</button>`;
+  const cnt={cls:{},src:{}};NODES.forEach(r=>{cnt.cls[r.evidence_class]=(cnt.cls[r.evidence_class]||0)+1;cnt.src[r.source_id]=(cnt.src[r.source_id]||0)+1});
+  const nEv=EDGES.filter(e=>e.ev).length;
   L.innerHTML=`<h2>Form <span>${corpus.form.toUpperCase()}</span></h2>
   <div class="seg" id="forms">${FORMS.map(f=>btn(f,corpus.form)).join("")}</div>
   <p class="note">${FORM_INFO[corpus.form]}</p>
   <h2>Colour</h2><div class="seg" id="colmode">${btn("class",corpus.color,"Evidence class")}${btn("source",corpus.color,"Source")}</div>
-  <div class="legend">${corpus.color==="class"?Object.entries(CLASS_COL).slice(0,4).map(([k,c])=>`<span><i class="cls" style="background:${c}"></i>${k.replace("_"," ")}</span>`).join("")
-    :HUBS.map(h=>`<span><i class="cls" style="background:${HUB_COL[h]}"></i>${(byId[h]||{}).name||h}</span>`).join("")}</div>
+  <div class="legend">${corpus.color==="class"?Object.entries(CLASS_COL).filter(([k])=>cnt.cls[k]).map(([k,c])=>`<span><i class="cls" style="background:${c}"></i>${k.replace("_"," ")} · ${cnt.cls[k]}</span>`).join("")
+    :HUBS.map(h=>`<span><i class="cls" style="background:${HUB_COL[h]}"></i>${esc((byId[h]||{}).name||h)} · ${cnt.src[h]||0}${((byId[h]||{}).missing_periods||[]).length?" · gaps":""}</span>`).join("")}</div>
+  ${nEv?`<h2>Finding links <span>${nEv}</span></h2><div class="seg" id="evl">${btn("focus",corpus.evl,"Focus")}${btn("all",corpus.evl,"All")}</div>
+  <p class="note">Focus draws a finding's evidence faintly until you select the finding or one of its records. All draws every link at full strength.</p>`:""}
   <h2>Density <span id="denV">${Math.round(corpus.density*100)}%</span></h2><input id="den" type="range" min="0.05" max="1" step="0.05" value="${corpus.density}" aria-label="Dust density">
   <h2>Motion</h2><div class="seg"><button type="button" id="turn" aria-pressed="${corpus.turning}">Turning</button><button type="button" id="replay">Replay formation</button></div>
   <p class="note">One bright core is one record. The dust around it is only rendering. Links ignite when both ends exist, and a pulse travels along each live link.</p>`;
   L.querySelectorAll("#forms button").forEach(b=>b.onclick=()=>setForm(b.dataset.v));
+  L.querySelectorAll("#evl button").forEach(b=>b.onclick=()=>{corpus.evl=b.dataset.v;renderLeftCorpus()});
   L.querySelectorAll("#colmode button").forEach(b=>b.onclick=()=>{corpus.color=b.dataset.v;applyColors();renderLeftCorpus()});
   $("#turn").onclick=()=>{corpus.turning=!corpus.turning;renderLeftCorpus()};
   $("#den").oninput=e=>{corpus.density=+e.target.value;pts.material.uniforms.uDensity.value=corpus.density;$("#denV").textContent=Math.round(corpus.density*100)+"%"};
@@ -639,7 +663,8 @@ function renderLeftCorpus(){
 function fieldVal(v){
   if(v==="unknown")return'<span class="unk">UNKNOWN</span>';
   if(v===null)return'<span class="unk">NULL</span>';
-  if(Array.isArray(v)){if(v.length&&typeof v[0]==="string"&&v.every(x=>x in NIDX))return v.map(x=>`<button class="idl" type="button" data-id="${esc(x)}">${esc(x)}</button>`).join(", ");
+  if(Array.isArray(v)){if(v.length&&typeof v[0]==="string"&&v.every(x=>x in NIDX)){const CAP=8;
+      return v.slice(0,CAP).map(x=>`<button class="idl" type="button" data-id="${esc(x)}">${esc(x)}</button>`).join(", ")+(v.length>CAP?` <span class="unk">+${v.length-CAP} more (${v.length} records)</span>`:"")}
     return esc(JSON.stringify(v).slice(0,220))}
   if(typeof v==="object")return esc(JSON.stringify(v).slice(0,220));
   if(typeof v==="string"&&v in NIDX)return`<button class="idl" type="button" data-id="${esc(v)}">${esc(v)}</button>`;
@@ -657,11 +682,16 @@ function renderInspector(){
     return;
   }
   const r=NODES[i],skip=new Set(["id","type","workspace_id","provenance","evidence_class","source_id"]);
-  const nb=ADJ[i].map(k=>{const e=EDGES[k],o=e.i===i?e.j:e.i;return`<dt style="color:${EDGE_COL[e.type]||"#888"}">${esc(e.type.replace(/_/g," "))}</dt><dd><button class="idl" type="button" data-id="${esc(NODES[o].id)}">${esc(title(NODES[o]))}</button></dd>`}).slice(0,24).join("");
+  /* Links are grouped by type with a count; a finding that cites hundreds of records lists a few and says how many more. */
+  const grp={};ADJ[i].forEach(k=>{const e=EDGES[k];(grp[e.type]=grp[e.type]||[]).push(e.i===i?e.j:e.i)});
+  const nb=Object.entries(grp).map(([t,os])=>`<dt style="color:${EDGE_COL[t]||"#888"}">${esc(t.replace(/_/g," "))} · ${os.length}</dt><dd>${os.slice(0,6).map(o=>`<button class="idl" type="button" data-id="${esc(NODES[o].id)}">${esc(title(NODES[o]))}</button>`).join("<br>")}${os.length>6?`<br><span class="unk">+${os.length-6} more</span>`:""}</dd>`).join("");
   RP.innerHTML=`<h2>Record <button type="button" id="desel">Close</button></h2>
   <p class="big" style="font-size:15px">${esc(title(r))}</p>
   <div class="seg"><span class="chip" style="color:${CLASS_COL[r.evidence_class]}">${esc(r.evidence_class.replace("_"," "))}</span><span class="chip" style="color:${HUB_COL[r.source_id]}">${esc((byId[r.source_id]||{}).name||r.source_id)}</span></div>
-  <dl class="kv"><dt>id</dt><dd>${esc(r.id)}</dd><dt>type</dt><dd>${esc(r.type)}</dd>${Object.entries(r).filter(([k])=>!skip.has(k)&&k[0]!=="_").map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd>${fieldVal(v)}</dd>`).join("")}</dl>
+  <dl class="kv"><dt>id</dt><dd>${esc(r.id)}</dd><dt>type</dt><dd>${esc(r.type)}</dd>${Object.entries(r).filter(([k])=>!skip.has(k)&&k[0]!=="_").map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd>${
+    (isSens(r)&&r.type!=="Finding"&&SENS_KEYS.has(k))?'<span class="unk">WITHHELD · sensitive</span>':
+    k==="missing_periods"&&Array.isArray(v)?(v.length?v.slice(0,8).map(m=>esc(String(m.start).slice(0,10)+" → "+String(m.end).slice(0,10)+" · "+String(m.kind||"").replace(/_/g," "))).join("<br>")+(v.length>8?`<br><span class="unk">+${v.length-8} more</span>`:""):"none declared"):fieldVal(v)}</dd>`).join("")}</dl>
+  ${r.type==="Finding"?`<button type="button" class="dtmir lmgo" data-loom="${esc(r.id)}">Trace in Loom: sources, records, checks</button>`:""}
   ${r.provenance?`<h2>Provenance</h2><dl class="kv">${Object.entries(r.provenance).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`:""}
   ${nb?`<h2>Links <span>${ADJ[i].length}</span></h2><dl class="kv">${nb}</dl>`:""}`;
   $("#desel").onclick=()=>select(-1);
@@ -684,12 +714,13 @@ function frameCorpus(now,dt){
     const grow=e.birth<-0.5?1:clamp(age/0.6,0,1);
     const hl=sel>=0&&(e.i===sel||e.j===sel);
     let br=age<0&&e.birth>-0.5?0:(.16+1.1*Math.exp(-Math.max(0,age)*2));if(hl)br=1.2;else if(sel>=0)br*=.35;
+    const dim=e.ev&&!hl&&corpus.evl!=="all"?e.w:1;br*=dim;
     const nf=NF?Math.min(NF[e.i],NF[e.j]):1,nr=NRd?Math.max(NRd[e.i],NRd[e.j]):0;br*=nf;
     if(grow>0&&nf>0)live++;
     const c0=hex(EDGE_COL[e.type]||"#888888"),c=[lerp(c0[0],1,nr),lerp(c0[1],.25,nr),lerp(c0[2],.3,nr)];
     for(let q=0;q<3;q++){lp[k*6+q]=P_cur[a+q];lp[k*6+3+q]=P_cur[a+q]+(P_cur[b+q]-P_cur[a+q])*grow;lc[k*6+q]=c[q]*br;lc[k*6+3+q]=c[q]*br*(grow<1?2:1)}
     const f=(now/1000*.32+e.ph)%1;
-    for(let q=0;q<3;q++){pp[k*3+q]=P_cur[a+q]+(P_cur[b+q]-P_cur[a+q])*f;pc[k*3+q]=grow>=1&&nf>.5?c[q]*(hl?1.4:.55):0}
+    for(let q=0;q<3;q++){pp[k*3+q]=P_cur[a+q]+(P_cur[b+q]-P_cur[a+q])*f;pc[k*3+q]=grow>=1&&nf>.5?c[q]*(hl?1.4:.55)*dim:0}
   });
   lineGeo.attributes.position.needsUpdate=lineGeo.attributes.color.needsUpdate=true;
   pulseGeo.attributes.position.needsUpdate=pulseGeo.attributes.aColor.needsUpdate=true;

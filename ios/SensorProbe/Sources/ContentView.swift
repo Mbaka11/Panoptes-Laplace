@@ -32,8 +32,9 @@ struct EnvironmentReport {
 
 struct ContentView: View {
     private let env = EnvironmentReport()
+    @State private var location = LocationModule()
+    @Environment(\.scenePhase) private var scenePhase
     private let sources = [
-        Source(id: "LOC-01", name: "Location", state: .off),
         Source(id: "MOT-01", name: "Motion", state: .off),
         Source(id: "HLT-01", name: "Health", state: .off),
         Source(id: "EVT-01", name: "Calendar and reminders", state: .off),
@@ -44,7 +45,7 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("TEST BUILD. Not cleared for real data. Nothing is collected and no permission has been requested.")
+                    Text("TEST BUILD: not cleared for real data. Location (LOC-01) collects only when you enable it, in memory only, foreground only. Other sources: nothing collected, no permission requested.")
                         .font(.footnote).foregroundStyle(.orange)
                 }
                 Section("Environment (ENV-01)") {
@@ -54,6 +55,15 @@ struct ContentView: View {
                     row("Running on", env.isSimulator ? "simulator" : "device")
                 }
                 Section("Sources") {
+                    NavigationLink {
+                        LocationView(module: location)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Location")
+                            Text("LOC-01 · probe state: \(location.probeState.rawValue) · OS state: \(location.osLabel)")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     ForEach(sources) { s in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.name)
@@ -64,6 +74,9 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Sensor Probe")
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                if phase == .active { location.appDidBecomeActive() } else { location.appDidLeaveForeground() }
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 # Sensor Probe (native iPhone collector), scaffold stage
 
-**Status: PROVISIONAL (D-044).** A minimal SwiftUI app that implements only the environment report (ENV-01) of [the specification](../../docs/sensor-probe-spec.md). It requests no permission, declares no capability or entitlement, and collects nothing. Every source is shown as `off` with the OS state "not requested". It is a *TEST BUILD, not cleared for real data* (real-data gate, D-031, D-032, D-040).
+**Status: PROVISIONAL (D-044).** A minimal SwiftUI app: the environment report (ENV-01) and, since 2026-11-13, the **Location module LOC-01** of [the specification](../../docs/sensor-probe-spec.md): foreground only, when-in-use only, French pre-prompt before the system dialog, pause/resume/delete, control event log. Location data is kept **in memory only** (lost on exit), with no export, network or transfer code and no coordinates shown or logged. The other four sources remain `off` with the OS state "not requested". The only declared permission string is `NSLocationWhenInUseUsageDescription`; no entitlement, no background mode, no always-location. SDK verification and the owner test script: [LOC-01 record](../../docs/results/loc-01-sdk-verification.md). It is a *TEST BUILD, not cleared for real data* (real-data gate, D-031, D-032, D-040).
 
 Verified 2026-11-13 on macOS 27.2, Xcode 27.2, iOS SDK 27.2: it compiles, signs with a free personal team, installs and runs on the owner's iPhone 15 Pro (iOS 26.6.1). See [the ENV-01 record](../../docs/results/env-01-device-run.md).
 
@@ -26,4 +26,4 @@ A free personal team signs with a short validity and cannot use every capability
 
 ## Next modules
 
-Each module (Location, Motion, Health, Calendar, then Screen Time as a separate gate) is added by its own change: purpose strings and capabilities verified against the installed SDK, the pre-prompt text from [the French participant texts](../../docs/participant-text-fr.md), the pause/resume/delete controls, and a test record.
+Each module (Location is done as above, awaiting the on-device test; then Motion, Health, Calendar, then Screen Time as a separate gate) is added by its own change: purpose strings and capabilities verified against the installed SDK, the pre-prompt text from [the French participant texts](../../docs/participant-text-fr.md), the pause/resume/delete controls, and a test record.

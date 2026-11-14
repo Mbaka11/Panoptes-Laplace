@@ -20,6 +20,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>La sonde Panoptes enregistre la position de ce téléphone lorsque l'application est ouverte, pour évaluer la qualité de la collecte de position. Dans cette version d'essai, les relevés restent en mémoire sur ce téléphone et ne sont ni exportés ni envoyés.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiresFullScreen</key>
