@@ -56,3 +56,20 @@ Headers under `…/iPhoneOS27.2.sdk/System/Library/Frameworks/CoreLocation.frame
 10. Retournez à l'étape 4 brièvement, puis **Supprimer les relevés…** : lisez la confirmation, confirmez ; le nombre revient à 0 et le journal garde `deleted_all`.
 
 **À me rapporter** (sans coordonnées, sans capture de position) : la fenêtre iOS (choix offerts), l'état système après chaque étape, le nombre de relevés après 5 min, le plus long trou, si les valeurs ont correspondu à ce qui est affiché, tout texte jugé confus, et la batterie (pourcentage début/fin approximatif).
+
+## Owner run 1 (2026-11-13, owner's report, iPhone 15 Pro, iOS 26.6.1)
+
+Reported by the owner from memory; no screenshot or coordinate was kept.
+
+| Step | Observed |
+|---|---|
+| "Pas maintenant" | No system dialog. As specified. |
+| System dialog choices | "Allow Once", "Allow While Using App", "Don't Allow", with a "Precise" toggle (left on). |
+| "Don't Allow" | Module moved to `blocked_by_os`. As specified. |
+| Re-enabling from inside the app after "Don't Allow" | Not possible: iOS does not show the dialog again. The owner had to change the permission in Settings, then the module worked. Expected iOS behaviour; the app gives no shortcut to Settings yet. |
+| "Allow Once" | Collection worked. After closing the app the one-time permission was gone, as iOS documents. The SDK reports a one-time grant as when-in-use, so the probe cannot show the difference. |
+| Samples | About 20 samples in roughly the first minute and a half, no gap in the last 30 s (approximate, owner's reading). |
+| Battery | Not measurable: the phone was charging (about 91%). |
+| Not tested | 5-minute walk, pause and resume, revocation of a while-in-use grant, data loss on force-quit, delete, the 30 s gap counter over a longer run. |
+
+Follow-ups: add an "Ouvrir les Réglages" button when the module is `blocked_by_os`; explain in the UI that "Allow Once" ends when the app closes; repeat the untested steps unplugged.

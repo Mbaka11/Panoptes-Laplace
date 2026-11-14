@@ -1404,20 +1404,25 @@ function topLoad(c){const v=cl.comps[c].map((w,j)=>[j,w]).sort((a,b)=>Math.abs(b
 function hexA(h,a){const c=hex(h);return`rgba(${c[0]*255|0},${c[1]*255|0},${c[2]*255|0},${a})`}
 
 /* ============ LENS: CONTROL (participant control room, simulated) ============ */
-const ctl={paused:{},dead:new Map(),busy:false,plan:null,root:[],last:null,manifest:null};
+const ctl={paused:{},dead:new Map(),busy:false,plan:null,root:[],last:null,manifest:null,noSens:false};
+const ctlSrcRecs=sid=>{const o=[];NODES.forEach((r,i)=>{if(r.source_id===sid&&r.type!=="Source")o.push(i)});return o};
+const ctlDerived=s=>s.id==="src-workspace"||s.coverage_status==="not_applicable";
+const RWS={gated:"gated",partly_unproven:"partly unproven",supported_in_probe:"supported in probe",not_applicable:"derived, not collected"};
+const ctlCur=()=>Math.min(corpus.uT,WD);
+const dl=i=>"D"+String(Math.floor(i)).padStart(2,"0");
 function cascadeFrom(roots){
   const dep=new Map(),q=[];roots.forEach(i=>{dep.set(i,0);q.push(i)});
   while(q.length){const i=q.shift(),r=NODES[i],d=dep.get(i),kids=[];
     if(r.type==="Source")NODES.forEach((x,j)=>{if(x.source_id===r.id&&j!==i)kids.push(j)});
     if(r.type==="ImportBatch")NODES.forEach((x,j)=>{if(x.import_batch_id===r.id)kids.push(j)});
-    FINDINGS.forEach(f=>{if([].concat(f.supporting_evidence_ids||[],f.contradicting_evidence_ids||[],f.motivated_by_ids||[]).includes(r.id))kids.push(NIDX[f.id])});
+    FINDINGS.forEach(f=>{if([].concat(f.supporting_evidence_ids||[],f.contradicting_evidence_ids||[],f.motivated_by_ids||[],f.rests_on||[]).includes(r.id))kids.push(NIDX[f.id])});
     NODES.forEach((x,j)=>{if(x.type==="Correction"&&x.target_id===r.id)kids.push(j)});
     kids.forEach(j=>{if(!dep.has(j)&&!ctl.dead.has(j)){dep.set(j,d+1);q.push(j)}});
   }
   return dep;
 }
-function ctlPreview(roots){
-  roots=roots.filter(i=>!ctl.dead.has(i));ctl.root=roots;ctl.plan=roots.length?cascadeFrom(roots):null;
+function ctlPreview(roots,label){
+  roots=roots.filter(i=>!ctl.dead.has(i));ctl.root=roots;ctl.label=label||null;ctl.plan=roots.length?cascadeFrom(roots):null;
   A_sel.fill(0);if(ctl.plan)ctl.plan.forEach((d,i)=>{for(let q=0;q<nodeCount[i];q++)A_sel[nodeStart[i]+q]=d===0?1:.55});
   geo.attributes.aSel.needsUpdate=true;renderControlRight();
   if(innerWidth<=820&&ctl.plan){RP.classList.add("open");L.classList.remove("open")}
@@ -1426,57 +1431,87 @@ function ctlExecute(){
   if(!ctl.plan)return;const now=performance.now()/1000;let k=0;
   const ord=[...ctl.plan.entries()].sort((a,b)=>a[1]-b[1]);
   ord.forEach(([i,d])=>ctl.dead.set(i,now+.3+d*(REDUCED?0:.8)+(REDUCED?0:(k++%30)*.02)));
-  const byDepth={};ord.forEach(([i,d])=>byDepth[d]=(byDepth[d]||0)+1);
-  ctl.last={n:ord.length,root:ctl.root.map(i=>title(NODES[i])).join(", "),findings:ord.filter(([i])=>NODES[i].type==="Finding").map(([i])=>NODES[i].id),
-    links:EDGES.filter(e=>ctl.plan.has(e.i)||ctl.plan.has(e.j)).length};
+  ctl.last={n:ord.length,root:ctl.label||ctl.root.map(i=>title(NODES[i])).join(", "),findings:ord.filter(([i])=>NODES[i].type==="Finding").map(([i])=>NODES[i].id),
+    corr:ord.filter(([i])=>NODES[i].type==="Correction").length,links:EDGES.filter(e=>ctl.plan.has(e.i)||ctl.plan.has(e.j)).length};
   ctl.plan=null;A_sel.fill(0);geo.attributes.aSel.needsUpdate=true;ctl.busy=true;ctl.manifest=null;renderControlRight();renderControlLeft();
 }
-function ctlRestore(){ctl.dead.clear();ctl.paused={};ctl.plan=null;ctl.last=null;ctl.manifest=null;A_sel.fill(0);if(geo){geo.attributes.aSel.needsUpdate=true;applyColors()}}
-const LVL=["Selected","Records and batches it holds","Findings built on them","Corrections and hypotheses that depend on those"];
+function ctlRestore(){ctl.dead.clear();ctl.paused={};ctl.plan=null;ctl.last=null;ctl.manifest=null;ctl.noSens=false;ctl.label=null;A_sel.fill(0);if(geo){geo.attributes.aSel.needsUpdate=true;applyColors()}}
+const LVL=["Selected","Records and batches it holds","Findings built on them","Hypotheses, corrections and findings that rest on those"];
+function ctlFindingRows(plan){
+  const rows=[...plan.keys()].filter(i=>NODES[i].type==="Finding").map(i=>NODES[i]);
+  return rows.map(f=>{const ev=[].concat(f.supporting_evidence_ids||[],f.contradicting_evidence_ids||[]);
+    const lost=ev.filter(id=>{const j=NIDX[id];return j!=null&&plan.has(j)}).length;
+    const cor=[...plan.keys()].filter(i=>NODES[i].type==="Correction"&&NODES[i].target_id===f.id).length;
+    const why=ev.length?`loses ${lost} of ${ev.length} evidence ids`:"rests on a finding that is removed";
+    return`<li><button class="idl" type="button" data-loom="${esc(f.id)}">${esc(f.id)}</button> · ${esc(String(f.finding_kind||"").replace(/_/g," "))} · ${esc(why)} · review ${esc(f.participant_review_status||"unreviewed")}${cor?` · <span class="unk">your correction goes too</span>`:""}</li>`})}
 function renderControlRight(){
   if(lens!=="control")return;
   if(ctl.plan){const by={};ctl.plan.forEach((d,i)=>{by[d]=by[d]||{};const t=NODES[i].type;by[d][t]=(by[d][t]||0)+1});
-    const fs=[...ctl.plan.keys()].filter(i=>NODES[i].type==="Finding").map(i=>NODES[i]);
+    const li=ctlFindingRows(ctl.plan),nF=li.length,nCor=[...ctl.plan.keys()].filter(i=>NODES[i].type==="Correction").length;
     RP.innerHTML=`<h2>Deletion preview <span>simulation</span></h2>
-    <p class="big" style="font-size:15px">${esc(ctl.root.map(i=>title(NODES[i])).join(", "))}</p>
+    <p class="big" style="font-size:15px">${esc(ctl.label||ctl.root.map(i=>title(NODES[i])).join(", "))}</p>
     <dl class="kv">${Object.keys(by).sort().map(d=>`<dt>${esc(LVL[Math.min(+d,3)])}</dt><dd>${Object.entries(by[d]).map(([t,n])=>n+" "+esc(t)).join(" · ")}</dd>`).join("")}
     <dt>links that go dark</dt><dd>${EDGES.filter(e=>ctl.plan.has(e.i)||ctl.plan.has(e.j)).length}</dd></dl>
-    ${fs.length?`<h2>Findings that lose evidence</h2><p class="note">${fs.map(f=>esc(f.id)+": "+esc(f.statement.slice(0,90))+"…").join("<br>")}</p><p class="note">They are removed with the source. The workbench can recompute them later from the evidence that remains, and the new version is shown as a new finding.</p>`:""}
+    ${nF?`<h2>Findings that lose evidence <span>${nF}</span></h2><ul class="note" style="margin:0;padding-left:16px">${li.slice(0,8).join("")}</ul>${nF>8?`<p class="note">+${nF-8} more findings</p>`:""}<p class="note">A finding is a computed result over all its evidence, so it is removed with any part of it; a hypothesis goes when a finding it rests on goes. The workbench can recompute from the evidence that remains, and the result is shown as a new finding.</p>`:`<p class="note">No finding depends on this selection.</p>`}
+    ${nCor?`<p class="note"><span class="unk">${nCor} participant correction${nCor>1?"s":""}</span> would be removed with the finding${nCor>1?"s":""} they annotate. Export them first if the wording matters to you.</p>`:""}
     <div class="seg"><button type="button" id="ctlGo">Run cascade</button><button type="button" id="ctlNo">Cancel</button></div>
     <p class="note">Out of reach of this cascade: copies already exported, device or cloud backups, and a researcher's copy. Each needs its own deletion and proof. [Rules still to decide]</p>`;
     $("#ctlGo").onclick=ctlExecute;$("#ctlNo").onclick=()=>ctlPreview([]);return}
   RP.innerHTML=ctl.last?`<h2>Cascade done <span>simulation</span></h2>
     <p>${esc(ctl.last.root)}: ${ctl.last.n} records went dark and ${ctl.last.links} links were cut.</p>
-    ${ctl.last.findings.length?`<p class="note">Findings removed: ${ctl.last.findings.map(esc).join(", ")}.</p>`:""}
+    ${ctl.last.findings.length?`<p class="note">Findings removed: ${ctl.last.findings.map(esc).join(", ")}.</p>`:""}${ctl.last.corr?`<p class="note">${ctl.last.corr} participant correction${ctl.last.corr>1?"s":""} removed with them.</p>`:""}
     <p class="note">Nothing was deleted from the file. This page only simulates the participant's controls. Use Restore everything to start again.</p>`
   :`<h2>Control room <span>simulation</span></h2><p>Choose a source on the left, or click any bright record, to preview what deleting it would remove.</p>
-    <p class="note">Deletion follows provenance. A source takes its records and import batches. Findings that used them as evidence go too, then corrections and hypotheses that depend on those findings.</p>`;
+    <p class="note">Deletion follows provenance. A source takes its records and import batches. Findings that used them as evidence go too, then the hypotheses and corrections that rest on those findings.</p>
+    <p class="note">Pausing stops future collection only. Findings already computed stay, and a gap after a pause is unknown, not zero.</p>`;
+}
+function ctlSrcRow(s){
+  const i=NIDX[s.id],dead=ctl.dead.has(i),der=ctlDerived(s),recs=ctlSrcRecs(s.id),cur=ctlCur(),pz=ctl.paused[s.id];
+  const live=recs.filter(j=>!ctl.dead.has(j)).length,after=recs.filter(j=>NODES[j]._t!=null&&NODES[j]._t>cur&&!ctl.dead.has(j)).length;
+  const gaps=(s.missing_periods||[]).length,rw=RWS[s.real_world_status]||"real-world status not stated";
+  const state=dead?"deleted":pz!=null?"paused from "+dl(pz):"on";
+  const cut=recs.filter(j=>NODES[j]._t!=null&&NODES[j]._t>=cur&&NODES[j].type!=="ImportBatch"&&!ctl.dead.has(j)).length;
+  return`<div class="src"><span style="${dead?"text-decoration:line-through;color:var(--dim)":""}"><i class="cls" style="background:${HUB_COL[s.id]||"#888"}"></i>${esc(s.name)}</span>
+    ${der?"<span></span>":`<button type="button" data-pause="${esc(s.id)}" aria-pressed="${pz!=null}" ${dead?"disabled":""}>${pz!=null?"Paused":"Pause"}</button>`}
+    <button type="button" data-del="${i}" ${dead?"disabled":""}>Delete</button></div>
+  <p class="note" style="margin:2px 0 ${der?"8":"2"}px;font-size:11px">${esc(state)} · ${live}/${recs.length} records${gaps?` · ${gaps} declared gap${gaps>1?"s":""} (unknown, not zero)`:s.missing_periods_status==="unknown"||s.coverage_status==="unknown"?" · gaps not declared (unknown, not none)":""} · ${esc(rw)}${s.real_world_status==="gated"||s.real_world_status==="partly_unproven"?" (synthetic here is not a capability claim)":""}${pz!=null&&!dead?` · ${after} later records would not exist`:""}</p>
+  ${der||dead?"":`<p style="margin:0 0 8px;font:400 11px var(--f-data)"><button type="button" class="idl" data-delr="${esc(s.id)}" ${cut?"":"disabled"} aria-label="Delete ${esc(s.name)} records from ${dl(cur)} onward">Delete records from ${dl(cur)} on (${cut})</button></p>`}`;
 }
 function renderControlLeft(){
-  if(lens!=="control")return;const srcs=NODES.filter(r=>r.type==="Source");
+  if(lens!=="control")return;const srcs=NODES.filter(r=>r.type==="Source"),col=srcs.filter(s=>!ctlDerived(s)),der=srcs.filter(ctlDerived);
   L.innerHTML=`<h2>Participant control <span>simulation</span></h2>
   <p class="note">No collection runs on this page and no copy is stored, so nothing real is paused or deleted.</p>
-  <h2>Sources <span>pause from D${String(Math.floor(Math.min(corpus.uT,WD-.01))).padStart(2,"0")}</span></h2>
-  ${srcs.map(s=>{const i=NIDX[s.id],dead=ctl.dead.has(i);return`<div class="src"><span style="${dead?"text-decoration:line-through;color:var(--dim)":""}"><i class="cls" style="background:${HUB_COL[s.id]||"#888"}"></i>${esc(s.name)}</span>
-    <button type="button" data-pause="${esc(s.id)}" aria-pressed="${s.id in ctl.paused}" ${dead?"disabled":""}>${s.id in ctl.paused?"Paused":"Pause"}</button>
-    <button type="button" data-del="${i}" ${dead?"disabled":""}>Delete</button></div>`}).join("")}
-  <p class="note">Pause shows what would never have been collected after the cursor. Move the time rail first to choose the point.</p>
-  <h2>Export</h2><div class="seg"><button type="button" id="ctlExp">Build export manifest</button></div><div id="manOut"></div>
+  <h2>Sources <span>cursor ${dl(ctlCur())}</span></h2>
+  ${col.map(ctlSrcRow).join("")}
+  <p class="note">Pause and range deletion act from the time-rail cursor: move the rail first to choose the day (it starts at the end, so a range is empty until you move it).</p>
+  ${der.length?`<h2>Derived by the workbench</h2>${der.map(ctlSrcRow).join("")}<p class="note">These are not collected. Deleting them removes the findings and corrections the participant sees.</p>`:""}
+  <h2>Export</h2>
+  <label class="row" style="margin:0 0 6px"><span>Leave out sensitive records (${NODES.filter(isSens).length})</span><input type="checkbox" id="ctlNoS" ${ctl.noSens?"checked":""}></label>
+  <div class="seg"><button type="button" id="ctlExp">Build export manifest</button></div><div id="manOut"></div>
   <div class="seg"><button type="button" id="ctlReset">Restore everything</button></div>`;
-  L.querySelectorAll("[data-pause]").forEach(b=>b.onclick=()=>{const id=b.dataset.pause;if(id in ctl.paused)delete ctl.paused[id];else ctl.paused[id]=Math.min(corpus.uT,WD);applyColors();renderControlLeft()});
+  L.querySelectorAll("[data-pause]").forEach(b=>b.onclick=()=>{const id=b.dataset.pause;if(id in ctl.paused)delete ctl.paused[id];else ctl.paused[id]=ctlCur();ctl.manifest=null;applyColors();renderControlLeft()});
   L.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>ctlPreview([+b.dataset.del]));
+  L.querySelectorAll("[data-delr]").forEach(b=>b.onclick=()=>{const sid=b.dataset.delr,cur=ctlCur();
+    ctlPreview(ctlSrcRecs(sid).filter(j=>NODES[j]._t!=null&&NODES[j]._t>=cur&&NODES[j].type!=="ImportBatch"),(byId[sid]||{}).name+" · records from "+dl(cur)+" on")});
+  $("#ctlNoS").onchange=e=>{ctl.noSens=e.target.checked;ctl.manifest=null;renderControlLeft()};
   $("#ctlExp").onclick=buildManifest;$("#ctlReset").onclick=()=>{ctlRestore();renderControlLeft();renderControlRight()};
   if(ctl.manifest)showManifest();
 }
 async function buildManifest(){
-  const keep=NODES.filter((r,i)=>!ctl.dead.has(i)&&!(ctl.paused[r.source_id]!=null&&r._birth>ctl.paused[r.source_id]));
+  const out=r=>{const i=NIDX[r.id];return ctl.dead.has(i)||(ctl.paused[r.source_id]!=null&&r._birth>ctl.paused[r.source_id])||(ctl.noSens&&isSens(r))};
+  const keep=NODES.filter(r=>!out(r)),gone=new Set(NODES.filter(out).map(r=>r.id));
   const recs=keep.map(r=>{const o={};Object.keys(r).filter(k=>k[0]!=="_").sort().forEach(k=>o[k]=r[k]);return o}).sort((a,b)=>a.id<b.id?-1:1);
   const body=JSON.stringify(recs);let digest="unavailable in this browser";
   try{const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(body));digest=[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("")}catch(e){}
-  const tc={};recs.forEach(r=>tc[r.type]=(tc[r.type]||0)+1);
+  const tc={},sc={},rv={};recs.forEach(r=>{tc[r.type]=(tc[r.type]||0)+1;if(r.type!=="Source"&&r.source_id)sc[r.source_id]=(sc[r.source_id]||0)+1;if(r.type==="Finding")rv[r.participant_review_status||"unreviewed"]=(rv[r.participant_review_status||"unreviewed"]||0)+1});
+  const gaps={};keep.filter(r=>r.type==="Source"&&(r.missing_periods||[]).length).forEach(r=>gaps[r.id]=r.missing_periods.length);
+  const cites=keep.filter(r=>r.type==="Finding"&&[].concat(r.supporting_evidence_ids||[],r.contradicting_evidence_ids||[]).some(id=>gone.has(id))).length;
   ctl.manifest={workspace_id:D.meta.workspace_id,contract_version:D.meta.contract_version,synthetic:true,record_count:recs.length,
-    excluded_deleted:[...ctl.dead.keys()].length,paused_sources:Object.keys(ctl.paused),type_counts:tc,content_sha256:digest,
-    note:"Preview only. Real V1 exports are participant-initiated encrypted batches; the package format is still provisional."};
+    excluded_deleted:[...ctl.dead.keys()].length,paused_sources:Object.keys(ctl.paused),
+    sensitive_records:ctl.noSens?"left out":recs.filter(isSens).length+" included",
+    type_counts:tc,records_per_source:sc,declared_gaps_per_source:gaps,findings_review:rv,
+    findings_citing_left_out_records:cites,content_sha256:digest,
+    note:"Preview only. Counts of declared gaps are not counts of missing data: a gap is unknown, not zero. Real V1 exports are participant-initiated encrypted batches; the package format is still provisional."};
   showManifest();
 }
 function showManifest(){

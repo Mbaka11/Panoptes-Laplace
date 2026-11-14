@@ -31,6 +31,8 @@ targets:
         # LOC-01 (when-in-use only). Keys verified in the iOS 27.2 SDK header CLLocationManager.h.
         # Always-and-when-in-use key and UIBackgroundModes are intentionally NOT declared (later step).
         NSLocationWhenInUseUsageDescription: "La sonde Panoptes enregistre la position de ce téléphone lorsque l'application est ouverte, pour évaluer la qualité de la collecte de position. Dans cette version d'essai, les relevés restent en mémoire sur ce téléphone et ne sont ni exportés ni envoyés."
+        # MOT-01. Key name NSMotionUsageDescription is Apple-documented but NOT present in the SDK headers (see mot-01 record).
+        NSMotionUsageDescription: "La sonde Panoptes lit les types de mouvement détectés par le téléphone (marche, immobile, véhicule…) et le nombre de pas, pour vérifier quelles données de mouvement peuvent être collectées. Dans cette version d'essai, les enregistrements restent en mémoire sur ce téléphone et ne sont ni exportés ni envoyés."
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO

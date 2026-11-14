@@ -33,9 +33,9 @@ struct EnvironmentReport {
 struct ContentView: View {
     private let env = EnvironmentReport()
     @State private var location = LocationModule()
+    @State private var motion = MotionModule()
     @Environment(\.scenePhase) private var scenePhase
     private let sources = [
-        Source(id: "MOT-01", name: "Motion", state: .off),
         Source(id: "HLT-01", name: "Health", state: .off),
         Source(id: "EVT-01", name: "Calendar and reminders", state: .off),
         Source(id: "SCT-01", name: "Screen Time (separate gate)", state: .off),
@@ -45,7 +45,7 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("TEST BUILD: not cleared for real data. Location (LOC-01) collects only when you enable it, in memory only, foreground only. Other sources: nothing collected, no permission requested.")
+                    Text("TEST BUILD: not cleared for real data. Location (LOC-01) and Motion (MOT-01) collect only when you enable them, in memory only, foreground only. Other sources: nothing collected, no permission requested.")
                         .font(.footnote).foregroundStyle(.orange)
                 }
                 Section("Environment (ENV-01)") {
@@ -64,6 +64,15 @@ struct ContentView: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    NavigationLink {
+                        MotionView(module: motion)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Motion")
+                            Text("MOT-01 · probe state: \(motion.probeState.rawValue) · OS state: \(motion.osLabel)")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     ForEach(sources) { s in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.name)
@@ -75,7 +84,7 @@ struct ContentView: View {
             }
             .navigationTitle("Sensor Probe")
             .onChange(of: scenePhase, initial: true) { _, phase in
-                if phase == .active { location.appDidBecomeActive() } else { location.appDidLeaveForeground() }
+                if phase == .active { location.appDidBecomeActive(); motion.appDidBecomeActive() } else { location.appDidLeaveForeground(); motion.appDidLeaveForeground() }
             }
         }
     }
