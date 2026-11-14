@@ -1,0 +1,4 @@
+// Copy to Config/Local.xcconfig (git-ignored). Never commit it.
+// A bundle identifier unique to your signing team, and your team id (Xcode > Settings > Accounts).
+PRODUCT_BUNDLE_IDENTIFIER = dev.panoptes.sensorprobe
+DEVELOPMENT_TEAM = YOURTEAMID

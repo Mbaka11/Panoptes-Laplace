@@ -28,6 +28,7 @@ Start with the product vision and [decision log](decisions.md). The [vision revi
 | [Investigation catalogue](investigation-catalogue.md) | Provisional candidate investigations, sample units, null criteria, and first pilot picks |
 | [Explorer UI concept](explorer-ui-concept.md) | Provisional ops-room interface concept, lenses, screens, and prototype plan |
 | [Cinematic explorer prototype](../prototypes/explorer-cinematic/README.md) | Particle-corpus, bootstrap-fan, live-training, and provenance-loom lenses on synthetic data (D-039) |
+| [Sensor Probe scaffold](../ios/SensorProbe/README.md) | Minimal SwiftUI app (ENV-01 only; requests nothing), XcodeGen project, build and signing steps (D-044) |
 | [Local explorer server](../explorer/README.md) | Read-only loopback server that builds, validates and serves the synthetic workspaces to the explorer (D-042) |
 | [Insight lenses](insight-lenses.md) | Shifts, observer Mirror and Context findings, contract 0.2 additions, six synthetic profiles, guardrails (D-043) |
 | [Collection results template](templates/collection-probe-result.md) | Unfilled template for recording actual evidence; not a successful test report |

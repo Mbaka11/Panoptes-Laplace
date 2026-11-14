@@ -1,0 +1,33 @@
+# Sensor Probe project definition (XcodeGen). The .xcodeproj is generated, not committed.
+# Provisional, D-044. No capability, entitlement or permission string is declared yet:
+# each module adds its own, after verification against the installed SDK (sensor-probe-spec.md).
+name: SensorProbe
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+options:
+  bundleIdPrefix: com.example.panoptes   # unused for the id itself: see Config/Base.xcconfig and the git-ignored Config/Local.xcconfig
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  SensorProbe:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Sensor Probe
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiresFullScreen: true
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: NO

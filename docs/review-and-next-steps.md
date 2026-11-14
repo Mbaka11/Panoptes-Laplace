@@ -32,7 +32,7 @@ The product must distinguish what available traces **could reveal** from what a 
 | Item | Current knowledge |
 |---|---|
 | Test phone | iPhone 15 Pro, reported by the owner |
-| Installed iOS | 26.6.1, reported by the owner; not inspected here |
+| Installed iOS | 26.6.1; **confirmed 2026-11-13** by `xcrun devicectl` (build 23G83), paired over USB, Developer Mode enabled |
 | Device location | Canada |
 | Apple Account country/region | Not separately established; Canadian device location already prevents assuming EU customer eligibility |
 | Development Mac | Available with Xcode, reported by the owner |

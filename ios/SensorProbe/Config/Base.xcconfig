@@ -1,0 +1,4 @@
+// Committed defaults. Local, owner-specific values go in Local.xcconfig (git-ignored, see Local.xcconfig.example).
+PRODUCT_BUNDLE_IDENTIFIER = com.example.panoptes.SensorProbe
+DEVELOPMENT_TEAM =
+#include? "Local.xcconfig"

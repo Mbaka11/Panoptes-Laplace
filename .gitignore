@@ -24,3 +24,10 @@ __pycache__/
 
 # Local scratch space (research files, inspiration media); never committed
 /temp/
+
+# Native probe: generated Xcode project and build output (project.yml is the source)
+/ios/**/*.xcodeproj/
+/ios/**/build/
+/ios/**/DerivedData/
+xcuserdata/
+/ios/**/Local.xcconfig
