@@ -59,6 +59,9 @@ class ApiTests(ServerCase):
         resp, data = self.request("GET", "/api/workspaces/profile-sparse/metrics")
         metrics = json.loads(data)["metrics"]
         self.assertTrue(all(v == "unknown" for v in metrics["sleep_duration"].values()))
+        sources = json.loads(data)["metric_sources"]
+        self.assertNotIn("sleep_duration", sources)  # no producer: no derivation claimed
+        self.assertEqual(sources["steps"], ["DailyHealthAggregate"])
 
     def test_workspace_document_matches_spike_builder_and_checked_in_file(self):
         resp, data = self.request("GET", "/api/workspaces/persona")

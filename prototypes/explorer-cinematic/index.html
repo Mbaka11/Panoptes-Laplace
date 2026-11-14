@@ -140,6 +140,17 @@ pre.man{font:400 10.5px/1.5 var(--f-data);color:var(--ink);white-space:pre-wrap;
 .dtpl{list-style:none;margin:0;padding:0;display:grid;gap:3px;font:400 11.5px/1.4 var(--f-data)}
 .dtar{display:inline-block;width:14px;font-size:9px} .dtar.up{color:var(--amber)} .dtar.dn{color:var(--acc)}
 .dtsr{position:absolute;left:-9999px}
+.lmck{list-style:none;margin:0;padding:0;font:400 10.5px/1.45 var(--f-data)}
+.lmck li{display:grid;grid-template-columns:14px 1fr;gap:4px;padding:3px 0;border-bottom:1px solid var(--rule)}
+.lmck li>span:first-child{font-weight:600}.lmck .ok,.lmck li.ok>span:first-child{color:var(--ok)}.lmck .bad,.lmck li.bad>span:first-child{color:var(--warn)}
+.lmck .warn,.lmck li.warn>span:first-child{color:var(--amber)}.lmck li.info>span:first-child{color:var(--acc)}
+span.lmck{font:inherit}
+.lmtr{display:flex;flex-direction:column;gap:2px}.lmtr .lbl2{font:500 9.5px var(--f-data);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:6px}
+.lmst{text-align:left;text-transform:none;letter-spacing:0;white-space:normal;overflow-wrap:anywhere;padding:4px 6px;font:400 10.5px/1.35 var(--f-data)}
+.lmst[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
+.lmsm{list-style:none;margin:4px 0;padding:0;font:400 10px/1.4 var(--f-data);overflow-wrap:anywhere}.lmsm li{padding:3px 0;border-bottom:1px solid var(--rule)}.lmsm .mut{color:var(--dim)}
+.lmlab{display:flex;flex-direction:column;gap:4px;font:500 9.5px var(--f-data);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}.lmlab select{width:100%;text-transform:none;letter-spacing:0}
+.lmgo{border-color:var(--acc);background:rgba(159,230,255,.06);margin-top:10px}
 .dtmir{display:block;width:100%;text-align:left;text-transform:none;letter-spacing:0;white-space:normal;padding:6px 8px;border:1px solid var(--violet);background:rgba(196,155,255,.06);color:var(--ink);font:400 11px/1.4 var(--f-data);margin-top:4px}
 .dtcall{white-space:normal}
 .dtsil{width:100%;height:auto;display:block} .dtsil rect{fill:var(--faint)} .dtsil rect.on{fill:var(--acc)} .dtsil text{font:400 8.5px var(--f-data);fill:var(--dim)} .dtsil .v{fill:var(--ink)}
@@ -241,7 +252,7 @@ const ENTITY=new Set(["Source","Place","App","Domain","ImportBatch"]);
 /* ============ data ============ */
 let D,R,byId={},T0,T1,NODES=[],NIDX={},EDGES=[],ADJ=[],HUBS=[],FINDINGS=[];
 let DS="persona";try{DS=sessionStorage.getItem("panoptes-ds")||"persona"}catch(e){}
-let ORIGIN="static",WSLIST=[{key:"persona",label:"EX-01 persona",workspace_id:"ws-demo-01"},{key:"fixtures",label:"Fixture export",workspace_id:"fixtures"}],METRICS=null;
+let ORIGIN="static",WSLIST=[{key:"persona",label:"EX-01 persona",workspace_id:"ws-demo-01"},{key:"fixtures",label:"Fixture export",workspace_id:"fixtures"}],METRICS=null,MSRC=null;
 async function loadList(){
   /* The selector is fed by the server; a plain static server keeps the two checked-in workspaces. */
   try{const r=await fetch("/api/workspaces");if(r.ok&&(r.headers.get("content-type")||"").includes("json")){const j=await r.json();if(j&&Array.isArray(j.workspaces)&&j.workspaces.length)WSLIST=j.workspaces}}catch(e){}
@@ -249,7 +260,7 @@ async function loadList(){
 }
 async function loadMetrics(){
   if(ORIGIN!=="api")return;
-  try{const r=await fetch("/api/workspaces/"+encodeURIComponent(DS)+"/metrics");if(r.ok&&(r.headers.get("content-type")||"").includes("json")){const j=await r.json();if(j&&j.metrics&&typeof j.metrics==="object")METRICS=j.metrics}}catch(e){}
+  try{const r=await fetch("/api/workspaces/"+encodeURIComponent(DS)+"/metrics");if(r.ok&&(r.headers.get("content-type")||"").includes("json")){const j=await r.json();if(j&&j.metrics&&typeof j.metrics==="object"){METRICS=j.metrics;MSRC=j.metric_sources&&typeof j.metric_sources==="object"?j.metric_sources:null}}}catch(e){}
 }
 async function loadData(){
   /* Prefer the local explorer server (python -m explorer.server), which builds and validates
@@ -985,84 +996,227 @@ function renderTrainPanel(){
 }
 function enterTrain(){size2d();if(!tr.data){buildTrainData();initNet()}renderTrainPanel()}
 
-/* ============ LENS: LOOM (provenance chains) ============ */
-const COLS=["Source","Import batch","Observation","Normalized event","Finding","Participant correction"];
-const loom={f:0,k:0,t:0,chains:[]};
-function chainsFor(f){
+/* ============ LENS: LOOM (provenance audit) ============ */
+/* One finding, traced back to the records it stands on. Threads are bundled per record type and
+   import batch (width = record count), the computed daily metric is a visible step, findings that
+   rest on other findings are drawn as further columns, and a set of checks is re-run in the browser. */
+const loom={fid:null,sel:null,t:0,G:null,R:null,hit:[]};
+const LM_ENV=new Set(["id","type","workspace_id","source_id","evidence_class","granularity","timezone","import_batch_id","provenance","event_time","event_start","event_end","summable"]);
+const LM_WEAK={gated:"gated",unproven:"unproven",partly_unproven:"partly unproven"};
+let LM_CORR=null;
+function lmCorr(){if(LM_CORR)return LM_CORR;LM_CORR={};
+  R.forEach(l=>{if(l.type!=="Link"||l.link_type!=="CORROBORATED_BY")return;const a=byId[l.from],b=byId[l.to];if(!a||!b)return;
+    const o=a.evidence_class==="observation"?a:b,e=o===a?b:a;if(o.evidence_class!=="observation"||e.evidence_class==="observation")return;(LM_CORR[e.id]=LM_CORR[e.id]||[]).push(o.id)});
+  return LM_CORR}
+function lmParents(f){return[].concat(f.rests_on||[],f.motivated_by_ids||[]).filter(id=>byId[id]&&byId[id].type==="Finding")}
+function lmDtMeta(){return(D.meta&&D.meta.insights&&D.meta.insights.day_types)||null}
+function lmMetrics(f){const k=f.finding_kind;
+  if(k==="shift")return f.metric?[f.metric]:[];
+  if(k==="lagged_association")return[f.x_metric,f.y_metric].filter(Boolean);
+  if(k==="day_type")return(f.portrait||[]).map(p=>p.metric);  /* evidence is published for the portrait features */
+  return[]}
+function lmSrcOf(m){if(!MSRC)return null;if(MSRC[m])return MSRC[m];
+  if(m==="total_messages"){const s=new Set();Object.keys(MSRC).forEach(k=>{if(k.startsWith("messages_"))MSRC[k].forEach(t=>s.add(t))});return s.size?[...s]:[]}
+  return[]}
+function lmDay(r){return String(r.event_time||r.event_start||r.window_start||"").slice(0,10)}
+function lmBuild(f){
+  const N=new Map(),E=new Map(),depth={},order=[],missing=[],done=new Set(),corr=lmCorr();
+  const node=(id,col,o)=>{let n=N.get(id);if(!n){n=Object.assign({id,col,recs:[]},o);N.set(id,n)}return n};
+  const edge=(a,b,w,rel)=>{const k=a+"\u0001"+b,e=E.get(k);if(e)e.w+=w;else E.set(k,{a,b,w,rel})};
+  const walk=(x,stack)=>{if(depth[x.id]!=null)return depth[x.id];if(stack.has(x.id))return 0;stack.add(x.id);
+    let d=0;lmParents(x).forEach(id=>{d=Math.max(d,1+walk(byId[id],stack))});stack.delete(x.id);depth[x.id]=d;order.push(x);return d};
+  walk(f,new Set());
+  const lift=r=>{const obs=r.evidence_class==="observation",g=(obs?"O:":"E:")+r.type+"|"+(r.import_batch_id||"none");
+    const gn=node(g,obs?"obs":"evt",{kind:obs?"obs":"evt",rtype:r.type,batch:r.import_batch_id||null});
+    if(done.has(r.id))return g;done.add(r.id);gn.recs.push(r);
+    const co=obs?[]:(corr[r.id]||[]).map(id=>byId[id]).filter(Boolean);
+    if(co.length){co.forEach(o=>edge(lift(o),g,1,"corroborated by"));return g}
+    const s=byId[r.source_id],sid="S:"+(r.source_id||"unknown");node(sid,"src",{kind:"src",rec:s||null});
+    if(r.import_batch_id){const bid="B:"+r.import_batch_id;node(bid,"batch",{kind:"batch",rec:byId[r.import_batch_id]||null});edge(sid,bid,1,"imported in");edge(bid,g,1,"contains")}
+    else edge(sid,g,1,"no import batch");
+    return g};
+  order.forEach(x=>{
+    const fid="F:"+x.id;node(fid,"f"+depth[x.id],{kind:"finding",rec:x,depth:depth[x.id]});
+    lmParents(x).forEach(p=>edge("F:"+p,fid,1,(x.rests_on||[]).includes(p)?"rests on":"motivated by"));
+    const ms=lmMetrics(x),fed=new Set();ms.forEach(m=>node("M:"+m,"metric",{kind:"metric",metric:m}));
+    const ev=(x.supporting_evidence_ids||[]).map(id=>[id,"supports"]).concat((x.contradicting_evidence_ids||[]).map(id=>[id,"contradicts"]));
+    ev.forEach(([id,rel])=>{const r=byId[id];if(!r){missing.push(id);return}
+      const g=lift(r),tg=rel==="supports"?ms.filter(m=>{const s=lmSrcOf(m);return!s||s.includes(r.type)}):[];
+      if(tg.length)tg.forEach(m=>{edge(g,"M:"+m,1,"computed into");fed.add(m)});else edge(g,fid,1,rel)});
+    ms.forEach(m=>{edge("M:"+m,fid,1,"tested by");N.get("M:"+m).fed=fed.has(m)});
+  });
   const cor=R.find(r=>r.type==="Correction"&&r.target_id===f.id);
-  const ev=(f.supporting_evidence_ids||[]).map(id=>({id,rel:"supports"})).concat((f.contradicting_evidence_ids||[]).map(id=>({id,rel:"contradicts"})));
-  const links=R.filter(r=>r.type==="Link");
-  return ev.filter(e=>byId[e.id]).map(e=>{const r=byId[e.id];let obs=null,evt=null;
-    if(r.evidence_class==="observation")obs=r;else{evt=r;const l=links.find(l=>(l.from===r.id||l.to===r.id)&&l.link_type==="CORROBORATED_BY");
-      if(l){const o=byId[l.from===r.id?l.to:l.from];if(o&&o.evidence_class==="observation")obs=o}}
-    return{rel:e.rel,nodes:[byId[r.source_id],byId[r.import_batch_id]||null,obs,evt,f,cor||null]}});
+  node("V:"+f.id,"review",{kind:"review",rec:cor||null});edge("F:"+f.id,"V:"+f.id,1,cor?"corrected by":"awaiting review");
+  const maxD=depth[f.id]||0,cols=["src","batch","obs","evt","metric"];for(let d=0;d<=maxD;d++)cols.push("f"+d);cols.push("review");
+  const used=cols.filter(c=>[...N.values()].some(n=>n.col===c));
+  const byCol={};used.forEach(c=>byCol[c]=[]);N.forEach(n=>byCol[n.col].push(n));
+  return{f,N,E:[...E.values()],cols:used,byCol,order,depth,missing,cor};
 }
-function loomSetup(){
-  const f=FINDINGS[loom.f];let ch=chainsFor(f);loom.needs=null;
-  if(!ch.length){[].concat(f.motivated_by_ids||[],f.rests_on||[]).forEach(id=>{if(byId[id])ch=ch.concat(chainsFor(byId[id]).map(c=>(c.nodes[4]=byId[id],c.nodes[5]=f,c.rel=f.rests_on?"rests on":"motivates",c)))});
-    loom.needs=f.needs_evidence||(f.finding_kind==="insufficient"?[(f.missing?"missing: "+f.missing:"")+(f.reason?(f.missing?" · ":"")+f.reason:"")||"not enough data"]:ch.length?null:["more evidence"])}
-  loom.f_=f;
-  loom.chains=ch;loom.k=0;loom.t=0;
-  loom.cols=COLS.map((_,c)=>{const ids=[];ch.forEach(x=>{const n=x.nodes[c];if(n&&!ids.includes(n.id))ids.push(n.id)});return ids});
-}
-function colX(c,g){return g.w<600?g.x+14+c*(g.w-40)/(COLS.length-1):g.x+40+c*(g.w-200)/(COLS.length-1)}
-function loomPos(c,id,a){const ids=loom.cols[c],i=ids.indexOf(id),n=ids.length,x=colX(c,a);
-  return[x,n<=1?a.y+a.h*.5:a.y+a.h*.16+i*(a.h*.68)/(n-1)]}
-function chainPts(ch,a){const out=[];ch.nodes.forEach((n,c)=>{if(n)out.push({c,n,p:loomPos(c,n.id,a)})});return out}
-function curve(p0,p1,t){const mx=(p0[0]+p1[0])/2,u=1-t;return[u*u*u*p0[0]+3*u*u*t*mx+3*u*t*t*mx+t*t*t*p1[0],u*u*u*p0[1]+3*u*u*t*p0[1]+3*u*t*t*p1[1]+t*t*t*p1[1]]}
-function nodeText(n,c){
-  if(c===0)return"SRC · "+n.name;
-  if(c===1)return"IB · "+n.id+" · SHA "+(n.content_digest_sha256||"").slice(0,8);
-  if(c===4)return(n.evidence_class==="hypothesis"?"HYP · ":"INF · ")+n.id+(n.statistic?" · "+n.statistic.name.replace(/_/g," ")+" "+n.statistic.value:"");
-  if(c===5)return n.type==="Correction"?"COR · "+n.status+" · "+n.effect.replace(/_/g," "):"HYP · "+n.id;
-  return n.id+" · "+(n.provenance?n.provenance.method.replace(/_/g," ")+" v"+n.provenance.method_version:"");
-}
+function lmColName(c,G){
+  if(c==="src")return"Source";if(c==="batch")return"Import batch";if(c==="obs")return"Observations";if(c==="evt")return"Normalized events";
+  if(c==="metric")return"Daily metric · computed";if(c==="review")return"Participant review";
+  const ns=G.byCol[c]||[],hyp=ns.length&&ns.every(n=>n.rec.evidence_class==="hypothesis");return hyp?"Hypothesis":(c==="f0"?"Inference":"Inference · derived")}
+function lmFTag(x){const k=x.finding_kind||x.evidence_class||"finding";return(x.evidence_class==="hypothesis"?"HYP":"INF")+" · "+k.replace(/_/g," ")}
+function lmLabel(n){const r=n.rec;
+  if(n.kind==="src")return(r?r.name:n.id.slice(2))+(r&&LM_WEAK[r.real_world_status]?" · "+LM_WEAK[r.real_world_status]:"");
+  if(n.kind==="batch")return n.id.slice(2)+(r&&r.content_digest_sha256?" · "+r.content_digest_sha256.slice(0,8):" · no digest");
+  if(n.kind==="obs"||n.kind==="evt")return n.recs.length+" × "+n.rtype;
+  if(n.kind==="metric")return mname(n.metric)+(n.fed===false?" · not linked":"");
+  if(n.kind==="finding")return r.id+" · "+(r.evidence_class==="hypothesis"?"HYP ":"")+String(r.finding_kind||r.evidence_class).replace(/_/g," ");
+  return r?"correction · "+String(r.effect||r.status||"").replace(/_/g," "):"not reviewed yet"}
+function lmColor(n){return n.kind==="finding"?(n.rec.evidence_class==="hypothesis"?"#c49bff":"#ffc860"):n.kind==="review"?(n.rec?"#ffffff":"#7d888e"):n.kind==="metric"?"#9fe6ff":n.kind==="src"&&n.rec&&LM_WEAK[n.rec.real_world_status]?"#ffb45e":"#ff9f5a"}
+function lmLinked(G,id){const up=new Set([id]),dn=new Set([id]);let ch=true;
+  while(ch){ch=false;G.E.forEach(e=>{if(dn.has(e.a)&&!dn.has(e.b)){dn.add(e.b);ch=true}if(up.has(e.b)&&!up.has(e.a)){up.add(e.a);ch=true}})}
+  return new Set([...up,...dn])}
+
+/* --- browser-side re-computation (independent of the engine's numbers) --- */
+function lmMed(a){const s=a.slice().sort((x,y)=>x-y),n=s.length;return n?(n%2?s[n>>1]:(s[n/2-1]+s[n/2])/2):null}
+function lmSeries(m){if(!METRICS||!METRICS[m])return null;return Object.keys(METRICS[m]).sort().map(d=>[d,typeof METRICS[m][d]==="number"?METRICS[m][d]:null])}
+function lmRanks(v){const ix=v.map((x,i)=>i).sort((a,b)=>v[a]-v[b]),r=new Array(v.length);
+  for(let i=0;i<ix.length;){let j=i;while(j+1<ix.length&&v[ix[j+1]]===v[ix[i]])j++;for(let k=i;k<=j;k++)r[ix[k]]=(i+j)/2+1;i=j+1}return r}
+function lmPearson(a,b){const n=a.length,ma=a.reduce((s,x)=>s+x,0)/n,mb=b.reduce((s,x)=>s+x,0)/n;let sab=0,sa=0,sb=0;
+  for(let i=0;i<n;i++){const x=a[i]-ma,y=b[i]-mb;sab+=x*y;sa+=x*x;sb+=y*y}return sa&&sb?sab/Math.sqrt(sa*sb):0}
+function lmDeseason(days,vals){const g={};days.forEach((d,i)=>{const w=new Date(d+"T12:00:00Z").getUTCDay();(g[w]=g[w]||[]).push(vals[i])});
+  if(Object.keys(g).length<7||Object.values(g).some(x=>x.length<3))return vals.slice();
+  const md={};Object.keys(g).forEach(w=>md[w]=lmMed(g[w]));return days.map((d,i)=>vals[i]-md[new Date(d+"T12:00:00Z").getUTCDay()])}
+const lmClose=(a,b,tol)=>a!=null&&b!=null&&Math.abs(a-b)<=tol;
+function lmRecompute(x){
+  const k=x.finding_kind;
+  if(k==="shift"){const s=lmSeries(x.metric);if(!s)return{st:"skip",t:"daily series not loaded (static file), so not re-computed"};
+    const c=x.statistic_center||"median",b=x.baseline||{},a=x.after||{},win=w=>s.filter(([d,v])=>v!=null&&w&&d>=w.start&&d<=w.end).map(p=>p[1]);
+    const vb=win(b.window),va=win(a.window),agg=c==="mean"?(v=>v.length?v.reduce((p,q)=>p+q,0)/v.length:null):lmMed,rb=agg(vb),ra=agg(va);
+    const ok=lmClose(rb,b[c],Math.max(.51,Math.abs(b[c]||0)*.002))&&lmClose(ra,a[c],Math.max(.51,Math.abs(a[c]||0)*.002))&&vb.length===b.n&&va.length===a.n;
+    return{st:ok?"ok":"bad",t:`${c} before ${fmtN(rb)} (n ${vb.length}) and after ${fmtN(ra)} (n ${va.length}) re-computed from the daily series${ok?", matching the finding":`; the finding says ${fmtN(b[c])} (n ${b.n}) and ${fmtN(a[c])} (n ${a.n})`}`}}
+  if(k==="lagged_association"){const sx=lmSeries(x.x_metric),sy=lmSeries(x.y_metric);if(!sx||!sy)return{st:"skip",t:"daily series not loaded, so not re-computed"};
+    if(x.y_metric==="office_visit"||x.restricted)return{st:"skip",t:"restricted to usual office weekdays; not re-computed in the browser"};
+    const lag=x.lag_days||0,idx=[];for(let i=0;i+lag<sx.length;i++)if(sx[i][1]!=null&&sy[i+lag][1]!=null)idx.push(i);
+    const xs=lmDeseason(idx.map(i=>sx[i][0]),idx.map(i=>sx[i][1])),ys=lmDeseason(idx.map(i=>sy[i+lag][0]),idx.map(i=>sy[i+lag][1]));
+    const rho=lmPearson(lmRanks(xs),lmRanks(ys)),ok=lmClose(rho,x.rho,.006)&&idx.length===x.n;
+    return{st:ok?"ok":"bad",t:`Spearman ρ ${fmtN(Math.round(rho*1000)/1000)} on ${idx.length} day pairs re-computed${ok?", matching the finding":`; the finding says ${fmtN(x.rho)} on ${x.n}`}`}}
+  if(k==="day_type"||k==="day_type_trend"){const dm=lmDtMeta();if(!dm)return{st:"skip",t:"no day-type metadata"};
+    const un=new Set(dm.unclassified_days||[]),all=[];for(let d=0;d<NDAYS;d++)all.push(dateOf(d));const cls=all.filter(d=>!un.has(d));
+    const t=k==="day_type"?x:byId[(x.rests_on||[])[0]];if(!t||!t.days)return{st:"skip",t:"the day type it rests on is missing"};const mem=new Set(t.days);
+    if(k==="day_type"){const sh=cls.length?t.days.length/cls.length:null,ok=t.days.length===t.n_days&&lmClose(sh,t.share,.006);
+      return{st:ok?"ok":"bad",t:`${t.days.length} member days of ${cls.length} classified days (${dtPct(sh)})${ok?", matching the finding":`; the finding says ${t.n_days} (${dtPct(t.share)})`}`}}
+    const bef=cls.filter(d=>d<x.change_day),aft=cls.filter(d=>d>=x.change_day),sb=bef.length?bef.filter(d=>mem.has(d)).length/bef.length:null,sa=aft.length?aft.filter(d=>mem.has(d)).length/aft.length:null;
+    const ok=lmClose(sb,x.share_before,.006)&&lmClose(sa,x.share_after,.006);
+    return{st:ok?"ok":"bad",t:`share of ${t.type_key} days ${dtPct(sb)} before and ${dtPct(sa)} after ${esc(x.change_day)} re-computed from the member days${ok?", matching the finding":`; the finding says ${dtPct(x.share_before)} and ${dtPct(x.share_after)}`}`}}
+  return null}
+function lmChecks(G){
+  const C=[],f=G.f,ev=G.order.reduce((s,x)=>s+(x.supporting_evidence_ids||[]).length+(x.contradicting_evidence_ids||[]).length,0);
+  (f.needs_evidence||[]).forEach(t=>C.push({st:"warn",t:"needs evidence: "+esc(t)+". Until then it stays an untested hypothesis"}));
+  if(f.finding_kind==="insufficient")C.push({st:"info",t:`not enough data: ${esc(f.missing||"unknown source")}${f.reason?" · "+esc(f.reason):""}. Nothing is drawn where nothing was measured; unknown is not zero`});
+  if(f.finding_kind==="day_types_none")C.push({st:"info",t:`a null result: best silhouette ${f.best_silhouette!=null?fmtN(f.best_silhouette):"—"} is below the threshold, so no day types are claimed`});
+  if(!ev&&!lmParents(f).length&&f.finding_kind!=="insufficient"&&f.finding_kind!=="day_types_none"&&!(f.needs_evidence||[]).length)C.push({st:"warn",t:"this finding cites no evidence records and rests on no other finding"});
+  if(G.missing.length)C.push({st:"bad",t:`${G.missing.length} of ${ev} evidence ids do not resolve to a record in this workspace`});
+  else if(ev)C.push({st:"ok",t:`all ${ev} evidence references resolve to records in this workspace`});
+  const recs=[...G.N.values()].filter(n=>n.kind==="obs"||n.kind==="evt").flatMap(n=>n.recs),noProv=recs.filter(r=>!r.provenance||!r.provenance.method).length,noIb=recs.filter(r=>r.evidence_class==="observation"&&!r.import_batch_id).length;
+  if(recs.length)C.push(noProv||noIb?{st:"warn",t:`${noProv} records without a provenance method, ${noIb} observations without an import batch`}:{st:"ok",t:`${recs.length} distinct records, each with a provenance method and line${G.byCol.batch?" and an import batch":""}`});
+  const bs=(G.byCol.batch||[]).map(n=>n.rec).filter(Boolean),nd=bs.filter(b=>!b.content_digest_sha256).length;
+  if(bs.length)C.push(nd?{st:"warn",t:`${nd} of ${bs.length} import batches have no content digest`}:{st:"ok",t:`${bs.length} import batch${bs.length>1?"es":""}, each with a SHA-256 content digest`});
+  const srcs=(G.byCol.src||[]).map(n=>n.rec).filter(Boolean),weak=srcs.filter(s=>LM_WEAK[s.real_world_status]);
+  if(weak.length)C.push({st:"warn",t:`rests on ${weak.map(s=>esc(s.name)+" ("+LM_WEAK[s.real_world_status]+")").join(", ")}: in reality this path is not proven. Synthetic availability is not a capability claim`});
+  G.order.filter(x=>(x.sources_required||[]).length).forEach(x=>{const req=new Set(x.sources_required),reach=new Set([...lmLinked(G,"F:"+x.id)].filter(id=>id.startsWith("S:")).map(id=>id.slice(2)));
+    const miss=[...req].filter(s=>!reach.has(s)),extra=[...reach].filter(s=>!req.has(s));
+    C.push(miss.length?{st:"bad",t:`${esc(x.id)} declares ${miss.map(esc).join(", ")} as required, but no evidence reaches it from there`}
+      :{st:extra.length?"warn":"ok",t:`${esc(x.id)} declares ${[...req].map(esc).join(", ")}; the threads reach exactly ${extra.length?"those plus "+extra.map(esc).join(", "):"those sources"}`})});
+  G.order.forEach(x=>{const r=lmRecompute(x);if(r)C.push({st:r.st,t:esc(x.id)+": "+r.t})});
+  const W=f.input_window||{};srcs.forEach(s=>{const mp=(s.missing_periods||[]).filter(p=>!W.start||String(p.end).slice(0,10)>=W.start&&String(p.start).slice(0,10)<=(W.end||"9"));
+    if(mp.length)C.push({st:"info",t:`${esc(s.name)} declares ${mp.length} missing period${mp.length>1?"s":""} in the window (${esc(String(mp[0].kind||mp[0].reason||"gap").replace(/_/g," "))}); those days are unknown, not zero`})});
+  const dm=lmDtMeta();G.order.filter(x=>x.finding_kind==="day_type").slice(0,1).forEach(x=>{if(dm&&dm.features)C.push({st:"info",t:`day types were clustered on ${dm.features.length} features (${dm.features.map(mname).map(esc).join(", ")}); evidence records are published only for the portrait features shown in the threads`})});
+  if(G.order.some(x=>x.causal_claim===true))C.push({st:"bad",t:"a finding in this chain claims causation"});else C.push({st:"ok",t:"no finding in this chain claims causation"});
+  C.push(G.cor?{st:"ok",t:`participant correction recorded: ${esc(String(G.cor.effect||"").replace(/_/g," "))}`}:{st:"info",t:`not reviewed by the participant yet (${esc(f.participant_review_status||"unreviewed")}); they can correct or reject it`});
+  return C}
+
+/* --- layout and drawing --- */
+function lmLayout(g){const G=loom.G,vert=g.w<600,nc=G.cols.length,P={};
+  G.cols.forEach((c,ci)=>{const ns=G.byCol[c],n=ns.length;
+    ns.forEach((nd,i)=>{const t=n<=1?.5:.08+i*.84/(n-1);
+      P[nd.id]=vert?[g.x+12+t*(g.w-24),g.y+16+ci*(g.h-30)/Math.max(1,nc-1)]:[g.x+4+ci*(g.w-120)/Math.max(1,nc-1),g.y+20+t*(g.h-40)]})});
+  return{P,vert,sp:(g.w-120)/Math.max(1,nc-1)}}
+function lmPt(p0,p1,t,vert){const u=1-t;if(vert){const my=(p0[1]+p1[1])/2;return[u*u*u*p0[0]+3*u*u*t*p0[0]+3*u*t*t*p1[0]+t*t*t*p1[0],u*u*u*p0[1]+3*u*u*t*my+3*u*t*t*my+t*t*t*p1[1]]}
+  const mx=(p0[0]+p1[0])/2;return[u*u*u*p0[0]+3*u*u*t*mx+3*u*t*t*mx+t*t*t*p1[0],u*u*u*p0[1]+3*u*u*t*p0[1]+3*u*t*t*p1[1]+t*t*t*p1[1]]}
 function frameLoom(now,dt){
-  const a=area();X.clearRect(0,0,innerWidth,innerHeight);
-  const g={x:a.x,y:a.y+26,w:a.w,h:a.h-40};
-  X.font=mono(9.5);X.textBaseline="top";
-  COLS.forEach((c,i)=>{const x=colX(i,g);X.strokeStyle="rgba(150,172,184,.10)";X.beginPath();X.moveTo(x+.5,g.y);X.lineTo(x+.5,g.y+g.h);X.stroke();
-    X.fillStyle="#7d888e";X.fillText(g.w<600?"D"+i:("D"+i+" · "+c).toUpperCase(),x-6,a.y)});
-  X.globalCompositeOperation="lighter";
-  const r=mulberry(9);
-  loom.chains.forEach(ch=>{const P=chainPts(ch,g);for(let rep=0;rep<7;rep++){const j=(r()-.5)*14;
-    X.strokeStyle=ch.rel==="contradicts"?"rgba(255,93,108,.06)":"rgba(255,140,90,.055)";X.lineWidth=1;X.beginPath();
-    for(let s=0;s+1<P.length;s++){const p0=[P[s].p[0],P[s].p[1]+j],p1=[P[s+1].p[0],P[s+1].p[1]+j];if(!s)X.moveTo(p0[0],p0[1]);X.bezierCurveTo((p0[0]+p1[0])/2,p0[1],(p0[0]+p1[0])/2,p1[1],p1[0],p1[1])}
-    X.stroke()}});
-  X.globalCompositeOperation="source-over";
-  if(!loom.chains.length){const f=FINDINGS[loom.f],g2=g;X.font=mono(11);X.fillStyle="#9aa6ad";X.textBaseline="middle";
-    const msg=f.finding_kind==="insufficient"?"NOT ENOUGH DATA · "+String(f.missing||"unknown source").toUpperCase():"NO EVIDENCE CHAIN YET";
-    X.fillText(msg,g2.x+20,g2.y+g2.h*.45);X.font=mono(10,400);X.fillStyle="#5d676c";X.fillText("Unknown is not zero. Nothing is drawn where nothing was measured.",g2.x+20,g2.y+g2.h*.45+20);
-    ST.innerHTML=`Loom · ${esc(f.id)} · no chains · unknown is not zero · synthetic`;return}
-  loom.t+=dt*(REDUCED?10:.55);if(loom.t>2.2){loom.t=0;loom.k=(loom.k+1)%loom.chains.length}
-  const ch=loom.chains[loom.k],P=chainPts(ch,g),prog=clamp(loom.t/1.1,0,1)*(P.length-1);
-  X.strokeStyle=ch.rel==="contradicts"?"#ff5d6c":"#ffffff";X.lineWidth=1.6;X.beginPath();X.moveTo(P[0].p[0],P[0].p[1]);
-  for(let s=0;s+1<P.length;s++){const seg=clamp(prog-s,0,1);if(seg<=0)break;const gap=P[s+1].c-P[s].c>1;if(gap)X.setLineDash([4,4]);
-    for(let q=1;q<=16;q++){const pt=curve(P[s].p,P[s+1].p,q/16*seg);X.lineTo(pt[0],pt[1])}X.stroke();X.setLineDash([]);X.beginPath();const e=curve(P[s].p,P[s+1].p,seg);X.moveTo(e[0],e[1])}
-  P.forEach((q,s)=>{if(s>prog+.01)return;X.fillStyle="#fff";X.beginPath();X.arc(q.p[0],q.p[1],3,0,7);X.fill();
-    const t=nodeText(q.n,q.c),up=s%2===0;box(clamp(q.p[0]-20,g.x,g.x+g.w-260),q.p[1]+(up?-18:18),t.length>44?t.slice(0,43)+"…":t,q.c===4?"#ffc860":q.c===5?"#ffffff":"#ff9f5a")});
-  for(let c=2;c<=3;c++)if(!ch.nodes[c]){const x=colX(c,g);X.font=mono(9.5);X.fillStyle="#5d676c";X.fillText("— NOT LINKED —",x-8,g.y+g.h*.5+28)}
-  if(loom.needs){const x=g.x+g.w-150,y=g.y+g.h*.82;X.setLineDash([3,4]);X.strokeStyle="#ff5d6c";X.beginPath();X.moveTo(P[P.length-1].p[0],P[P.length-1].p[1]);X.lineTo(x,y);X.stroke();X.setLineDash([]);
-    const nl=String(loom.needs[0]||"more evidence").toUpperCase();box(Math.min(x-60,g.x+g.w-300),y+14,"NEEDS EVIDENCE · "+(nl.length>34?nl.slice(0,33)+"…":nl),"#ff5d6c")}
-  ST.innerHTML=`Loom · ${esc(FINDINGS[loom.f].id)} · chain <em>${loom.k+1}/${loom.chains.length}</em> · ${ch.rel} · evidence class ladder D0→D5 · dashed = level skipped, not linked in this workspace · synthetic`;
+  const a=area();X.clearRect(0,0,innerWidth,innerHeight);if(!loom.G)return;
+  const G=loom.G,g={x:a.x,y:a.y+22,w:a.w,h:a.h-30},{P,vert,sp}=lmLayout(g),lk=loom.sel?lmLinked(G,loom.sel):null;
+  loom.t+=REDUCED?0:dt;
+  X.font=mono(9.5);X.textBaseline="top";X.fillStyle="#7d888e";
+  G.cols.forEach((c,ci)=>{const nm=lmColName(c,G).toUpperCase(),p=P[G.byCol[c][0].id];
+    if(vert){X.fillText(nm,g.x,p[1]-15)}else{let t=nm;const mw=ci===G.cols.length-1?g.x+g.w-p[0]:sp-8;while(t.length>3&&X.measureText(t).width>mw)t=t.slice(0,-1);X.fillText(t===nm?t:t.slice(0,-1)+"…",p[0],a.y)}});
+  G.E.forEach(e=>{const p0=P[e.a],p1=P[e.b];if(!p0||!p1)return;const on=!lk||(lk.has(e.a)&&lk.has(e.b));
+    const col=e.rel==="contradicts"?"255,93,108":e.rel==="rests on"||e.rel==="motivated by"?"196,155,255":e.rel==="awaiting review"?"125,136,142":"255,170,100";
+    X.strokeStyle=`rgba(${col},${on?.42:.07})`;X.lineWidth=Math.min(9,1+1.6*Math.log10(1+e.w)*(on?1.4:1));
+    if(e.rel==="awaiting review")X.setLineDash([3,4]);X.beginPath();X.moveTo(p0[0],p0[1]);
+    for(let q=1;q<=20;q++){const pt=lmPt(p0,p1,q/20,vert);X.lineTo(pt[0],pt[1])}X.stroke();X.setLineDash([]);
+    if(on&&!REDUCED&&e.rel!=="awaiting review"){const k=Math.min(5,1+Math.round(Math.log10(1+e.w)*2));X.fillStyle=`rgba(${col},.9)`;
+      for(let j=0;j<k;j++){const t=((loom.t*.35+j/k)%1),pt=lmPt(p0,p1,t,vert);X.fillRect(pt[0]-1,pt[1]-1,2,2)}}});
+  loom.hit=[];X.font=mono(10);
+  G.cols.forEach((c,ci)=>{const ns=G.byCol[c],span=vert?(g.w-24)/Math.max(1,ns.length):(g.h-40)/Math.max(1,ns.length);
+    ns.forEach(n=>{const p=P[n.id],col=lmColor(n),dim=lk&&!lk.has(n.id),sel=loom.sel===n.id;X.globalAlpha=dim?.35:1;
+      let t=lmLabel(n);const maxW=vert?Math.max(0,span-6):ci===G.cols.length-1?g.x+g.w-p[0]:Math.max(40,sp-8);
+      const showText=vert?(span>=40||sel):(span>=15||sel);
+      if(showText){while(t.length>4&&X.measureText(t).width+12>maxW)t=t.slice(0,-2);if(t!==lmLabel(n))t=t.slice(0,-1)+"…"}
+      if(showText&&t.length>3){const bx=vert?clamp(p[0]-X.measureText(t).width/2-6,g.x,g.x+g.w-X.measureText(t).width-12):p[0],w=box(bx,p[1],t,col,sel?col:null);loom.hit.push({id:n.id,x:bx,y:p[1]-9,w,h:18})}
+      else{X.fillStyle=col;X.beginPath();X.arc(p[0],p[1],sel?5:3.5,0,7);X.fill();loom.hit.push({id:n.id,x:p[0]-8,y:p[1]-8,w:16,h:16})}
+      X.globalAlpha=1})});
+  const sn=loom.sel&&G.N.get(loom.sel);
+  ST.innerHTML=`Loom · ${esc(G.f.id)} · ${G.N.size} steps in ${G.cols.length} columns${sn?" · selected <em>"+esc(lmLabel(sn))+"</em>":""} · thread width = record count · synthetic`;
+}
+
+/* --- panel --- */
+function lmDetail(n){if(!n)return`<p class="note">Choose a step in the trail or on the canvas to see what it holds.</p>`;const r=n.rec;
+  if(n.kind==="src"){if(!r)return`<p>Source ${esc(n.id.slice(2))} is not described in this workspace.</p>`;
+    return`<dl class="kv">${kvr("source",esc(r.name)+" · "+esc(r.id))}${kvr("system",esc(r.system||"—"))}${kvr("real-world status",`<span class="badge ${esc(r.real_world_status)}">${esc(String(r.real_world_status||"—").replace(/_/g," "))}</span>`)}
+      ${kvr("availability",esc(r.availability||"—"))}${kvr("coverage",esc(r.coverage_status||"—"))}${kvr("missing periods",(r.missing_periods||[]).length?(r.missing_periods||[]).map(p=>esc(String(p.start).slice(0,10)+" → "+String(p.end).slice(0,10)+" · "+String(p.kind||"").replace(/_/g," "))).join("<br>"):"none declared")}</dl>`}
+  if(n.kind==="batch"){if(!r)return`<p>Import batch ${esc(n.id.slice(2))} is referenced but not present.</p>`;
+    return`<dl class="kv">${kvr("batch",esc(r.id))}${kvr("imported",esc(r.import_time||"—"))}${kvr("covers",esc(String(r.window_start||"?").slice(0,10))+" → "+esc(String(r.window_end||"?").slice(0,10)))}${kvr("status",esc(r.status||"—")+(r.duplicate_of?" · duplicate of "+esc(r.duplicate_of):""))}${kvr("SHA-256",`<span style="font-size:9.5px">${esc(r.content_digest_sha256||"none")}</span>`)}</dl>
+    <p class="note">The digest identifies the exact export file. Re-importing the same file gives the same digest, so duplicates can be detected.</p>`}
+  if(n.kind==="obs"||n.kind==="evt"){const ds=n.recs.map(lmDay).filter(Boolean).sort(),smp=n.recs.slice(0,4);
+    return`<dl class="kv">${kvr("records",n.recs.length+" × "+esc(n.rtype))}${kvr("class",n.kind==="obs"?"observation":"normalized event")}${kvr("batch",esc(n.batch||"none"))}${ds.length?kvr("dates",esc(ds[0])+" → "+esc(ds[ds.length-1])):""}</dl>
+    <div class="lbl2">First ${smp.length} records</div><ul class="lmsm">${smp.map(x=>`<li><b>${esc(x.id)}</b> · ${esc(lmDay(x))}<br>${esc(Object.keys(x).filter(k=>!LM_ENV.has(k)).slice(0,5).map(k=>k+" "+(typeof x[k]==="object"?JSON.stringify(x[k]):x[k])).join(" · "))}<br><span class="mut">from ${esc(x.provenance?x.provenance.source+" · "+x.provenance.method+" v"+x.provenance.method_version+" · "+x.provenance.line_or_record:"no provenance")}</span></li>`).join("")}</ul>`}
+  if(n.kind==="metric"){const s=lmSeries(n.metric),src=lmSrcOf(n.metric);
+    let svg="";if(s){const v=s.map(p=>p[1]).filter(x=>x!=null),lo=Math.min(...v),hi=Math.max(...v),W=240,H=60,xs=i=>4+i*(W-8)/Math.max(1,s.length-1),ys=x=>H-6-(hi>lo?(x-lo)/(hi-lo):.5)*(H-12);
+      const sh=G_SHIFT(n.metric);svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Daily ${esc(mname(n.metric))}: ${v.length} known days">${s.map((p,i)=>p[1]==null?`<line x1="${xs(i)}" x2="${xs(i)}" y1="${H-8}" y2="${H-2}" stroke="#ff5d6c" stroke-width="1"/>`:`<circle cx="${xs(i)}" cy="${ys(p[1])}" r="1.6" fill="#9fe6ff"/>`).join("")}${sh?`<line x1="${xs(s.findIndex(p=>p[0]>=sh.change_day))}" x2="${xs(s.findIndex(p=>p[0]>=sh.change_day))}" y1="2" y2="${H-2}" stroke="#ffc860" stroke-dasharray="3 3"/>`:""}</svg>`}
+    const kn=s?s.filter(p=>p[1]!=null).length:0;
+    return`<dl class="kv">${kvr("metric",esc(mname(n.metric)))}${kvr("computed from",src?(src.length?src.map(esc).join(", "):"not published by the engine"):"unknown (static file)")}${s?kvr("known days",kn+" of "+s.length+" · "+(s.length-kn)+" unknown, not zero"):""}</dl>${svg}
+    <p class="note">A computed series, never stored as an observation. ${n.fed===false?"No evidence record of this finding was matched to it, so the thread is not drawn.":"Red ticks are unknown days. A dashed line marks a reported change day."}</p>`}
+  if(n.kind==="finding"){const rc=lmRecompute(r);
+    return`<p>${esc(r.statement||"")}</p><dl class="kv">${kvr("kind",esc(lmFTag(r)))}${kvr("method",esc(r.method||"")+" v"+esc(r.method_version||""))}${r.q_value!=null?kvr("p / q",fmtN(r.p_value!=null?r.p_value:r.permutation_p)+" / "+fmtN(r.q_value)):""}${kvr("evidence",(r.supporting_evidence_ids||[]).length+" supporting · "+(r.contradicting_evidence_ids||[]).length+" contradicting")}${(r.rests_on||[]).length?kvr("rests on",r.rests_on.map(esc).join(", ")):""}${rc?kvr("re-computed",`<span class="lmck ${rc.st}">${rc.t}</span>`):""}</dl>
+    <button type="button" class="dtmir" data-lmopen="${esc(r.id)}">Open in the ${r.finding_kind==="observer_inference"||r.finding_kind==="suggestion"?"Mirror":"Shifts"} inspector</button>`}
+  return r?`<p class="note">“${esc(r.participant_text||"")}”</p><dl class="kv">${kvr("effect",esc(String(r.effect||"").replace(/_/g," ")))}${kvr("status",esc(r.status||""))}</dl>`
+    :`<p>Nobody has reviewed this finding yet.</p><p class="note">The participant can confirm, correct or reject any finding. A correction is stored as its own record and shown here, without rewriting the original.</p>`}
+function G_SHIFT(m){return FINDINGS.find(f=>f.finding_kind==="shift"&&f.metric===m)||null}
+function lmDefault(){const H=FINDINGS.filter(f=>f.evidence_class==="hypothesis"&&lmParents(f).length);
+  const deep=H.map(f=>({f,d:lmBuild(f).cols.length})).sort((a,b)=>b.d-a.d)[0];return(deep?deep.f:FINDINGS[0]||{}).id}
+function loomSetup(){
+  if(loom.R!==R){loom.R=R;LM_CORR=null}
+  if(!loom.fid||!byId[loom.fid])loom.fid=lmDefault();
+  const f=byId[loom.fid];loom.G=f?lmBuild(f):null;if(loom.sel&&!(loom.G&&loom.G.N.has(loom.sel)))loom.sel=null;
 }
 function renderLoomPanel(){
-  const f=FINDINGS[loom.f],st=f.statistic||{},cor=R.find(r=>r.type==="Correction"&&r.target_id===f.id);
-  L.innerHTML=`<h2>Finding <span>${FINDINGS.length}</span></h2>
-  <div class="seg">${FINDINGS.map((x,i)=>`<button type="button" data-f="${i}" aria-pressed="${i===loom.f}" title="${esc(x.finding_kind||"")}">${esc(x.id.replace("finding-","").replace("ins-","I"))} · ${esc((x.finding_kind||x.evidence_class).replace(/_/g," ").slice(0,5))}</button>`).join("")}</div>
-  <p>${esc(f.statement)}</p>
-  <dl class="kv"><dt>class</dt><dd>${esc(f.evidence_class)}</dd><dt>method</dt><dd>${esc(f.method)} v${esc(f.method_version)}</dd>
-  ${st.name?`<dt>${esc(st.name.replace(/_/g," "))}</dt><dd>${esc(st.value)}</dd>`:""}
-  <dt>confidence</dt><dd>${esc(typeof f.confidence==="object"?(f.confidence.level||JSON.stringify(f.confidence)):f.confidence||"—")}</dd>
-  ${f.uncertainty?`<dt>uncertainty</dt><dd>${esc(f.uncertainty)}</dd>`:""}
-  <dt>chains</dt><dd>${loom.chains.length}</dd>
-  ${f.finding_kind?`<dt>kind</dt><dd>${esc(f.finding_kind.replace(/_/g," "))}</dd>`:""}
-  ${(f.rests_on||[]).length?`<dt>rests on</dt><dd>${f.rests_on.map(esc).join(", ")}</dd>`:""}</dl>
-  ${cor?`<h2>Participant correction</h2><p class="note">“${esc(cor.participant_text)}” · ${esc(cor.effect.replace(/_/g," "))}</p>`:""}
-  ${loom.needs?`<div class="verdict no">Needs evidence: ${esc(loom.needs.join("; "))}</div>`:""}
-  <p class="note">Each thread follows one piece of evidence from its source, through the import batch, up the evidence ladder to the finding. The white thread replays them one after another.</p>`;
-  L.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{loom.f=+b.dataset.f;loomSetup();renderLoomPanel()});
+  const G=loom.G;if(!G){L.innerHTML=`<h2>Loom</h2><p>No findings in this workspace.</p>`;return}
+  const f=G.f,groups={};FINDINGS.forEach(x=>{const k=(x.finding_kind||x.evidence_class||"finding").replace(/_/g," ");(groups[k]=groups[k]||[]).push(x)});
+  const C=lmChecks(G),bad=C.filter(c=>c.st==="bad").length,warn=C.filter(c=>c.st==="warn").length;
+  const trail=G.cols.map(c=>`<div class="lbl2">${esc(lmColName(c,G))}</div>`+G.byCol[c].map(n=>`<button type="button" class="lmst" data-lmsel="${esc(n.id)}" aria-pressed="${loom.sel===n.id}">${esc(lmLabel(n))}</button>`).join("")).join("");
+  L.innerHTML=`<h2>Loom <span>provenance audit</span></h2>
+  <label class="lmlab">Finding <select id="lmF">${Object.keys(groups).map(k=>`<optgroup label="${esc(k)}">${groups[k].map(x=>`<option value="${esc(x.id)}"${x.id===f.id?" selected":""}>${esc(x.id)} · ${esc(findingBriefL(x))}</option>`).join("")}</optgroup>`).join("")}</select></label>
+  <p>${esc(f.statement||"")}</p>
+  <h2>Checks <span>${bad?bad+" failed":warn?warn+" to note":"all pass"}</span></h2>
+  <ul class="lmck">${C.map(c=>`<li class="${c.st}"><span aria-hidden="true">${c.st==="ok"?"✓":c.st==="bad"?"✗":c.st==="warn"?"!":"i"}</span><span class="dtsr">${c.st==="ok"?"pass":c.st==="bad"?"fail":c.st==="warn"?"note":"info"}: </span>${c.t}</li>`).join("")}</ul>
+  <h2>Selected <span>step</span></h2><div id="lmD">${lmDetail(loom.sel&&G.N.get(loom.sel))}</div>
+  <h2>Trail <span>${G.N.size} steps</span></h2><div class="lmtr">${trail}</div>
+  <p class="note">Read left to right: where the data came from, which export file, which records, which computed daily series, which test, and what was concluded. Checks are re-run in this browser from the published records and series; they do not trust the engine's own numbers.</p>`;
+  $("#lmF").onchange=e=>{loom.fid=e.target.value;loom.sel=null;loomSetup();renderLoomPanel()};
 }
+function findingBriefL(x){return typeof findingBrief==="function"?findingBrief(x):(x.finding_kind||"")}
+function lmSelect(id){loom.sel=loom.sel===id?null:id;renderLoomPanel();const b=L.querySelector(`[data-lmsel="${CSS.escape(id)}"]`);if(b&&loom.sel)b.scrollIntoView({block:"nearest"});
+  if(innerWidth<=820&&loom.sel)L.classList.add("open")}
+L.addEventListener("click",e=>{if(lens!=="loom")return;const s=e.target.closest("[data-lmsel]");if(s){lmSelect(s.dataset.lmsel);return}
+  const o=e.target.closest("[data-lmopen]");if(o){const f=byId[o.dataset.lmopen];if(!f)return;if(f.finding_kind==="observer_inference"||f.finding_kind==="suggestion")goMirror(f.id);else{setLens("shifts");if(location.hash.slice(1)!=="shifts")location.hash="shifts";openFinding(f.id,null)}}});
+C2.addEventListener("click",e=>{if(lens!=="loom")return;const h=loom.hit.find(h=>e.clientX>=h.x&&e.clientX<=h.x+h.w&&e.clientY>=h.y&&e.clientY<=h.y+h.h);if(h)lmSelect(h.id)});
+C2.addEventListener("mousemove",e=>{if(lens!=="loom")return;C2.style.cursor=loom.hit.some(h=>e.clientX>=h.x&&e.clientX<=h.x+h.w&&e.clientY>=h.y&&e.clientY<=h.y+h.h)?"pointer":""});
+function goLoom(id){loom.fid=id;loom.sel=null;setLens("loom");if(location.hash.slice(1)!=="loom")location.hash="loom";else{loomSetup();renderLoomPanel()}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-loom]");if(!b)return;e.stopPropagation();goLoom(b.dataset.loom)},true);
 function enterLoom(){size2d();loomSetup();renderLoomPanel()}
 
 /* ============ LENS: CLUSTERS (live k-means over days) ============ */
@@ -1354,11 +1508,12 @@ function findingInspector(f){
   }
   R_.push(kvr("method",esc(f.method||"")+" v"+esc(f.method_version||"")),kvr("confidence",esc(typeof f.confidence==="object"&&f.confidence?(f.confidence.level+" · "+f.confidence.basis):f.confidence||"—")),
     kvr("status",esc(f.status||"")+" · review "+esc(f.participant_review_status||"unreviewed")),kvr("causal claim","none (always false)"),
-    kvr("supporting records",(f.supporting_evidence_ids||[]).length+" (see Corpus or Loom)"));
+    kvr("supporting records",(f.supporting_evidence_ids||[]).length+" (traced in Loom)"));
   return`<h2>Finding <span>${esc(f.id)}</span></h2><p>${esc(f.statement||"")}</p><dl class="kv">${R_.join("")}</dl>
   ${f.uncertainty?`<h2>Uncertainty</h2><p class="note">${esc(f.uncertainty)}</p>`:""}
   ${(f.alternatives||[]).length?`<h2>Alternative explanations</h2><div class="note">${listHtml(f.alternatives)}</div>`:""}
-  ${f.finding_kind==="day_type"?dtMirrorHtml(f)+'<p class="note">A measured portrait of similar days, not a label for the person.</p>':f.finding_kind==="day_type_trend"?'<p class="note">Descriptive change in how often days look like this; cause not identified. The p-value is optimistic because the types were fitted on the same days.</p>':f.finding_kind==="shift"?'<p class="note">Descriptive change; cause not identified.</p>':f.finding_kind==="lagged_association"?'<p class="note">Correlation, not causation.</p>':""}`;
+  ${f.finding_kind==="day_type"?dtMirrorHtml(f)+'<p class="note">A measured portrait of similar days, not a label for the person.</p>':f.finding_kind==="day_type_trend"?'<p class="note">Descriptive change in how often days look like this; cause not identified. The p-value is optimistic because the types were fitted on the same days.</p>':f.finding_kind==="shift"?'<p class="note">Descriptive change; cause not identified.</p>':f.finding_kind==="lagged_association"?'<p class="note">Correlation, not causation.</p>':""}
+  <button type="button" class="dtmir lmgo" data-loom="${esc(f.id)}">Trace in Loom: sources, records, checks</button>`;
 }
 function openFinding(id,metric){
   ins.fid=id||null;ins.metric=metric||null;renderInsightRight();

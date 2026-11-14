@@ -84,6 +84,8 @@ Apple's documented membership and regional restrictions are recorded as evidence
 
 **D-043 follow-up, 2026-11-11 (day types):** the Clusters lens becomes a Day types lens. The engine (`spikes.insights` 0.2) clusters days on weekday-adjusted robust features, reports a null when the best silhouette is below 0.25, checks bootstrap stability, portrays each type in original units, scans each stable type's frequency for a trend, and feeds a sensitive `state_timing` Mirror hypothesis. Results on the six profiles are in [the run record](results/insight-profiles-synthetic.md). The 0.25 gate is a heuristic, and trend p-values are optimistic because types are fitted on the days being tested. No existing decision is superseded.
 
+**D-039/D-043 follow-up, 2026-11-11 (Loom as provenance audit):** on the engine profiles a finding cites up to about 400 records, so one thread per record was unreadable, and Mirror hypotheses two levels deep (`state_timing` → trend → day type) showed no chain at all. Loom now bundles threads per record type and import batch, shows the computed daily metric as its own step, follows `rests_on` to any depth, and lists checks that the browser re-computes independently from the published records and `/metrics` series (which now also returns `metric_sources`). On all synthetic workspaces every re-computation matched the engine. Checks verify consistency of the published workspace; they do not validate the method or the data's truth. No existing decision is superseded.
+
 
 **Mac preflight, 2026-11-04:** the owner reported macOS 15.7.9 (build 24G830); `xcodebuild -version` failed because Command Line Tools, not Xcode, is the active developer directory. D-027 remains open until an Xcode version is reported.
 

@@ -246,8 +246,11 @@ class ExplorerHandler(BaseHTTPRequestHandler):
                 return self._json(HTTPStatus.OK, ws.summary())
             if parts[2] == "metrics":
                 # Daily metrics as computed by the insight engine; "unknown" stays a string, never 0.
+                # metric_sources names the record types each computed series is derived from (Loom provenance).
+                m = insights.compute_metrics(ws.document)
                 return self._json(HTTPStatus.OK, {"workspace": ws.key, "engine": insights.ENGINE, "version": insights.VERSION,
-                                                  "metrics": insights.daily_metrics(ws.document)})
+                                                  "metrics": m.public(),
+                                                  "metric_sources": {k: list(v) for k, v in sorted(m.source_types.items())}})
             if parts[2] == "validation":
                 problems = explorer_export.validate_contract(ws.document)
                 return self._json(HTTPStatus.OK, {"workspace": ws.key, "valid": not problems, "problems": problems})

@@ -34,7 +34,7 @@ Each document must pass `explorer_export.validate_contract` and carry `meta.synt
 | `GET /api/workspaces` | one summary per workspace: id, contract version, window, record and type counts, SHA-256 of the served body |
 | `GET /api/workspaces/{key}` | the full contract document (`{meta, records}`) |
 | `GET /api/workspaces/{key}/summary` | the summary alone |
-| `GET /api/workspaces/{key}/metrics` | daily metric series from the insight engine, `{metric: {date: number or "unknown"}}` |
+| `GET /api/workspaces/{key}/metrics` | daily metric series from the insight engine, `{metric: {date: number or "unknown"}}`, plus `metric_sources` `{metric: [record types]}` naming what each computed series is derived from (used by the Loom lens) |
 | `GET /api/workspaces/{key}/validation` | `{valid, problems}` from the contract validator |
 
 Anything else is a JSON 404. `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS` return 405.
